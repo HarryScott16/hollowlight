@@ -9,7 +9,7 @@ export function createEnemy(game, type, dist, wave, hpMul) {
     x: 0, y: 0, ang: 0, dist, off: (game.rand() - 0.5) * Math.min(20, 34 - def.r),
     hp, maxHp: hp, shield: 0, maxShield: 0,
     speed: def.speed, curSpeed: def.speed, r: def.r, alive: true, leaked: false,
-    flash: 0, wob: game.rand() * 6.28,
+    flash: 0, hitT: 0, frozenAmp: 0, wob: game.rand() * 6.28,
     // status effects
     slowT: 0, slowF: 0, freezeT: 0, freezeImm: 0, stunT: 0,
     markT: 0, markPct: 0, brittleT: 0, brittlePct: 0,
@@ -28,6 +28,7 @@ export function applySlow(e, factor, dur) {
 
 export function updateEnemy(game, e, dt) {
   if (e.flash > 0) e.flash -= dt;
+  if (e.hitT > 0) e.hitT -= dt;
   if (e.slowT > 0) e.slowT -= dt;
   if (e.freezeT > 0) e.freezeT -= dt;
   if (e.freezeImm > 0) e.freezeImm -= dt;

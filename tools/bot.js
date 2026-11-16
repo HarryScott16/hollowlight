@@ -2,7 +2,7 @@
 // how each one fares. Usage: node tools/bot.js [strategyName] [-v]
 import { Game } from '../public/js/sim/game.js';
 import { TOWERS } from '../public/js/data/towers.js';
-import { upgradeInfo } from '../public/js/sim/towers.js';
+import { upgradeInfo, computeStats, estimateDps } from '../public/js/sim/towers.js';
 
 const STEP = 1 / 60;
 const verbose = process.argv.includes('-v');
@@ -73,6 +73,19 @@ function bestSpot(game, spots, type) {
   return best;
 }
 
+// Builds up to the strategy's tower count, then buys the upgrade with the best estimated power
+// gained per gold, saving up for it when it can't afford it yet (like a player chasing a tier 3/4).
+function upgradeValue(t, pi) {
+  const info = upgradeInfo(t, pi);
+  if (!info.ok) return null;
+  const tiers = t.tiers.slice();
+  tiers[pi]++;
+  const gain = estimateDps(t.def.kind, computeStats(t.def, tiers)) - estimateDps(t.def.kind, t.stats);
+  // Frost spires are worth more than their own damage: they multiply everyone else's.
+  const util = t.def.kind === 'pulse' ? 3 : 1;
+  return { t, pi, cost: info.up.cost, value: (gain * util) / info.up.cost };
+}
+
 function spend(game, strat, spots, state) {
   for (let guard = 0; guard < 50; guard++) {
     if (game.towers.length < strat.maxTowers(game.wave)) {
@@ -83,18 +96,23 @@ function spend(game, strat, spots, state) {
       state.bought++;
       continue;
     }
-    // Cheapest available upgrade along each tower's planned paths.
-    let pick = null;
+    // Save for the best-value upgrade only if about one wave of income will cover it;
+    // otherwise buy the best one affordable now.
+    const lastIncome = game.income[game.wave - 2] || 300;
+    let pick = null, now = null;
     for (const t of game.towers) {
       const plan = strat.paths[t.type];
       if (!plan) continue;
       for (const pi of plan) {
-        const info = upgradeInfo(t, pi);
-        if (info.ok && (!pick || info.up.cost < pick.cost)) pick = { t, pi, cost: info.up.cost };
+        const v = upgradeValue(t, pi);
+        if (!v) continue;
+        if (v.cost <= game.gold + lastIncome && (!pick || v.value > pick.value)) pick = v;
+        if (v.cost <= game.gold && (!now || v.value > now.value)) now = v;
       }
     }
-    if (!pick || game.gold < pick.cost) return;
-    game.upgrade(pick.t, pick.pi);
+    if (pick && game.gold >= pick.cost) { game.upgrade(pick.t, pick.pi); continue; }
+    if (!pick && now) { game.upgrade(now.t, now.pi); continue; }
+    return;
   }
 }
 
@@ -104,20 +122,27 @@ function run(name, strat, seed = 1) {
   const state = { bought: 0 };
   const log = [];
   let maxEnemies = 0;
+  const boss = { result: 'none', cost: 0, time: 0 };
+  const leak = game.leak.bind(game), kill = game.kill.bind(game);
+  game.leak = (e) => { if (e.def.boss) { boss.result = `leaked at ${Math.round(100 * e.hp / e.maxHp)}% hp`; boss.cost = game.leakCost(e); } leak(e); };
+  game.kill = (e, src) => { if (e.def.boss) boss.result = `killed after ${game.time.toFixed(0) - boss.spawn}s`; kill(e, src); };
+  let earlyCalls = 0;
   while (!game.over) {
     spend(game, strat, spots, state);
     const livesBefore = game.lives;
+    const goldBefore = game.gold;
     game.startWave();
     let t = 0, steps = 0;
     while (!game.over && !game.clear) {
       game.step(STEP);
+      if (boss.spawn === undefined && game.enemies.some((e) => e.def.boss)) boss.spawn = Math.round(game.time);
       if (game.enemies.length > maxEnemies) maxEnemies = game.enemies.length;
       if (++steps % 120 === 0) spend(game, strat, spots, state);
       if ((t += STEP) > 900) { log.push('  !! wave timed out'); game.over = 'lose'; break; }
     }
-    log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})  gold ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}`);
+    log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}`);
   }
-  console.log(`${name.padEnd(16)} ${game.over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.totalWaves}  lives ${game.lives}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}`);
+  console.log(`${name.padEnd(16)} ${game.over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}`);
   if (verbose) {
     console.log(log.join('\n'));
     const byType = {};

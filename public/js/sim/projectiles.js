@@ -1,17 +1,54 @@
 // Projectiles, explosions and lingering ground zones. No DOM access.
 const buf = [];
 
+const marks = [];
+function mark(game, e, s, src) {
+  e.markT = Math.max(e.markT, s.markDur);
+  e.markPct = Math.max(e.markPct, s.markPct);
+  if (s.execute && !e.def.boss && e.hp < e.maxHp * s.execute) {
+    game.damage(e, e.hp + e.shield + 1, 'true', src, EXECUTE);
+    if (!e.alive) game.emit('execute', { x: e.x, y: e.y });
+  }
+}
+const EXECUTE = { big: true };
+
 function hitBolt(game, p, e) {
   const s = p.s;
   game.damage(e, p.dmg, s.type, p.src, s.armorPierce ? { armorPierce: s.armorPierce } : null);
-  if (e.alive && s.markPct) {
-    e.markT = Math.max(e.markT, s.markDur);
-    e.markPct = Math.max(e.markPct, s.markPct);
-    if (s.execute && !e.def.boss && e.hp < e.maxHp * s.execute) game.damage(e, e.hp + e.shield + 1, 'true', p.src);
+  if (e.alive && s.knockback && !e.def.boss) e.dist = Math.max(0, e.dist - s.knockback);
+  if (s.markPct) {
+    if (s.markRadius) {
+      game.grid.query(e.x, e.y, s.markRadius, marks);
+      const list = marks.slice();
+      for (const m of list) if (m.alive && game.targetable(m, s)) mark(game, m, s, p.src);
+      game.emit('markburst', { x: e.x, y: e.y, r: s.markRadius });
+    } else if (e.alive) {
+      mark(game, e, s, p.src);
+    }
   }
   p.hit.push(e.id);
   p.homing = false;
-  if (--p.pierce <= 0) p.dead = true;
+  if (--p.pierce > 0) return;
+  // Ricochet: hop to the nearest enemy this bolt hasn't hit yet.
+  if (p.bounces > 0) {
+    game.grid.query(e.x, e.y, 150, marks);
+    let best = null, bestD = Infinity;
+    for (const o of marks) {
+      if (!game.targetable(o, s) || p.hit.includes(o.id)) continue;
+      const d = (o.x - e.x) ** 2 + (o.y - e.y) ** 2;
+      if (d < bestD) { bestD = d; best = o; }
+    }
+    if (best) {
+      p.bounces--;
+      p.pierce = 1;
+      p.target = best;
+      p.homing = true;
+      p.life = 260;
+      p.x = e.x; p.y = e.y;
+      return;
+    }
+  }
+  p.dead = true;
 }
 
 function updateBolt(game, p, dt) {
@@ -26,12 +63,12 @@ function updateBolt(game, p, dt) {
   }
   p.x += p.vx * dt; p.y += p.vy * dt;
   p.life -= p.speed * dt;
-  if (p.life <= 0) { p.dead = true; return; }
-  game.grid.query(p.x, p.y, 40, buf);
+  if (p.life <= 0 || p.x < -60 || p.y < -60 || p.x > game.map.width + 60 || p.y > game.map.height + 60) { p.dead = true; return; }
+  game.grid.query(p.x, p.y, 40 + 6 * (p.s.boltSize || 1), buf);
   for (let i = 0; i < buf.length && !p.dead; i++) {
     const e = buf[i];
     if (!e.alive || p.hit.includes(e.id) || !game.targetable(e, p.s)) continue;
-    const rr = e.r + 6;
+    const rr = e.r + 4 + 3 * (p.s.boltSize || 1);
     if ((e.x - p.x) ** 2 + (e.y - p.y) ** 2 <= rr * rr) hitBolt(game, p, e);
   }
 }

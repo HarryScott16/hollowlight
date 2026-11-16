@@ -3,7 +3,8 @@
 import { MAP } from '../data/map.js';
 import { RULES } from '../data/rules.js';
 import { TOWERS } from '../data/towers.js';
-import { WAVES } from '../data/waves.js';
+import { WAVES, WAVE_HP } from '../data/waves.js';
+import { ENEMIES } from '../data/enemies.js';
 import { SHIELD_MULT } from '../data/damage.js';
 import { buildMap, mulberry32 } from './path.js';
 import { Grid } from './grid.js';
@@ -44,6 +45,10 @@ export class Game {
     this.earned = 0;
     this.leaked = 0;
     this.kills = 0;
+    this.streak = 0;          // kills chained less than RULES.streakWindow apart
+    this.bestStreak = 0;
+    this.lastKill = -99;
+    this.income = [];         // gold earned per wave (index = wave - 1), for the bot and stats
   }
 
   emit(type, data) {
@@ -68,7 +73,7 @@ export class Game {
     const wave = this.waves[this.wave];
     this.wave++;
     for (const g of wave.groups) {
-      this.spawners.push({ type: g.type, left: g.count, gap: g.gap, t: g.delay || 0, hp: g.hp || 1, wave: this.wave });
+      this.spawners.push({ type: g.type, left: g.count, gap: g.gap, t: g.delay || 0, hp: (g.hp || 1) * (ENEMIES[g.type].boss ? 1 : WAVE_HP(this.wave)), wave: this.wave });
     }
     this.emit('wave', { n: this.wave });
     return true;
@@ -77,6 +82,7 @@ export class Game {
   addGold(n) {
     this.gold += n;
     this.earned += n;
+    if (this.wave > 0) this.income[this.wave - 1] = (this.income[this.wave - 1] || 0) + n;
   }
 
   // ---- towers --------------------------------------------------------------------------------
@@ -107,7 +113,7 @@ export class Game {
     tower.tiers[pi]++;
     tower.stats = computeStats(tower.def, tower.tiers);
     this.refreshGlobals();
-    this.emit('upgrade', { x: tower.x, y: tower.y, path: pi });
+    this.emit('upgrade', { id: tower.id, x: tower.x, y: tower.y, path: pi, tier: tower.tiers[pi], name: info.up.name });
     return true;
   }
 
@@ -191,6 +197,7 @@ export class Game {
     if (e.brittleT > 0 && (type === 'kinetic' || type === 'blast')) amp += e.brittlePct;
     if (e.chargedT > 0 && type === 'arcane') amp += e.chargedPct;
     if (e.scorchT > 0) amp += e.scorchPct;
+    if (e.freezeT > 0) amp += e.frozenAmp || 0;
     let dmg = amount * mult * amp;
     let dealt = 0;
 
@@ -213,7 +220,10 @@ export class Game {
     const dot = opts && opts.dot;
     if (!dot) {
       e.flash = 0.09;
-      if (!(opts && opts.quiet)) this.emit('hit', { x: e.x, y: e.y, dtype: type, resisted: mult < 0.75 });
+      e.hitT = 0.12;
+      if (!(opts && opts.quiet) || dealt >= 40) {
+        this.emit('hit', { x: e.x, y: e.y, dtype: type, resisted: mult < 0.75, amt: dealt, maxHp: e.maxHp, big: !!(opts && opts.big) });
+      }
     }
     if (e.hp <= 0) this.kill(e, src);
     return dealt;
@@ -224,7 +234,15 @@ export class Game {
     this.kills++;
     if (src) src.kills++;
     this.addGold(e.def.gold);
-    this.emit('death', { x: e.x, y: e.y, r: e.r, etype: e.type, gold: e.def.gold, boss: !!e.def.boss });
+    this.emit('death', { x: e.x, y: e.y, r: e.r, etype: e.type, gold: e.def.gold, boss: !!e.def.boss, src: src ? src.id : 0 });
+    this.streak = this.time - this.lastKill <= RULES.streakWindow ? this.streak + 1 : 1;
+    this.lastKill = this.time;
+    if (this.streak > this.bestStreak) this.bestStreak = this.streak;
+    if (this.streak % RULES.streakStep === 0) {
+      const bonus = RULES.streakGold(this.streak);
+      this.addGold(bonus);
+      this.emit('streak', { n: this.streak, gold: bonus });
+    }
     if (e.shatterT > 0) {
       this.pending.push({ x: e.x, y: e.y, r: e.shatterRadius, dmg: e.shatterDmg, src: e.shatterSrc });
     }
@@ -237,10 +255,17 @@ export class Game {
     }
   }
 
+  // Leaks cost lives in proportion to the health the enemy still has (at least 1).
+  leakCost(e) {
+    return Math.max(1, Math.ceil(e.def.lives * Math.max(0, e.hp) / e.maxHp));
+  }
+
   leak(e) {
-    this.lives -= e.def.lives;
+    const cost = this.leakCost(e);
+    this.lives -= cost;
     this.leaked++;
-    this.emit('leak', { amount: e.def.lives, boss: !!e.def.boss });
+    this.streak = 0;
+    this.emit('leak', { amount: cost, boss: !!e.def.boss });
     if (this.lives <= 0) {
       this.lives = 0;
       this.over = 'lose';

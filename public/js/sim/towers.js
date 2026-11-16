@@ -18,6 +18,35 @@ export function computeStats(def, tiers) {
   return s;
 }
 
+// Rough damage per second, used for the upgrade panel and balance reports (the simulation
+// never reads it). `crowd` assumes enemies bunched around the target; otherwise one lone target.
+const CROWD = 6;
+export function estimateDps(kind, s, crowd = true) {
+  if (kind === 'bolt') {
+    const perBolt = crowd ? Math.min(s.pierce, s.lance ? 4 : 2) + (s.bounces || 0) : 1;
+    return s.damage * s.rate * s.shots * perBolt * (1 + (s.markPct || 0));
+  }
+  if (kind === 'mortar') {
+    const hits = crowd ? Math.min(CROWD, 2 * (s.radius / 55) ** 2) : 1;
+    let d = s.damage * hits * s.shells * (1 + (s.cluster || 0) * (crowd ? 0.35 : 0.1));
+    d += (s.burnDps || 0) * (s.burnDur || 0) * hits;
+    d += (s.poolDps || 0) * (s.poolDur || 0) * hits * 0.5 * (s.poolRadiusMul || 1);
+    return d * s.rate * (1 + (s.scorch || 0));
+  }
+  if (kind === 'pulse') {
+    return s.damage * s.rate * (crowd ? Math.min(CROWD, 3 * (s.range / 100)) : 1) + (crowd ? (s.shatterDmg || 0) * 0.5 : 0);
+  }
+  if (kind === 'chain') {
+    let jumps = 0, f = 1;
+    const n = crowd ? Math.min(s.chains, CROWD * 1.5) : 1;
+    for (let j = 0; j < n; j++) { jumps += f; f *= s.falloff; }
+    let d = s.damage * jumps * (crowd ? s.forks : 1);
+    if (s.smiteEvery) d += (s.damage * (s.smiteMul - 1) + (crowd ? s.damage * s.smiteMul * 0.5 * 3 : 0)) / s.smiteEvery;
+    return d * s.rate * (1 + (s.chargedPct || 0));
+  }
+  return 0;
+}
+
 export function createTower(game, type, x, y) {
   const def = TOWERS[type];
   return {
@@ -78,8 +107,10 @@ function bolt(game, t, dt) {
     game.projectiles.push({
       kind: 'bolt', x: t.x + Math.cos(a) * 16, y: t.y + Math.sin(a) * 16,
       vx: Math.cos(a) * s.projSpeed, vy: Math.sin(a) * s.projSpeed, speed: s.projSpeed,
-      target: e, homing: fan === 0, dmg: s.damage, pierce: s.pierce, hit: [],
-      life: s.range * 1.5 + 60, src: t, s, dead: false,
+      target: e, homing: fan === 0 && !s.lance, dmg: s.damage, pierce: s.pierce, hit: [],
+      bounces: s.bounces || 0,
+      // A Siege Lance keeps flying until it leaves the map.
+      life: s.lance ? 1600 : s.range * 1.5 + 60, src: t, s, dead: false,
     });
   }
   game.emit('fire', { x: t.x, y: t.y, ang: t.ang, kind: 'bolt' });
@@ -129,7 +160,9 @@ function pulse(game, t, dt) {
     applySlow(e, s.slow, s.slowDur);
     if (s.brittle) { e.brittleT = s.slowDur; e.brittlePct = Math.max(e.brittlePct, s.brittle); }
     if (s.shatterDmg) { e.shatterT = s.slowDur; e.shatterDmg = s.shatterDmg; e.shatterRadius = s.shatterRadius; e.shatterSrc = t; }
-    if (freeze && !e.def.boss && e.freezeImm <= 0) { e.freezeT = s.freezeDur; e.freezeImm = s.freezeDur + 1.5; }
+    if (freeze && !e.def.boss && e.freezeImm <= 0) {
+      e.freezeT = s.freezeDur; e.freezeImm = s.freezeDur + 1.5; e.frozenAmp = s.frozenAmp || 0;
+    }
     game.damage(e, s.damage, s.type, t, QUIET);
   }
   game.emit('pulse', { x: t.x, y: t.y, r: s.range, freeze });
@@ -155,7 +188,17 @@ function strike(game, t, s, first, smite) {
       }
       if (s.chargedPct) { cur.chargedT = s.chargedDur; cur.chargedPct = s.chargedPct; cur.chargedSlow = s.chargedSlow; }
     }
-    if (j === 0 && smite) dmg = s.damage;
+    if (j === 0 && smite) {
+      // Thunderbolt: the first target's blast also hits everything around it.
+      const r = s.smiteRadius || 0;
+      if (r) {
+        game.grid.query(cur.x, cur.y, r, buf);
+        const around = buf.slice();
+        for (const e of around) if (e !== cur && game.targetable(e, s)) game.damage(e, s.damage * s.smiteMul * 0.5, s.type, t, opts);
+        game.emit('smite', { x: cur.x, y: cur.y, r });
+      }
+      dmg = s.damage;
+    }
     dmg *= s.falloff;
     game.grid.query(cur.x, cur.y, s.jumpRange, buf);
     let best = null, bestD = Infinity;
