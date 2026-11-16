@@ -1,9 +1,21 @@
-// Tower designs, drawn from shapes at the origin. Upgrade tiers visibly change each design.
-// st: { ang, recoil (0-1), time, pulse (0-1) }   tiers: [a, b, c]
+// Tower designs, drawn from shapes at the origin.
+//
+// How upgrades show:
+//   - every tier makes the tower a little bigger, and pips around the base count tiers per path
+//   - tier 2 on a path adds a coloured band to the base
+//   - tier 3 swaps in a design specific to that path (a Ballista looks nothing like a Volley drum)
+//     and adds buttresses to the base
+//   - tier 4 is a bigger capstone design with an animated aura and rune ring in the path colour
+//
+// st: { ang, recoil (0-1), time, pulse (0-1), tx, ty (target offset or null), pop (0-1 upgrade pop) }
 import { PATH_COLORS } from '../data/towers.js';
 
 const TAU = Math.PI * 2;
+const INK = '#1d1030';
+const PATH_DARK = ['#b86a0a', '#0f8fb5', '#7b2fc0'];
+const PATH_LIGHT = ['#ffe0a0', '#b8f6ff', '#ecc8ff'];
 
+// ---- shape helpers --------------------------------------------------------------------------
 function poly(ctx, r, sides, rot = 0) {
   ctx.beginPath();
   for (let i = 0; i < sides; i++) {
@@ -22,178 +34,539 @@ function star(ctx, rOut, rIn, points, rot = 0) {
   ctx.closePath();
 }
 
-// The specialist path (tier 3+) tints the rim; pips around the rim show every tier bought.
-function base(ctx, sides, fill, tiers, rot = 0) {
-  const main = tiers.findIndex((t) => t >= 3);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.ellipse(2, 4, 20, 19, 0, 0, TAU); ctx.fill();
-  poly(ctx, 19, sides, rot);
-  ctx.fillStyle = '#172329'; ctx.fill();
-  ctx.strokeStyle = main >= 0 ? PATH_COLORS[main] : '#52727a';
-  ctx.lineWidth = main >= 0 ? 2.5 : 2;
-  ctx.stroke();
-  poly(ctx, 13.5, sides, rot);
+function circle(ctx, x, y, r) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, TAU);
+}
+
+function fillInk(ctx, fill, w = 2) {
   ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = INK; ctx.lineWidth = w; ctx.stroke();
+}
+
+function rect(ctx, x, y, w, h, fill, lw = 2) {
+  ctx.beginPath(); ctx.rect(x, y, w, h);
+  fillInk(ctx, fill, lw);
+}
+
+// Additive glow made of a few soft discs (cheaper than gradients every frame).
+function glow(ctx, r, color, alpha) {
+  const op = ctx.globalCompositeOperation;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = color;
+  for (const [k, a] of [[1, 0.25], [0.7, 0.35], [0.45, 0.5]]) {
+    ctx.globalAlpha = alpha * a;
+    circle(ctx, 0, 0, r * k); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = op;
+}
+
+function mainPath(tiers) {
+  let best = -1, bt = 0;
+  for (let i = 0; i < 3; i++) if (tiers[i] > bt) { bt = tiers[i]; best = i; }
+  return { main: best, mt: bt };
+}
+
+// ---- shared base ----------------------------------------------------------------------------
+function platform(ctx, sides, rot, body, tiers, st) {
+  const { main, mt } = mainPath(tiers);
+  const col = main >= 0 ? PATH_COLORS[main] : '#8fb8d8';
+  const r = 17 + (mt >= 3 ? 2 : 0) + (mt >= 4 ? 2 : 0);
+
+  ctx.fillStyle = 'rgba(10,40,35,0.45)';
+  ctx.beginPath(); ctx.ellipse(3, 5, r + 2, r, 0, 0, TAU); ctx.fill();
+
+  if (mt >= 4) {
+    // capstone aura: pulsing glow + rotating rune ring
+    glow(ctx, r + 20 + Math.sin(st.time * 3) * 3, col, 0.55);
+    ctx.save();
+    ctx.rotate(st.time * 0.8);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([7, 6]);
+    circle(ctx, 0, 0, r + 11); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = PATH_LIGHT[main];
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * TAU;
+      ctx.save(); ctx.translate(Math.cos(a) * (r + 11), Math.sin(a) * (r + 11)); ctx.rotate(a);
+      ctx.fillRect(-2, -2, 4, 4);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  if (mt >= 3) {
+    // buttresses
+    const n = sides > 8 ? 4 : sides === 6 ? 3 : 4;
+    for (let i = 0; i < n; i++) {
+      const a = rot + Math.PI / n + (i / n) * TAU;
+      ctx.save(); ctx.rotate(a);
+      ctx.beginPath(); ctx.moveTo(r - 4, -6); ctx.lineTo(r + 7, 0); ctx.lineTo(r - 4, 6); ctx.closePath();
+      fillInk(ctx, PATH_DARK[main], 1.8);
+      ctx.restore();
+    }
+  }
+  poly(ctx, r, sides, rot);
+  fillInk(ctx, '#2b3a58', 2.5);
+  poly(ctx, r - 4, sides, rot);
+  ctx.fillStyle = body; ctx.fill();
+  if (mt >= 2) {
+    poly(ctx, r - 1.8, sides, rot);
+    ctx.strokeStyle = col; ctx.lineWidth = 2.6; ctx.stroke();
+  }
+  // tier pips: one dot per tier bought, grouped by path along the bottom edge
   for (let pi = 0; pi < 3; pi++) {
     const n = tiers[pi];
-    ctx.fillStyle = PATH_COLORS[pi];
     for (let k = 0; k < n; k++) {
-      const a = Math.PI / 2 + (pi - 1) * 1.15 + (k - (n - 1) / 2) * 0.27;
-      ctx.beginPath(); ctx.arc(Math.cos(a) * 16.3, Math.sin(a) * 16.3, 2, 0, TAU); ctx.fill();
+      const a = Math.PI / 2 + (pi - 1) * 1.1 + (k - (n - 1) / 2) * 0.26;
+      circle(ctx, Math.cos(a) * (r - 1.5), Math.sin(a) * (r - 1.5), 2.4);
+      fillInk(ctx, PATH_COLORS[pi], 1);
     }
   }
 }
 
-const ART = {
-  // Crossbow turret. A: heavier bow and lance tip. B: more rails. C: sighting gem.
-  bolt(ctx, [a, b, c], st) {
-    base(ctx, 6, '#2c4148', [a, b, c], Math.PI / 6);
-    ctx.rotate(st.ang);
-    const back = st.recoil * 3;
-    const limb = 10 + a * 1.8;
-    ctx.strokeStyle = a >= 3 ? '#ffcf7a' : '#c9a36a';
-    ctx.lineWidth = 2.5 + a * 0.5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(1 - back, -limb);
-    ctx.quadraticCurveTo(10 + a - back, 0, 1 - back, limb);
+// ---- Bolt Ward ------------------------------------------------------------------------------
+function bolt(ctx, tiers, st) {
+  const [a, b, c] = tiers;
+  const { main, mt } = mainPath(tiers);
+  platform(ctx, 6, Math.PI / 6, '#3d72c4', tiers, st);
+  const back = st.recoil * 4;
+
+  if (main === 2 && mt >= 3 && st.tx != null) {
+    // Hunter's laser sight
+    ctx.strokeStyle = mt >= 4 ? 'rgba(220,120,255,0.75)' : 'rgba(210,120,255,0.45)';
+    ctx.lineWidth = mt >= 4 ? 2 : 1.2;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(st.tx, st.ty); ctx.stroke();
+  }
+
+  ctx.rotate(st.ang);
+
+  if (main === 0 && mt >= 3) {
+    // Ballista / Siege Lance: long heavy siege frame
+    const big = mt >= 4;
+    const len = big ? 40 : 32, lim = big ? 22 : 18;
+    rect(ctx, -14 - back, -6, len + 2, 12, big ? '#c48a2a' : '#8a5a2e');
+    rect(ctx, -10 - back, -3, len - 4, 6, '#d9dee8', 1.5);
+    ctx.strokeStyle = INK; ctx.lineWidth = big ? 7 : 6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(4 - back, -lim); ctx.quadraticCurveTo(16 - back, 0, 4 - back, lim); ctx.stroke();
+    ctx.strokeStyle = big ? '#ffd166' : '#e0a050'; ctx.lineWidth = big ? 4.5 : 3.5;
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(240,240,255,0.7)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(1 - back, -limb); ctx.lineTo(-4 - back + st.recoil * 5, 0); ctx.lineTo(1 - back, limb); ctx.stroke();
     ctx.lineCap = 'butt';
-    const rails = b >= 4 ? 5 : b >= 3 ? 3 : b >= 2 ? 2 : 1;
-    ctx.fillStyle = '#8fa6ad';
-    for (let i = 0; i < rails; i++) {
-      const y = (i - (rails - 1) / 2) * 3.6;
-      ctx.fillRect(-7 - back, y - 1.3, 21 + a * 1.5, 2.6);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(4 - back, -lim); ctx.lineTo(-8 + st.recoil * 10, 0); ctx.lineTo(4 - back, lim); ctx.stroke();
+    // loaded bolt
+    const tip = len - 10 - back;
+    ctx.beginPath(); ctx.moveTo(tip + 12, 0); ctx.lineTo(tip, -5); ctx.lineTo(tip, 5); ctx.closePath();
+    fillInk(ctx, big ? '#fff3c4' : '#e8eef5', 1.5);
+    for (const y of [-7, 7]) rect(ctx, -6 - back, y - 2, 6, 4, '#ffae2b', 1.2);
+    if (big) {
+      ctx.save(); ctx.translate(tip + 8, 0);
+      glow(ctx, 14 + Math.sin(st.time * 8) * 2, '#ffcf5a', 0.9);
+      ctx.restore();
     }
-    if (b >= 1) { ctx.fillStyle = PATH_COLORS[1]; ctx.fillRect(-8 - back, -4, 3, 8); }
-    if (a >= 2) {
-      ctx.fillStyle = a >= 4 ? '#fff0c0' : '#e8eef0';
-      const tip = 15 + a * 1.5 - back;
-      ctx.beginPath(); ctx.moveTo(tip + 6, 0); ctx.lineTo(tip, -3 - a * 0.4); ctx.lineTo(tip, 3 + a * 0.4); ctx.closePath(); ctx.fill();
-    }
-    if (c >= 1) {
-      ctx.fillStyle = PATH_COLORS[2];
-      ctx.beginPath(); ctx.arc(-3 - back, 0, 2.5 + c * 0.5, 0, TAU); ctx.fill();
-      if (c >= 3) {
-        ctx.strokeStyle = PATH_COLORS[2]; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(-3 - back, 0, 6.5 + (c - 3) * 2, 0, TAU); ctx.stroke();
-      }
-    }
-  },
+    return;
+  }
 
-  // Squat kiln with a recoiling barrel. A: fatter barrel. B: longer / twin barrels. C: glowing vents.
-  mortar(ctx, [a, b, c], st) {
-    base(ctx, 12, '#3a3230', [a, b, c]);
-    ctx.fillStyle = '#6d5d55';
-    for (let i = 0; i < 4; i++) {
-      const an = i * (TAU / 4) + 0.78;
-      ctx.beginPath(); ctx.arc(Math.cos(an) * 11, Math.sin(an) * 11, 1.8, 0, TAU); ctx.fill();
-    }
-    if (c >= 1) {
-      ctx.fillStyle = c >= 4 ? '#ffd27a' : '#ff8a3c';
-      ctx.globalAlpha = 0.6 + Math.sin(st.time * 6) * 0.2;
-      for (let i = 0; i < Math.min(4, c + 1); i++) {
-        const an = i * (TAU / 4);
-        ctx.beginPath(); ctx.arc(Math.cos(an) * 10.5, Math.sin(an) * 10.5, 1.6 + c * 0.3, 0, TAU); ctx.fill();
+  if (main === 1 && mt >= 3) {
+    // Ricochet Volley / Storm of Bolts: spinning rotary drum(s)
+    const big = mt >= 4;
+    const spin = st.time * (big ? 9 : 6);
+    const barrels = big ? 6 : 4;
+    const drums = big ? [-7, 7] : [0];
+    for (const dy of drums) {
+      for (let i = 0; i < barrels / drums.length + (big ? 0 : 0); i++) {
+        const off = Math.sin(spin + (i / (barrels / drums.length)) * TAU) * (big ? 4 : 6);
+        rect(ctx, -2 - back, dy + off - 1.8, big ? 24 : 21, 3.6, '#a9c4dd', 1.2);
       }
-      ctx.globalAlpha = 1;
+      circle(ctx, -3 - back, dy, big ? 7.5 : 9);
+      fillInk(ctx, '#2fe0ff', 2);
+      ctx.save(); ctx.translate(-3 - back, dy); ctx.rotate(spin);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.moveTo(0, -5); ctx.lineTo(0, 5); ctx.stroke();
+      ctx.restore();
     }
-    ctx.rotate(st.ang);
-    const back = st.recoil * 4;
-    const w = 6 + a * 1.1, len = 13 + (b >= 2 ? 4 : 0) + a * 0.5;
-    const barrels = b >= 3 ? [-w * 0.62, w * 0.62] : [0];
-    for (const y of barrels) {
-      const bw = b >= 3 ? w * 0.72 : w;
-      ctx.fillStyle = '#4d565c';
-      ctx.fillRect(-5 - back, y - bw, len + 5, bw * 2);
-      ctx.fillStyle = a >= 3 ? '#ffb347' : '#8c979e';
-      ctx.fillRect(len - 4 - back, y - bw - 1, 4, bw * 2 + 2);
-      ctx.fillStyle = c >= 1 ? '#ff7a2a' : '#12181b';
-      ctx.beginPath(); ctx.ellipse(len - back, y, 2, bw * 0.7, 0, 0, TAU); ctx.fill();
-    }
-    ctx.fillStyle = '#2a3136';
-    ctx.beginPath(); ctx.arc(-3 - back, 0, w * 0.9, 0, TAU); ctx.fill();
-    if (b >= 1) { ctx.fillStyle = PATH_COLORS[1]; ctx.beginPath(); ctx.arc(-3 - back, 0, 2.2, 0, TAU); ctx.fill(); }
-  },
+    if (big) { ctx.save(); ctx.translate(-3, 0); glow(ctx, 18, '#2fe0ff', 0.5); ctx.restore(); }
+    return;
+  }
 
-  // Ice crystal that slowly turns and flares when it pulses.
-  // A: bright frozen core. B: jagged shards. C: wider halo of drifting motes.
-  rime(ctx, [a, b, c], st) {
-    base(ctx, 8, '#1f3d52', [a, b, c], Math.PI / 8);
-    const flare = st.pulse || 0;
-    const rot = st.time * 0.6;
-    if (c >= 1) {
-      ctx.strokeStyle = `rgba(160,230,255,${0.35 + c * 0.1})`;
-      ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(0, 0, 14 + c, 0, TAU); ctx.stroke();
-      ctx.fillStyle = '#dff8ff';
-      for (let i = 0; i < 2 + c; i++) {
-        const an = -rot * 1.7 + (i / (2 + c)) * TAU;
-        ctx.fillRect(Math.cos(an) * (14 + c) - 1.2, Math.sin(an) * (14 + c) - 1.2, 2.4, 2.4);
+  if (main === 2 && mt >= 3) {
+    // Hunting Party / Death Sentence: hunter's eye on a diamond crossbow
+    const big = mt >= 4;
+    ctx.beginPath(); ctx.moveTo(18 - back, 0); ctx.lineTo(0, -11); ctx.lineTo(-12 - back, 0); ctx.lineTo(0, 11); ctx.closePath();
+    fillInk(ctx, big ? '#5a1c8c' : '#6d2fb0', 2);
+    ctx.strokeStyle = INK; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(4 - back, -15); ctx.quadraticCurveTo(13 - back, 0, 4 - back, 15); ctx.stroke();
+    ctx.strokeStyle = '#e6b3ff'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.lineCap = 'butt';
+    ctx.rotate(-st.ang);
+    if (big) {
+      ctx.save(); ctx.rotate(st.time * 1.5);
+      for (let i = 0; i < 3; i++) {
+        ctx.save(); ctx.rotate((i / 3) * TAU); ctx.translate(16, 0);
+        star(ctx, 5, 2, 4, st.time); fillInk(ctx, '#ecc8ff', 1.2);
+        ctx.restore();
       }
+      ctx.restore();
+      glow(ctx, 16, '#c86bff', 0.7);
     }
-    if (b >= 1) {
-      star(ctx, 12 + b * 1.4 + flare * 2, 4, 4 + b, -rot);
-      ctx.fillStyle = b >= 3 ? '#4fb6e8' : '#3b8fc0'; ctx.fill();
-    }
-    star(ctx, 11 + flare * 3, 4.2, 4, rot);
-    ctx.fillStyle = '#8fdcff'; ctx.fill();
-    ctx.strokeStyle = '#e9fbff'; ctx.lineWidth = 1; ctx.stroke();
-    star(ctx, 6 + a * 0.9, 2.4 + a * 0.4, 4, rot + Math.PI / 4);
-    ctx.fillStyle = a >= 3 ? '#ffffff' : '#c9f2ff'; ctx.fill();
-    if (a >= 2) {
-      ctx.fillStyle = `rgba(255,255,255,${0.25 + flare * 0.5})`;
-      ctx.beginPath(); ctx.arc(0, 0, 3 + a, 0, TAU); ctx.fill();
-    }
-  },
+    ctx.beginPath(); ctx.ellipse(0, 0, 8, 5.5, 0, 0, TAU);
+    fillInk(ctx, '#ffffff', 1.8);
+    circle(ctx, Math.cos(st.ang) * 2.5, Math.sin(st.ang) * 2, 3.4);
+    ctx.fillStyle = big ? '#ff3d7f' : '#c86bff'; ctx.fill();
+    circle(ctx, Math.cos(st.ang) * 2.5, Math.sin(st.ang) * 2, 1.4);
+    ctx.fillStyle = INK; ctx.fill();
+    return;
+  }
 
-  // Stacked coil with a crackling orb and aiming electrode(s).
-  // A: bigger, hotter orb. B: more electrodes. C: orbiting sparks.
-  coil(ctx, [a, b, c], st) {
-    base(ctx, 10, '#2b2a4a', [a, b, c]);
-    ctx.strokeStyle = '#c98a4a';
-    ctx.lineWidth = 2;
-    for (const r of [11.5, 8.5]) { ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke(); }
-    if (c >= 1) {
-      ctx.fillStyle = '#e8d9ff';
-      for (let i = 0; i < c + 1; i++) {
-        const an = st.time * (3 + c) + (i / (c + 1)) * TAU;
-        ctx.fillRect(Math.cos(an) * 12.5 - 1.3, Math.sin(an) * 12.5 - 1.3, 2.6, 2.6);
-      }
-    }
-    ctx.save();
-    ctx.rotate(st.ang);
-    const prongs = b >= 4 ? 3 : b >= 3 ? 2 : 1;
-    ctx.strokeStyle = b >= 1 ? PATH_COLORS[1] : '#9fb6c9';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
+  // Default crossbow, growing with each tier bought.
+  const limb = 11 + a * 2.2 + b * 0.8;
+  ctx.strokeStyle = INK; ctx.lineWidth = 5 + a; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(1 - back, -limb); ctx.quadraticCurveTo(11 + a - back, 0, 1 - back, limb); ctx.stroke();
+  ctx.strokeStyle = a >= 1 ? '#ffb347' : '#d39352'; ctx.lineWidth = 3 + a * 0.8; ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(1 - back, -limb); ctx.lineTo(-5 - back + st.recoil * 6, 0); ctx.lineTo(1 - back, limb); ctx.stroke();
+  const rails = b >= 2 ? 2 : 1;
+  for (let i = 0; i < rails; i++) {
+    const y = (i - (rails - 1) / 2) * 6;
+    rect(ctx, -8 - back, y - 2, 23 + a * 2, 4, b >= 1 ? '#b8f6ff' : '#c9d4e2', 1.5);
+  }
+  if (a >= 1) {
+    const tip = 15 + a * 2 - back;
+    ctx.beginPath(); ctx.moveTo(tip + 6 + a, 0); ctx.lineTo(tip, -3.5 - a * 0.6); ctx.lineTo(tip, 3.5 + a * 0.6); ctx.closePath();
+    fillInk(ctx, '#ffe0a0', 1.2);
+  }
+  if (c >= 1) {
+    circle(ctx, -4 - back, 0, 3 + c);
+    fillInk(ctx, '#c86bff', 1.5);
+    circle(ctx, -4 - back, 0, 1.2 + c * 0.4); ctx.fillStyle = '#fff'; ctx.fill();
+  }
+}
+
+// ---- Mortar Kiln ----------------------------------------------------------------------------
+function mortar(ctx, tiers, st) {
+  const [a, b, c] = tiers;
+  const { main, mt } = mainPath(tiers);
+  platform(ctx, 12, 0, '#c25a3c', tiers, st);
+  const back = st.recoil * 5;
+
+  if (main === 2 && mt >= 3) {
+    // Cluster Kiln / Inferno: glowing furnace that vents fire
+    const big = mt >= 4;
+    const flick = Math.sin(st.time * 13) * 0.15 + 0.85;
+    if (big) glow(ctx, 26, '#ff6a1a', 0.7 * flick);
     ctx.beginPath();
-    for (let i = 0; i < prongs; i++) {
-      const an = (i - (prongs - 1) / 2) * 0.5;
+    for (let i = 0; i < 10; i++) {
+      const an = (i / 10) * TAU, r = (i % 2 ? 12 : 15) + (big ? 3 : 0);
+      ctx.lineTo(Math.cos(an) * r, Math.sin(an) * r);
+    }
+    ctx.closePath();
+    fillInk(ctx, big ? '#4a1a10' : '#5c2c1e', 2.2);
+    // lava cracks
+    ctx.strokeStyle = big ? '#ffd23a' : '#ff8a2a'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const an = (i / 5) * TAU + 0.3;
       ctx.moveTo(Math.cos(an) * 5, Math.sin(an) * 5);
-      ctx.lineTo(Math.cos(an) * (15 + b * 0.5), Math.sin(an) * (15 + b * 0.5));
+      ctx.lineTo(Math.cos(an + 0.2) * 11, Math.sin(an + 0.2) * 11);
     }
     ctx.stroke();
+    circle(ctx, 0, 0, 7 + (big ? 2 : 0));
+    fillInk(ctx, big ? '#fff1a0' : '#ffb347', 2);
+    // flame tongues
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < (big ? 5 : 3); i++) {
+      const an = st.time * 2 + (i / (big ? 5 : 3)) * TAU;
+      const h = (big ? 10 : 6) * (0.7 + Math.sin(st.time * 11 + i * 1.7) * 0.3);
+      ctx.fillStyle = i % 2 ? 'rgba(255,160,40,0.75)' : 'rgba(255,90,20,0.75)';
+      ctx.beginPath(); ctx.ellipse(Math.cos(an) * 6, Math.sin(an) * 6 - h * 0.5, 3, h, 0, 0, TAU); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.rotate(st.ang);
+    rect(ctx, 9 - back, -4, 9, 8, '#3a2a28', 1.8);
+    return;
+  }
+
+  ctx.rotate(st.ang);
+
+  if (main === 1 && mt >= 3) {
+    // Triple Rack / Barrage Battery: racks of tubes
+    const big = mt >= 4;
+    const n = big ? 6 : 3, gap = big ? 5 : 8, h = big ? 4.6 : 7, len = big ? 26 : 24;
+    if (big) { ctx.save(); ctx.translate(4, 0); glow(ctx, 22, '#2fe0ff', 0.45); ctx.restore(); }
+    rect(ctx, -13, -(n * gap) / 2 - 3, 14, n * gap + 6, '#4a5568', 2);
+    for (let i = 0; i < n; i++) {
+      const y = (i - (n - 1) / 2) * gap;
+      const kick = st.recoil * 5 * (i % 2 ? 1 : 0.4);
+      rect(ctx, -9 - kick, y - h / 2, len, h, '#7b8798', 1.5);
+      rect(ctx, len - 13 - kick, y - h / 2 - 1, 4, h + 2, '#2fe0ff', 1.2);
+    }
+    return;
+  }
+
+  if (main === 0 && mt >= 3) {
+    // Earthshaker / Cataclysm: a fat howitzer with reinforcing bands
+    const big = mt >= 4;
+    const w = big ? 12 : 10, len = big ? 26 : 22;
+    circle(ctx, -4, 0, w + 3);
+    fillInk(ctx, '#3c4250', 2.2);
+    rect(ctx, -6 - back, -w, len, w * 2, big ? '#d4a017' : '#6c7686', 2.2);
+    for (const x of [0, 8]) rect(ctx, x - back, -w - 1.5, 3.5, w * 2 + 3, big ? '#fff1b0' : '#ffae2b', 1.4);
+    ctx.beginPath(); ctx.ellipse(len - 6 - back, 0, 3.5, w * 0.8, 0, 0, TAU);
+    fillInk(ctx, big ? '#ff6a1a' : '#1d1030', 1.5);
+    if (big) { ctx.save(); ctx.translate(len - 6 - back, 0); glow(ctx, 12 + st.recoil * 10, '#ffae2b', 0.8); ctx.restore(); }
+    return;
+  }
+
+  // Default kiln barrel, fattening with Big Shells and lengthening with Rapid Loader.
+  const w = 6 + a * 1.4, len = 14 + b * 3;
+  const barrels = b >= 2 ? [-w * 0.6, w * 0.6] : [0];
+  for (const y of barrels) {
+    const bw = b >= 2 ? w * 0.68 : w;
+    rect(ctx, -5 - back, y - bw, len + 5, bw * 2, '#6c7686', 1.8);
+    rect(ctx, len - 4 - back, y - bw - 1.5, 4.5, bw * 2 + 3, a >= 1 ? '#ffae2b' : '#c9d4e2', 1.4);
+    ctx.beginPath(); ctx.ellipse(len - back, y, 2, bw * 0.7, 0, 0, TAU);
+    ctx.fillStyle = c >= 1 ? '#ff7a2a' : INK; ctx.fill();
+  }
+  circle(ctx, -4 - back, 0, w * 0.95);
+  fillInk(ctx, '#3c4250', 1.8);
+  if (c >= 1) {
+    ctx.fillStyle = `rgba(255,140,40,${0.7 + Math.sin(st.time * 8) * 0.3})`;
+    circle(ctx, -4 - back, 0, 2 + c); ctx.fill();
+  }
+}
+
+// ---- Rime Spire -----------------------------------------------------------------------------
+function rime(ctx, tiers, st) {
+  const [a, b, c] = tiers;
+  const { main, mt } = mainPath(tiers);
+  platform(ctx, 8, Math.PI / 8, '#2a8fd8', tiers, st);
+  const flare = st.pulse || 0;
+  const rot = st.time * 0.6;
+
+  if (main === 0 && mt >= 3) {
+    // Flash Freeze / Absolute Zero: a solid ice monolith
+    const big = mt >= 4;
+    glow(ctx, (big ? 30 : 20) + flare * 12, '#8fe8ff', big ? 0.7 : 0.45);
+    poly(ctx, big ? 15 : 12.5, 8, Math.PI / 8 + (big ? rot * 0.3 : 0));
+    fillInk(ctx, '#bff3ff', 2.2);
+    poly(ctx, big ? 10 : 8, 8, Math.PI / 8);
+    ctx.fillStyle = '#5fd0ff'; ctx.fill();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-6, -8); ctx.lineTo(2, -2); ctx.moveTo(-8, 2); ctx.lineTo(-2, 0); ctx.stroke();
+    star(ctx, 5 + flare * 4, 2, 6, -rot);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    if (big) {
+      for (let i = 0; i < 6; i++) {
+        const an = rot * 1.5 + (i / 6) * TAU;
+        ctx.save(); ctx.translate(Math.cos(an) * 24, Math.sin(an) * 24);
+        star(ctx, 4, 1.5, 6, an); fillInk(ctx, '#ffffff', 1);
+        ctx.restore();
+      }
+    }
+    return;
+  }
+
+  if (main === 1 && mt >= 3) {
+    // Shatter / Winter's Verdict: crown of orbiting ice blades
+    const big = mt >= 4;
+    const n = big ? 7 : 5;
+    ctx.save(); ctx.rotate(st.time * (big ? 2.2 : 1.4));
+    for (let i = 0; i < n; i++) {
+      ctx.save(); ctx.rotate((i / n) * TAU);
+      ctx.beginPath(); ctx.moveTo(big ? 25 : 20, 0); ctx.lineTo(7, -4.5); ctx.lineTo(9, 0); ctx.lineTo(7, 4.5); ctx.closePath();
+      fillInk(ctx, big ? '#e8fbff' : '#9fe6ff', 1.6);
+      ctx.restore();
+    }
+    ctx.restore();
+    if (big) glow(ctx, 20 + flare * 8, '#2fe0ff', 0.6);
+    star(ctx, 10 + flare * 3, 4, 6, -rot);
+    fillInk(ctx, '#2fe0ff', 1.8);
+    circle(ctx, 0, 0, 3.5); ctx.fillStyle = '#fff'; ctx.fill();
+    return;
+  }
+
+  if (main === 2 && mt >= 3) {
+    // Blizzard / Endless Winter: a swirling vortex
+    const big = mt >= 4;
+    const arms = big ? 4 : 3;
+    glow(ctx, big ? 30 : 20, '#c86bff', 0.35);
+    ctx.save(); ctx.rotate(-st.time * (big ? 3 : 2));
+    ctx.lineCap = 'round';
+    for (let i = 0; i < arms; i++) {
+      ctx.save(); ctx.rotate((i / arms) * TAU);
+      ctx.beginPath();
+      for (let k = 0; k <= 10; k++) {
+        const t = k / 10, rr = 4 + t * (big ? 22 : 16), an = t * 2.4;
+        ctx.lineTo(Math.cos(an) * rr, Math.sin(an) * rr);
+      }
+      ctx.strokeStyle = INK; ctx.lineWidth = 5; ctx.stroke();
+      ctx.strokeStyle = i % 2 ? '#ecc8ff' : '#b8f6ff'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.restore();
+    }
     ctx.lineCap = 'butt';
     ctx.restore();
-    const flick = 0.75 + Math.sin(st.time * 23) * 0.12 + st.recoil * 0.4;
-    const r = 5 + a * 0.9;
-    ctx.fillStyle = a >= 3 ? `rgba(255,224,140,${0.3 * flick})` : `rgba(140,200,255,${0.3 * flick})`;
-    ctx.beginPath(); ctx.arc(0, 0, r + 4 + st.recoil * 3, 0, TAU); ctx.fill();
-    ctx.fillStyle = a >= 3 ? '#ffe9a8' : '#bfe6ff';
-    ctx.beginPath(); ctx.arc(0, 0, r * flick, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, TAU); ctx.fill();
-  },
-};
+    star(ctx, 8 + flare * 3, 3.5, 4, rot);
+    fillInk(ctx, '#ffffff', 1.5);
+    return;
+  }
+
+  // Default spire: a crystal that grows facets with each tier.
+  if (c >= 1) {
+    ctx.strokeStyle = 'rgba(236,200,255,0.9)'; ctx.lineWidth = 2;
+    circle(ctx, 0, 0, 14 + c * 2); ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 2 + c; i++) {
+      const an = -rot * 1.7 + (i / (2 + c)) * TAU;
+      ctx.fillRect(Math.cos(an) * (14 + c * 2) - 1.8, Math.sin(an) * (14 + c * 2) - 1.8, 3.6, 3.6);
+    }
+  }
+  if (b >= 1) {
+    star(ctx, 12 + b * 2 + flare * 2, 4.5, 4 + b, -rot);
+    fillInk(ctx, '#2fe0ff', 1.5);
+  }
+  star(ctx, 11 + a * 1.5 + flare * 3, 4.5, 4, rot);
+  fillInk(ctx, '#9fe6ff', 1.8);
+  star(ctx, 6 + a * 1.2, 2.5 + a * 0.4, 4, rot + Math.PI / 4);
+  ctx.fillStyle = '#ffffff'; ctx.fill();
+}
+
+// ---- Storm Coil -----------------------------------------------------------------------------
+function jag(ctx, x0, y0, x1, y1, amp) {
+  ctx.moveTo(x0, y0);
+  const nx = -(y1 - y0), ny = x1 - x0, len = Math.hypot(nx, ny) || 1;
+  for (let k = 1; k < 4; k++) {
+    const t = k / 4, off = (Math.random() - 0.5) * amp;
+    ctx.lineTo(x0 + (x1 - x0) * t + (nx / len) * off, y0 + (y1 - y0) * t + (ny / len) * off);
+  }
+  ctx.lineTo(x1, y1);
+}
+
+function coil(ctx, tiers, st) {
+  const [a, b, c] = tiers;
+  const { main, mt } = mainPath(tiers);
+  platform(ctx, 10, 0, '#6a46d8', tiers, st);
+  const flick = 0.8 + Math.sin(st.time * 23) * 0.1 + st.recoil * 0.4;
+
+  if (main === 1 && mt >= 3) {
+    // Forked Strike / Maelstrom: tesla pylons ringed around a core, arcing to each other
+    const big = mt >= 4;
+    const n = big ? 4 : 2, rr = big ? 17 : 13;
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const an = st.ang + (i / n) * TAU + (n === 2 ? Math.PI / 2 : Math.PI / 4);
+      pts.push([Math.cos(an) * rr, Math.sin(an) * rr]);
+    }
+    ctx.strokeStyle = '#b8f6ff'; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const p = pts[i], q = pts[(i + 1) % n];
+      if (n === 2 && i === 1) break;
+      jag(ctx, p[0], p[1], q[0], q[1], 8);
+    }
+    ctx.stroke();
+    circle(ctx, 0, 0, 7); fillInk(ctx, '#2fe0ff', 2);
+    for (const [x, y] of pts) {
+      circle(ctx, x, y, big ? 5.5 : 5); fillInk(ctx, '#e08a3c', 1.8);
+      circle(ctx, x, y, 2.6); ctx.fillStyle = '#fff'; ctx.fill();
+    }
+    if (big) glow(ctx, 26, '#2fe0ff', 0.45 * flick);
+    return;
+  }
+
+  if (main === 2 && mt >= 3) {
+    // Conductive / Ion Storm: spinning gyroscope rings around the orb
+    const big = mt >= 4;
+    const rings = big ? 3 : 2;
+    if (big) glow(ctx, 24, '#c86bff', 0.55 * flick);
+    for (let i = 0; i < rings; i++) {
+      ctx.save();
+      ctx.rotate(st.time * (big ? 4 : 2.5) * (i % 2 ? -1 : 1) + i);
+      ctx.beginPath(); ctx.ellipse(0, 0, 15 + i * 2, 5 + i * 1.5, 0, 0, TAU);
+      ctx.strokeStyle = INK; ctx.lineWidth = 4.5; ctx.stroke();
+      ctx.strokeStyle = i === 0 ? '#c86bff' : i === 1 ? '#ecc8ff' : '#2fe0ff'; ctx.lineWidth = 2.6; ctx.stroke();
+      ctx.restore();
+    }
+    circle(ctx, 0, 0, 6.5 * flick); fillInk(ctx, '#f3dcff', 1.8);
+    circle(ctx, 0, 0, 3); ctx.fillStyle = '#fff'; ctx.fill();
+    return;
+  }
+
+  if (main === 0 && mt >= 3) {
+    // Thunderhead / Smite: a great charged sun with a crown of spikes
+    const big = mt >= 4;
+    const r = big ? 12 : 10;
+    glow(ctx, (big ? 34 : 24) * flick, '#ffd23a', 0.7);
+    ctx.save(); ctx.rotate(st.time * 0.7);
+    star(ctx, r + (big ? 9 : 6), r - 1, big ? 10 : 8, 0);
+    fillInk(ctx, '#e08a3c', 2);
+    ctx.restore();
+    circle(ctx, 0, 0, r * flick); fillInk(ctx, '#ffe9a8', 2);
+    circle(ctx, 0, 0, r * 0.5); ctx.fillStyle = '#fff'; ctx.fill();
+    if (big && Math.random() < 0.6) {
+      ctx.strokeStyle = '#fff6c0'; ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      const an = Math.random() * TAU;
+      jag(ctx, Math.cos(an) * r, Math.sin(an) * r, Math.cos(an) * (r + 16), Math.sin(an) * (r + 16), 6);
+      ctx.stroke();
+    }
+    return;
+  }
+
+  // Default coil: copper windings, aiming electrode(s), and an orb that grows with Overcharge.
+  ctx.strokeStyle = INK; ctx.lineWidth = 4;
+  for (const r of [12, 8.5]) { circle(ctx, 0, 0, r); ctx.stroke(); }
+  ctx.strokeStyle = '#ff9a3c'; ctx.lineWidth = 2.4;
+  for (const r of [12, 8.5]) { circle(ctx, 0, 0, r); ctx.stroke(); }
+  if (c >= 1) {
+    ctx.fillStyle = '#ecc8ff';
+    for (let i = 0; i < c + 2; i++) {
+      const an = st.time * (3 + c) + (i / (c + 2)) * TAU;
+      ctx.fillRect(Math.cos(an) * 14 - 1.8, Math.sin(an) * 14 - 1.8, 3.6, 3.6);
+    }
+  }
+  ctx.save();
+  ctx.rotate(st.ang);
+  const prongs = b >= 2 ? 3 : b >= 1 ? 2 : 1;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < prongs; i++) {
+    const an = (i - (prongs - 1) / 2) * 0.45;
+    ctx.beginPath(); ctx.moveTo(Math.cos(an) * 5, Math.sin(an) * 5); ctx.lineTo(Math.cos(an) * 18, Math.sin(an) * 18);
+    ctx.strokeStyle = INK; ctx.lineWidth = 4.5; ctx.stroke();
+    ctx.strokeStyle = b >= 1 ? '#2fe0ff' : '#c9d4e2'; ctx.lineWidth = 2.5; ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  ctx.restore();
+  const r = 5 + a * 1.4;
+  if (a >= 1) glow(ctx, (r + 8) * flick, '#ffd23a', 0.5);
+  circle(ctx, 0, 0, r * flick); fillInk(ctx, a >= 1 ? '#ffe9a8' : '#b8f6ff', 1.6);
+  circle(ctx, 0, 0, r * 0.45); ctx.fillStyle = '#fff'; ctx.fill();
+}
+
+const ART = { bolt, mortar, rime, coil };
+
+// Visual scale: each tier makes the tower a little bigger, capstones a lot.
+export function towerScale(tiers) {
+  const level = tiers[0] + tiers[1] + tiers[2];
+  const mt = Math.max(tiers[0], tiers[1], tiers[2]);
+  return 0.92 + level * 0.04 + (mt >= 4 ? 0.1 : 0);
+}
 
 export function drawTower(ctx, type, tiers, st) {
   ctx.save();
+  const s = towerScale(tiers) * (1 + (st.pop || 0) * 0.45);
+  ctx.scale(s, s);
   (ART[type] || ART.bolt)(ctx, tiers, st);
   ctx.restore();
+  if (st.pop > 0) {
+    // white flash over the whole tower during the upgrade pop
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = st.pop * 0.5;
+    ctx.fillStyle = '#ffffff';
+    circle(ctx, 0, 0, 22 * s); ctx.fill();
+    ctx.restore();
+  }
 }
 
 // Static icon for shop buttons and the tower panel.
@@ -202,7 +575,7 @@ export function drawTowerIcon(canvas, type, tiers = [0, 0, 0]) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.translate(canvas.width / 2, canvas.height / 2);
-  const s = canvas.width / 48;
+  const s = canvas.width / (52 * Math.max(1, towerScale(tiers) * (Math.max(...tiers) >= 3 ? 1.25 : 1)));
   ctx.scale(s, s);
-  drawTower(ctx, type, tiers, { ang: -Math.PI / 4, recoil: 0, time: 0.4, pulse: 0 });
+  drawTower(ctx, type, tiers, { ang: -Math.PI / 4, recoil: 0, time: 0.4, pulse: 0, tx: null, ty: null, pop: 0 });
 }

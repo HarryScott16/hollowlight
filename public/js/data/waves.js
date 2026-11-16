@@ -12,7 +12,7 @@ export const WAVES = [
   /* 5 */ { groups: [g('skitter', 50, 0.15, 0, 1.4), g('husk', 10, 0.9, 3, 1.1)] },
   /* 6 */ { groups: [g('brood', 9, 1.1), g('shambler', 34, 0.28, 1, 1.5)] },
   /* 7 */ { groups: [g('husk', 18, 0.65, 0, 1.4), g('skitter', 50, 0.13, 4, 1.8)] },
-  /* 8 */ { groups: [g('brood', 12, 0.9, 0, 1.3), g('husk', 16, 0.7, 5, 1.4)] },
+  /* 8 */ { groups: [g('brood', 12, 0.9, 0, 1.15), g('husk', 15, 0.7, 5, 1.3)] },
   /* 9 */ { groups: [g('shambler', 60, 0.17, 0, 1.8), g('skitter', 60, 0.12, 3, 1.8), g('husk', 18, 0.7, 2, 1.7)] },
   /* 10 */ { groups: [g('gravemaw', 1, 1), g('husk', 16, 0.9, 3, 1.6), g('skitter', 50, 0.18, 7, 1.8), g('brood', 9, 1.2, 12, 1.5)] },
 ];

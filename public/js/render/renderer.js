@@ -1,14 +1,21 @@
 // Draws the game each frame and turns simulation events (game.fx) into visual effects.
 import { MAP } from '../data/map.js';
-import { TOWERS } from '../data/towers.js';
+import { TOWERS, PATH_COLORS } from '../data/towers.js';
 import { DAMAGE_TYPES } from '../data/damage.js';
+import { RULES } from '../data/rules.js';
 import { Particles } from './particles.js';
 import { paintBackground } from './background.js';
-import { drawTower } from './towerArt.js';
-import { drawEnemy, ENEMY_COLORS } from './enemyArt.js';
+import { drawTower, towerScale } from './towerArt.js';
+import { drawEnemy, initSprites, ENEMY_COLORS } from './enemyArt.js';
 
 const TAU = Math.PI * 2;
 const W = MAP.width, H = MAP.height;
+const INK = '#1d1030';
+const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+
+const NUM_COLORS = { kinetic: '#fff4c2', blast: '#ffb347', arcane: '#8ff0ff', frost: '#d6f7ff', blight: '#c8ff6a', true: '#ff7ae0' };
+const MULTI_WORDS = { 2: 'DOUBLE', 3: 'TRIPLE', 4: 'QUAD' };
+const POP_TIME = 0.45;
 
 export class Renderer {
   constructor(canvas, game) {
@@ -22,20 +29,31 @@ export class Renderer {
     this.arcs = [];
     this.rings = [];
     this.texts = [];
+    this.stains = [];
+    this.bolts = [];      // smite pillars
+    this.pops = new Map(); // tower id -> remaining pop time
+    this.multi = new Map(); // tower id -> { n, t, x, y } for multi-kill callouts
     this.shake = 0;
-    this.banner = null;   // { text, sub, t }
+    this.banner = null;
+    this.callout = null;  // big centre text for streaks and capstones
+    this.numBudget = 0;
+    this.showFps = false;
+    this.fps = { frames: 0, t: performance.now(), value: 0, worst: 0, last: performance.now() };
+    this._st = { ang: 0, recoil: 0, time: 0, pulse: 0, tx: null, ty: null, pop: 0 };
     this.resize();
   }
 
   clearFx() {
     this.parts.clear();
-    this.arcs.length = this.rings.length = this.texts.length = 0;
+    this.arcs.length = this.rings.length = this.texts.length = this.stains.length = this.bolts.length = 0;
+    this.pops.clear();
+    this.multi.clear();
     this.shake = 0;
-    this.banner = null;
+    this.banner = this.callout = null;
     this.game.fx.length = 0;
   }
 
-  // Matches the backing store to the on-screen size (capped) and repaints the static map.
+  // Fits the canvas to its container, then matches the backing store (capped) and repaints the map.
   resize() {
     const parent = this.canvas.parentElement;
     const fit = Math.max(0.25, Math.min((parent.clientWidth - 16) / W, (parent.clientHeight - 16) / H) || 1);
@@ -53,77 +71,119 @@ export class Renderer {
     const b = this.bg.getContext('2d');
     b.setTransform(scale, 0, 0, scale, 0, 0);
     paintBackground(b, this.game.map);
+    initSprites(() => document.createElement('canvas'), scale);
   }
 
-  text(x, y, str, color, size = 12, life = 0.9) {
-    if (this.texts.length > 90) this.texts.shift();
-    this.texts.push({ x, y, str, color, size, life, max: life });
+  text(x, y, str, color, size = 12, life = 0.9, rise = 22) {
+    if (this.texts.length > 40) this.texts.shift();
+    this.texts.push({ x, y, str, color, size, life, max: life, rise });
+  }
+
+  ring(x, y, r0, r1, life, color, width, fill, add) {
+    if (this.rings.length > 160) this.rings.shift();
+    this.rings.push({ x, y, r0, r1, life, max: life, color, width, fill, add });
   }
 
   // ---- simulation events -> effects -----------------------------------------------------------
   consume() {
     const fx = this.game.fx;
     const P = this.parts;
+    this.numBudget = 4;
     for (let i = 0; i < fx.length; i++) {
       const f = fx[i];
       switch (f.type) {
-        case 'hit':
-          P.burst(f.x, f.y, f.resisted ? 2 : 3, { color: f.resisted ? '#8f9aa6' : (DAMAGE_TYPES[f.dtype] || DAMAGE_TYPES.kinetic).color, speed: 90, life: 0.25, size: 2.2 });
-          break;
-        case 'death': {
-          const color = ENEMY_COLORS[f.etype] || '#fff';
-          P.burst(f.x, f.y, Math.min(40, 5 + f.r), { color, speed: 70 + f.r * 5, life: 0.55, size: 2 + f.r * 0.12 });
-          P.burst(f.x, f.y, 4, { color: '#fff', speed: 60, life: 0.3, size: 2 });
-          this.rings.push({ x: f.x, y: f.y, r0: f.r * 0.5, r1: f.r * 2, life: 0.25, max: 0.25, color: color, width: 2 });
-          this.text(f.x, f.y - f.r - 4, `+${f.gold}`, '#ffd95a', f.boss ? 20 : 12, f.boss ? 1.6 : 0.8);
-          if (f.boss) {
-            this.shake = Math.max(this.shake, 12);
-            P.burst(f.x, f.y, 90, { color: '#ffb36b', speed: 320, life: 1.1, size: 4 });
-            for (let k = 0; k < 3; k++) this.rings.push({ x: f.x, y: f.y, r0: 10, r1: 90 + k * 50, life: 0.5 + k * 0.2, max: 0.5 + k * 0.2, color: '#ffd9a0', width: 4 });
+        case 'hit': {
+          const col = f.resisted ? '#aab4c4' : (DAMAGE_TYPES[f.dtype] || DAMAGE_TYPES.kinetic).color;
+          P.burst(f.x, f.y, f.resisted ? 2 : 4, { color: col, speed: 120, life: 0.28, size: 2.6 });
+          // Damage numbers for hits that matter.
+          const a = f.amt || 0;
+          if (this.numBudget > 0 && (a >= 30 || f.big || (a >= 12 && a >= f.maxHp * 0.35))) {
+            this.numBudget--;
+            const size = Math.min(26, 11 + Math.log2(Math.max(1, a / 15)) * 3.2);
+            this.text(f.x + (Math.random() - 0.5) * 10, f.y - 10, f.resisted ? `${Math.round(a)}` : `${Math.round(a)}${a >= 200 ? '!' : ''}`,
+              f.resisted ? '#c9d0dc' : NUM_COLORS[f.dtype] || '#fff', size, 0.7, 26);
           }
           break;
         }
-        case 'explosion':
-          this.rings.push({ x: f.x, y: f.y, r0: f.r * 0.3, r1: f.r, life: 0.3, max: 0.3, color: '#ffc27a', width: 3, fill: 'rgba(255,170,80,0.5)' });
-          P.burst(f.x, f.y, f.sub ? 6 : 14, { color: '#ffae52', speed: f.r * 3.2, life: 0.45, size: 3.2 });
-          P.burst(f.x, f.y, f.sub ? 3 : 7, { color: '#6b6460', speed: f.r * 1.4, life: 0.8, size: 4.5, grav: -30 });
-          if (!f.sub) this.shake = Math.max(this.shake, f.r > 95 ? 7 : f.r > 70 ? 4 : 1.6);
+        case 'death': {
+          const color = ENEMY_COLORS[f.etype] || '#fff';
+          P.burst(f.x, f.y, Math.min(46, 8 + f.r * 1.2), { color, speed: 110 + f.r * 6, life: 0.6, size: 2.6 + f.r * 0.14 });
+          P.burst(f.x, f.y, 6, { color: '#ffffff', speed: 90, life: 0.3, size: 2.4 });
+          this.ring(f.x, f.y, f.r * 0.5, f.r * 2.4, 0.28, color, 3);
+          if (this.stains.length > 90) this.stains.shift();
+          this.stains.push({ x: f.x, y: f.y, r: f.r * (0.9 + Math.random() * 0.4), color, life: 7, rot: Math.random() * 6 });
+          this.text(f.x, f.y - f.r - 4, `+${f.gold}`, '#ffd23a', f.boss ? 24 : 12, f.boss ? 1.8 : 0.8);
+          if (f.src) this.countMulti(f);
+          if (f.boss) {
+            this.shake = Math.max(this.shake, 16);
+            P.burst(f.x, f.y, 120, { color: '#ffb36b', speed: 380, life: 1.2, size: 4.5 });
+            P.burst(f.x, f.y, 60, { color: '#ff2d55', speed: 260, life: 1.0, size: 4 });
+            for (let k = 0; k < 4; k++) this.ring(f.x, f.y, 10, 90 + k * 60, 0.5 + k * 0.2, '#fff1b0', 5, null, true);
+            this.callout = { text: 'BOSS SLAIN!', sub: `+${f.gold} gold`, color: '#ffd23a', t: 2.4, max: 2.4 };
+          }
           break;
+        }
+        case 'explosion': {
+          const big = f.r > 90;
+          this.ring(f.x, f.y, f.r * 0.25, f.r, 0.32, '#ffd27a', big ? 5 : 3, 'rgba(255,150,50,0.55)', true);
+          if (!f.sub) this.ring(f.x, f.y, 4, f.r * 0.55, 0.16, '#ffffff', 2, 'rgba(255,255,220,0.8)', true);
+          P.burst(f.x, f.y, f.sub ? 8 : big ? 30 : 18, { color: '#ffb347', speed: f.r * 3.6, life: 0.5, size: 3.6 });
+          P.burst(f.x, f.y, f.sub ? 4 : 10, { color: '#ff5a2e', speed: f.r * 2.4, life: 0.45, size: 3 });
+          P.burst(f.x, f.y, f.sub ? 2 : 6, { color: '#8a7f78', speed: f.r * 1.2, life: 0.9, size: 5, grav: -30 });
+          if (!f.sub) this.shake = Math.max(this.shake, big ? 7 : f.r > 70 ? 4 : 1.8);
+          break;
+        }
         case 'arc':
-          this.arcs.push({ pts: f.pts, life: f.smite ? 0.28 : 0.14, max: f.smite ? 0.28 : 0.14, smite: f.smite });
-          for (let k = 2; k < f.pts.length; k += 2) P.burst(f.pts[k], f.pts[k + 1], 2, { color: '#cfeaff', speed: 110, life: 0.22, size: 2 });
-          if (f.smite) this.shake = Math.max(this.shake, 3);
+          this.arcs.push({ pts: f.pts, life: f.smite ? 0.3 : 0.16, max: f.smite ? 0.3 : 0.16, smite: f.smite });
+          for (let k = 2; k < f.pts.length; k += 2) P.burst(f.pts[k], f.pts[k + 1], 3, { color: '#b8f6ff', speed: 140, life: 0.25, size: 2.4 });
+          break;
+        case 'smite':
+          this.bolts.push({ x: f.x, y: f.y, life: 0.35, max: 0.35 });
+          this.ring(f.x, f.y, 6, f.r, 0.35, '#fff1a0', 5, 'rgba(255,230,120,0.5)', true);
+          P.burst(f.x, f.y, 30, { color: '#ffe9a8', speed: 260, life: 0.5, size: 3.2 });
+          this.shake = Math.max(this.shake, 6);
           break;
         case 'pulse':
-          this.rings.push({ x: f.x, y: f.y, r0: 12, r1: f.r, life: 0.45, max: 0.45, color: f.freeze ? '#ffffff' : '#9fe6ff', width: f.freeze ? 4 : 2, fill: f.freeze ? 'rgba(200,245,255,0.16)' : 'rgba(130,215,255,0.07)' });
-          P.burst(f.x, f.y, f.freeze ? 16 : 6, { color: '#dff8ff', speed: f.r * 2.3, life: 0.45, size: 2.2, drag: 3 });
+          this.ring(f.x, f.y, 12, f.r, 0.5, f.freeze ? '#ffffff' : '#3fd0ff', f.freeze ? 5 : 2.5, f.freeze ? 'rgba(200,245,255,0.35)' : 'rgba(120,215,255,0.16)');
+          P.burst(f.x, f.y, f.freeze ? 22 : 8, { color: f.freeze ? '#ffffff' : '#bff3ff', speed: f.r * 2.4, life: 0.45, size: 2.6, drag: 3 });
           break;
         case 'shatter':
-          this.rings.push({ x: f.x, y: f.y, r0: 4, r1: f.r, life: 0.25, max: 0.25, color: '#e6fbff', width: 2.5, fill: 'rgba(190,240,255,0.3)' });
-          P.burst(f.x, f.y, 10, { color: '#bfefff', speed: 190, life: 0.4, size: 3 });
+          this.ring(f.x, f.y, 4, f.r, 0.28, '#ffffff', 3, 'rgba(190,240,255,0.5)', true);
+          P.burst(f.x, f.y, 14, { color: '#bff3ff', speed: 220, life: 0.45, size: 3.4 });
+          break;
+        case 'markburst':
+          this.ring(f.x, f.y, 6, f.r, 0.3, '#d36bff', 2.5, 'rgba(200,107,255,0.15)');
+          break;
+        case 'execute':
+          this.text(f.x, f.y - 18, 'EXECUTED', '#ff7ae0', 14, 0.9);
+          P.burst(f.x, f.y, 16, { color: '#ff7ae0', speed: 180, life: 0.5, size: 3 });
           break;
         case 'fire':
-          if (f.kind === 'mortar') P.burst(f.x + Math.cos(f.ang) * 16, f.y + Math.sin(f.ang) * 16, 6, { color: '#b9b2ab', speed: 60, life: 0.5, size: 4, ang: f.ang, spread: 1 });
+          if (f.kind === 'mortar') P.burst(f.x + Math.cos(f.ang) * 18, f.y + Math.sin(f.ang) * 18, 7, { color: '#e8e0d8', speed: 70, life: 0.5, size: 4.5, ang: f.ang, spread: 1 });
+          else P.burst(f.x + Math.cos(f.ang) * 18, f.y + Math.sin(f.ang) * 18, 2, { color: '#fff4c2', speed: 90, life: 0.15, size: 2, ang: f.ang, spread: 0.6 });
           break;
         case 'place':
-          this.rings.push({ x: f.x, y: f.y, r0: 6, r1: 34, life: 0.3, max: 0.3, color: '#e9fbff', width: 2 });
-          P.burst(f.x, f.y, 12, { color: '#9fb6c9', speed: 90, life: 0.4, size: 3 });
+          this.ring(f.x, f.y, 6, 40, 0.35, '#ffffff', 3);
+          P.burst(f.x, f.y, 16, { color: '#ffffff', speed: 120, life: 0.45, size: 3 });
           break;
         case 'upgrade':
-          this.rings.push({ x: f.x, y: f.y, r0: 8, r1: 40, life: 0.4, max: 0.4, color: '#fff3b0', width: 3 });
-          P.burst(f.x, f.y, 18, { color: '#fff3b0', speed: 120, life: 0.6, size: 2.6, grav: -60 });
+          this.upgradeFx(f);
           break;
         case 'sell':
-          this.text(f.x, f.y - 20, `+${f.amount}`, '#ffd95a', 14, 1);
-          P.burst(f.x, f.y, 14, { color: '#8fa6ad', speed: 110, life: 0.5, size: 3 });
+          this.text(f.x, f.y - 20, `+${f.amount}`, '#ffd23a', 15, 1);
+          P.burst(f.x, f.y, 18, { color: '#ffd23a', speed: 140, life: 0.5, size: 3 });
           break;
         case 'bonus':
-          this.text(W / 2, 92, `${f.label}  +${f.amount}`, '#ffd95a', 18, 2);
+          this.text(W / 2, 96, `${f.label}  +${f.amount}`, '#ffd23a', 20, 2.2, 18);
+          break;
+        case 'streak':
+          this.callout = { text: `${f.n} KILL STREAK!`, sub: `+${f.gold} gold`, color: f.n >= 100 ? '#ff7ae0' : f.n >= 50 ? '#ffae2b' : '#ffe45c', t: 1.6, max: 1.6 };
           break;
         case 'leak':
-          this.shake = Math.max(this.shake, f.boss ? 12 : 3);
-          this.text(MAP.goal.x, MAP.goal.y - 50, `-${f.amount}`, '#ff6b5a', 16, 1);
-          P.burst(MAP.goal.x, MAP.goal.y, 12, { color: '#ff6b5a', speed: 150, life: 0.5, size: 3 });
+          this.shake = Math.max(this.shake, f.boss ? 14 : 4);
+          this.text(MAP.goal.x, MAP.goal.y - 50, `-${f.amount} ♥`, '#ff3d3d', f.boss ? 26 : 17, 1.2);
+          P.burst(MAP.goal.x, MAP.goal.y, f.boss ? 40 : 14, { color: '#ff3d3d', speed: 180, life: 0.6, size: 3.5 });
+          this.ring(MAP.goal.x, MAP.goal.y, 20, f.boss ? 140 : 70, 0.4, '#ff3d3d', 4);
           break;
         case 'wave':
           this.banner = { text: `Wave ${f.n}`, t: 2 };
@@ -134,12 +194,55 @@ export class Renderer {
     fx.length = 0;
   }
 
+  countMulti(f) {
+    const m = this.multi.get(f.src);
+    if (m && m.t > 0) { m.n++; m.t = 0.3; m.x = f.x; m.y = f.y; }
+    else this.multi.set(f.src, { n: 1, t: 0.3, x: f.x, y: f.y });
+  }
+
+  flushMulti(dt) {
+    for (const [id, m] of this.multi) {
+      m.t -= dt;
+      if (m.t > 0) continue;
+      if (m.n >= 3) {
+        const word = MULTI_WORDS[m.n] ? `${MULTI_WORDS[m.n]} KILL!` : `MULTI-KILL x${m.n}!`;
+        this.text(m.x, m.y - 24, word, m.n >= 8 ? '#ff7ae0' : m.n >= 5 ? '#ffae2b' : '#ffe45c', Math.min(30, 15 + m.n), 1.3, 30);
+        if (m.n >= 8) this.shake = Math.max(this.shake, 4);
+      }
+      this.multi.delete(id);
+    }
+  }
+
+  upgradeFx(f) {
+    const col = PATH_COLORS[f.path];
+    const P = this.parts;
+    this.pops.set(f.id, POP_TIME);
+    const big = f.tier >= 3;
+    this.ring(f.x, f.y, 8, big ? 80 : 46, big ? 0.6 : 0.4, col, big ? 5 : 3.5, null, true);
+    this.ring(f.x, f.y, 4, big ? 50 : 30, 0.25, '#ffffff', 3, 'rgba(255,255,255,0.5)', true);
+    P.burst(f.x, f.y, big ? 50 : 26, { color: col, speed: big ? 260 : 170, life: 0.7, size: 3.4 });
+    P.burst(f.x, f.y, big ? 30 : 14, { color: '#ffffff', speed: big ? 160 : 110, life: 0.6, size: 2.6, grav: -80 });
+    if (f.tier >= 4) {
+      // capstone: a pillar of light and a callout
+      this.bolts.push({ x: f.x, y: f.y, life: 0.6, max: 0.6, color: col });
+      P.burst(f.x, f.y, 70, { color: col, speed: 340, life: 1.1, size: 4 });
+      this.shake = Math.max(this.shake, 8);
+      this.callout = { text: f.name.toUpperCase(), sub: 'Capstone unlocked', color: col, t: 2, max: 2 };
+    } else if (f.tier === 3) {
+      this.shake = Math.max(this.shake, 3);
+      this.text(f.x, f.y - 34, f.name, col, 17, 1.4, 20);
+    } else {
+      this.text(f.x, f.y - 30, f.name, col, 13, 1.1, 18);
+    }
+  }
+
   // ---- frame ----------------------------------------------------------------------------------
-  // dt is effect time (0 while paused). ui: { placing, selected, mouse: { x, y, inside } }
+  // dt is effect time (0 while paused). ui: { placing, selected, mouse: { x, y, inside }, previewRange }
   draw(dt, ui) {
     this.consume();
     this.time += dt;
     this.parts.update(dt);
+    this.flushMulti(dt);
     this.shake *= Math.exp(-dt * 9);
     if (this.shake < 0.15) this.shake = 0;
 
@@ -148,72 +251,146 @@ export class Renderer {
     const sx = this.shake ? (Math.random() - 0.5) * 2 * this.shake : 0;
     const sy = this.shake ? (Math.random() - 0.5) * 2 * this.shake : 0;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (this.shake) { ctx.fillStyle = '#0b1c22'; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
+    if (this.shake) { ctx.fillStyle = '#1f6f63'; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
     ctx.drawImage(this.bg, Math.round(sx * s), Math.round(sy * s));
     ctx.setTransform(s, 0, 0, s, sx * s, sy * s);
 
+    this.drawStains(ctx, dt);
     this.drawLandmarks(ctx);
     this.drawZones(ctx, dt);
 
     const sel = ui.selected;
-    if (sel) this.rangeCircle(ctx, sel.x, sel.y, sel.stats.range, true, sel.stats.minRange);
+    if (sel) {
+      this.rangeCircle(ctx, sel.x, sel.y, sel.stats.range, true, sel.stats.minRange);
+      if (ui.previewRange && Math.abs(ui.previewRange - sel.stats.range) > 1) {
+        ctx.strokeStyle = '#ffe45c';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath(); ctx.arc(sel.x, sel.y, ui.previewRange, 0, TAU); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
 
     const es = game.enemies;
     for (let i = 0; i < es.length; i++) drawEnemy(ctx, es[i]);
 
-    const st = this._st || (this._st = { ang: 0, recoil: 0, time: 0, pulse: 0 });
+    const st = this._st;
     for (const t of game.towers) {
+      let pop = this.pops.get(t.id) || 0;
+      if (pop > 0) {
+        pop -= dt;
+        if (pop <= 0) this.pops.delete(t.id); else this.pops.set(t.id, pop);
+      }
       ctx.save();
       ctx.translate(t.x, t.y);
-      st.ang = t.ang; st.recoil = t.recoil; st.time = this.time + t.id; st.pulse = t.pulseAnim;
+      st.ang = t.ang; st.recoil = t.recoil; st.time = this.time + t.id * 0.37; st.pulse = t.pulseAnim;
+      const tg = t.target;
+      if (tg && tg.alive) { st.tx = tg.x - t.x; st.ty = tg.y - t.y; } else { st.tx = null; st.ty = null; }
+      // pop: quick overshoot then settle
+      st.pop = pop > 0 ? Math.sin((1 - pop / POP_TIME) * Math.PI) * (pop / POP_TIME + 0.3) : 0;
       drawTower(ctx, t.type, t.tiers, st);
       ctx.restore();
+      // capstone towers shed motes of light
+      if (dt > 0 && (t.tiers[0] >= 4 || t.tiers[1] >= 4 || t.tiers[2] >= 4) && Math.random() < 0.35) {
+        const pi = t.tiers.indexOf(4);
+        const an = Math.random() * TAU, d = 14 + Math.random() * 18;
+        this.parts.burst(t.x + Math.cos(an) * d, t.y + Math.sin(an) * d, 1, { color: PATH_COLORS[pi], speed: 30, life: 0.9, size: 2.6, grav: -60, ang: -Math.PI / 2, spread: 1 });
+      }
     }
     if (sel) {
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([5, 4]);
-      ctx.lineDashOffset = -this.time * 14;
-      ctx.beginPath(); ctx.arc(sel.x, sel.y, 23, 0, TAU); ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.lineDashOffset = -this.time * 16;
+      ctx.beginPath(); ctx.arc(sel.x, sel.y, 25 * towerScale(sel.tiers), 0, TAU); ctx.stroke();
       ctx.setLineDash([]);
     }
 
     this.drawProjectiles(ctx);
     this.drawRings(ctx, dt);
     this.drawArcs(ctx, dt);
+    this.drawPillars(ctx, dt);
     this.parts.draw(ctx);
     this.drawTexts(ctx, dt);
     this.drawPlacement(ctx, ui);
 
     ctx.setTransform(s, 0, 0, s, 0, 0);
     this.drawBossBar(ctx);
+    this.drawStreak(ctx);
     this.drawBanner(ctx, dt);
+    this.drawCallout(ctx, dt);
+    this.drawFps(ctx);
+  }
+
+  // Toggled with F: frames per second, worst frame time, and object counts.
+  drawFps(ctx) {
+    const f = this.fps, now = performance.now();
+    f.worst = Math.max(f.worst, now - f.last);
+    f.last = now;
+    f.frames++;
+    if (now - f.t >= 500) {
+      f.value = Math.round((f.frames * 1000) / (now - f.t));
+      f.shownWorst = Math.round(f.worst);
+      f.frames = 0; f.t = now; f.worst = 0;
+    }
+    if (!this.showFps) return;
+    const g = this.game;
+    const label = `${f.value} fps  (worst ${f.shownWorst || 0} ms)  ·  ${g.enemies.length} enemies  ·  ${g.projectiles.length} shots  ·  ${this.parts.list.length} particles`;
+    ctx.font = `700 12px ${FONT}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(29,16,48,0.75)';
+    ctx.fillRect(6, H - 24, ctx.measureText(label).width + 12, 18);
+    ctx.fillStyle = f.value >= 55 ? '#5dff8a' : f.value >= 40 ? '#ffd23a' : '#ff5a4a';
+    ctx.fillText(label, 12, H - 9);
+  }
+
+  drawStains(ctx, dt) {
+    const st = this.stains;
+    let w = 0;
+    for (let i = 0; i < st.length; i++) {
+      const s = st[i];
+      s.life -= dt;
+      if (s.life <= 0) continue;
+      st[w++] = s;
+      ctx.globalAlpha = Math.min(0.4, s.life * 0.12);
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      for (let k = 0; k < 7; k++) {
+        const a = s.rot + (k / 7) * TAU, r = s.r * (k % 2 ? 0.6 : 1.05);
+        ctx.lineTo(s.x + Math.cos(a) * r, s.y + Math.sin(a) * r * 0.8);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+    st.length = w;
+    ctx.globalAlpha = 1;
   }
 
   drawLandmarks(ctx) {
     const t = this.time;
-    // the Rift, where the Gloom pours in
     const rift = MAP.rift;
     for (let i = 0; i < 4; i++) {
       const p = (t * 0.5 + i / 4) % 1;
-      ctx.strokeStyle = `rgba(190,120,255,${0.5 * (1 - p)})`;
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = `rgba(200,107,255,${0.8 * (1 - p)})`;
+      ctx.lineWidth = 3.5;
       ctx.beginPath(); ctx.ellipse(rift.x, rift.y, 10 + p * 22, 22 + p * 26, 0, 0, TAU); ctx.stroke();
     }
-    ctx.fillStyle = '#12061d';
+    ctx.fillStyle = '#2a0a45';
     ctx.beginPath(); ctx.ellipse(rift.x, rift.y, 11, 25, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#c58bff';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#e0a8ff';
+    ctx.lineWidth = 2.5;
     ctx.stroke();
 
     // the Heartfire
     const g = MAP.goal;
-    const life = Math.max(0.15, this.game.lives / 100);
+    const life = Math.max(0.15, this.game.lives / RULES.startLives);
     const flick = Math.sin(t * 11) * 0.08 + Math.sin(t * 17.3) * 0.05;
-    ctx.fillStyle = `rgba(255,160,70,${0.10 + life * 0.08})`;
-    ctx.beginPath(); ctx.arc(g.x, g.y, 46 + flick * 40, 0, TAU); ctx.fill();
-    const h = (16 + life * 22) * (1 + flick);
-    for (const [w, hh, c] of [[13, h, '#ff7a2a'], [9, h * 0.75, '#ffb347'], [5, h * 0.48, '#fff1b0']]) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = `rgba(255,170,60,${0.18 + life * 0.12})`;
+    ctx.beginPath(); ctx.arc(g.x, g.y, 50 + flick * 40, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    const h = (18 + life * 24) * (1 + flick);
+    for (const [w, hh, c] of [[14, h, '#ff5a1a'], [10, h * 0.75, '#ffae2b'], [5.5, h * 0.48, '#fff6c0']]) {
       const sway = Math.sin(t * 7 + w) * 3;
       ctx.fillStyle = c;
       ctx.beginPath();
@@ -223,34 +400,36 @@ export class Renderer {
       ctx.quadraticCurveTo(g.x, g.y + 12, g.x - w, g.y + 4);
       ctx.fill();
     }
-    if (Math.random() < 0.25) this.parts.burst(g.x + (Math.random() - 0.5) * 12, g.y - h * 0.6, 1, { color: '#ffc46b', speed: 40, life: 0.8, size: 2, grav: -70, ang: -Math.PI / 2, spread: 1 });
+    if (Math.random() < 0.3) this.parts.burst(g.x + (Math.random() - 0.5) * 12, g.y - h * 0.6, 1, { color: '#ffd23a', speed: 40, life: 0.8, size: 2.4, grav: -70, ang: -Math.PI / 2, spread: 1 });
   }
 
   drawZones(ctx, dt) {
     for (const z of this.game.zones) {
       const a = Math.min(1, z.t * 2);
       const flick = 0.85 + Math.sin(this.time * 14 + z.x) * 0.15;
-      ctx.fillStyle = `rgba(255,110,30,${0.16 * a * flick})`;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = `rgba(255,90,20,${0.3 * a * flick})`;
       ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, TAU); ctx.fill();
-      ctx.fillStyle = `rgba(255,190,80,${0.2 * a * flick})`;
+      ctx.fillStyle = `rgba(255,200,60,${0.28 * a * flick})`;
       ctx.beginPath(); ctx.arc(z.x, z.y, z.r * 0.6, 0, TAU); ctx.fill();
-      ctx.strokeStyle = `rgba(255,150,60,${0.5 * a})`;
-      ctx.lineWidth = 1.5;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = `rgba(255,120,30,${0.8 * a})`;
+      ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, TAU); ctx.stroke();
-      if (dt > 0 && Math.random() < 0.5) {
+      if (dt > 0 && Math.random() < 0.6) {
         const an = Math.random() * TAU, d = Math.random() * z.r;
-        this.parts.burst(z.x + Math.cos(an) * d, z.y + Math.sin(an) * d, 1, { color: '#ffb04a', speed: 30, life: 0.6, size: 2.6, grav: -90, ang: -Math.PI / 2, spread: 0.8 });
+        this.parts.burst(z.x + Math.cos(an) * d, z.y + Math.sin(an) * d, 1, { color: Math.random() < 0.5 ? '#ffd23a' : '#ff5a1a', speed: 30, life: 0.6, size: 3, grav: -90, ang: -Math.PI / 2, spread: 0.8 });
       }
     }
   }
 
   rangeCircle(ctx, x, y, r, ok, minRange) {
-    ctx.fillStyle = ok ? 'rgba(150,225,255,0.07)' : 'rgba(255,90,80,0.10)';
-    ctx.strokeStyle = ok ? 'rgba(170,235,255,0.55)' : 'rgba(255,110,100,0.7)';
-    ctx.lineWidth = 1.5;
+    ctx.fillStyle = ok ? 'rgba(255,255,255,0.13)' : 'rgba(255,60,60,0.18)';
+    ctx.strokeStyle = ok ? 'rgba(255,255,255,0.9)' : 'rgba(255,70,60,0.95)';
+    ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.stroke();
     if (minRange) {
-      ctx.strokeStyle = 'rgba(255,200,120,0.4)';
+      ctx.strokeStyle = 'rgba(255,170,60,0.9)';
       ctx.setLineDash([4, 5]);
       ctx.beginPath(); ctx.arc(x, y, minRange, 0, TAU); ctx.stroke();
       ctx.setLineDash([]);
@@ -263,26 +442,44 @@ export class Renderer {
     for (let i = 0; i < ps.length; i++) {
       const p = ps[i];
       if (p.kind === 'bolt') {
-        const heavy = p.s.pierce >= 5;
-        const k = (heavy ? 0.035 : 0.025);
-        ctx.strokeStyle = heavy ? '#fff3c4' : '#ffe9a8';
-        ctx.lineWidth = heavy ? 3.2 : 2;
+        const sz = p.s.boltSize || 1;
+        if (p.s.lance) {
+          // Siege Lance: a long blazing streak
+          const k = 0.09;
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.strokeStyle = 'rgba(255,190,60,0.55)';
+          ctx.lineWidth = 12;
+          ctx.beginPath(); ctx.moveTo(p.x - p.vx * k, p.y - p.vy * k); ctx.lineTo(p.x, p.y); ctx.stroke();
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.strokeStyle = '#fff6d0';
+          ctx.lineWidth = 4.5;
+          ctx.beginPath(); ctx.moveTo(p.x - p.vx * k * 0.7, p.y - p.vy * k * 0.7); ctx.lineTo(p.x, p.y); ctx.stroke();
+          continue;
+        }
+        const k = 0.022 + sz * 0.006;
+        const col = p.s.markPct ? '#ecc8ff' : p.s.shots > 1 ? '#b8f6ff' : '#fff4c2';
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 2 + sz * 1.6;
         ctx.beginPath(); ctx.moveTo(p.x - p.vx * k, p.y - p.vy * k); ctx.lineTo(p.x, p.y); ctx.stroke();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 0.8 + sz * 1.2;
+        ctx.stroke();
       } else {
         const u = Math.min(1, p.t / p.flight);
         const lift = Math.sin(u * Math.PI) * (p.sub ? 22 : 64);
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillStyle = 'rgba(10,40,30,0.35)';
         ctx.beginPath(); ctx.ellipse(p.x, p.y, 5, 3, 0, 0, TAU); ctx.fill();
-        const r = (p.sub ? 3 : 4.5) + lift * 0.035;
-        ctx.fillStyle = '#2b2623';
+        const r = (p.sub ? 3.2 : 5) + lift * 0.035;
+        ctx.fillStyle = INK;
+        ctx.beginPath(); ctx.arc(p.x, p.y - lift, r + 1.2, 0, TAU); ctx.fill();
+        ctx.fillStyle = p.s.poolDps ? '#ff5a1a' : '#4a4050';
         ctx.beginPath(); ctx.arc(p.x, p.y - lift, r, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#ff9a3c';
-        ctx.beginPath(); ctx.arc(p.x, p.y - lift, r * 0.5, 0, TAU); ctx.fill();
-        // landing marker
+        ctx.fillStyle = '#ffd23a';
+        ctx.beginPath(); ctx.arc(p.x - r * 0.3, p.y - lift - r * 0.3, r * 0.4, 0, TAU); ctx.fill();
         if (!p.sub) {
-          ctx.strokeStyle = `rgba(255,170,90,${0.15 + u * 0.4})`;
-          ctx.lineWidth = 1.2;
-          ctx.beginPath(); ctx.arc(p.tx, p.ty, 4 + (1 - u) * 10, 0, TAU); ctx.stroke();
+          ctx.strokeStyle = `rgba(255,80,40,${0.3 + u * 0.6})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(p.tx, p.ty, 4 + (1 - u) * 12, 0, TAU); ctx.stroke();
         }
       }
     }
@@ -300,10 +497,12 @@ export class Renderer {
       const u = 1 - r.life / r.max;
       const rad = r.r0 + (r.r1 - r.r0) * (1 - (1 - u) * (1 - u));
       ctx.globalAlpha = 1 - u;
+      if (r.add) ctx.globalCompositeOperation = 'lighter';
       if (r.fill) { ctx.fillStyle = r.fill; ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, TAU); ctx.fill(); }
       ctx.strokeStyle = r.color;
       ctx.lineWidth = r.width;
       ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, TAU); ctx.stroke();
+      if (r.add) ctx.globalCompositeOperation = 'source-over';
     }
     rings.length = w;
     ctx.globalAlpha = 1;
@@ -325,19 +524,21 @@ export class Renderer {
         const x0 = pts[k - 2], y0 = pts[k - 1], x1 = pts[k], y1 = pts[k + 1];
         const len = Math.hypot(x1 - x0, y1 - y0) || 1;
         const nx = -(y1 - y0) / len, ny = (x1 - x0) / len;
-        const segs = Math.max(2, Math.min(6, Math.round(len / 22)));
+        const segs = Math.max(2, Math.min(6, Math.round(len / 20)));
         for (let j = 1; j < segs; j++) {
-          const t = j / segs, off = (Math.random() - 0.5) * (a.smite ? 22 : 13);
+          const t = j / segs, off = (Math.random() - 0.5) * (a.smite ? 24 : 15);
           ctx.lineTo(x0 + (x1 - x0) * t + nx * off, y0 + (y1 - y0) * t + ny * off);
         }
         ctx.lineTo(x1, y1);
       }
       ctx.globalAlpha = Math.min(1, (a.life / a.max) * 1.6);
-      ctx.strokeStyle = a.smite ? 'rgba(255,225,130,0.7)' : 'rgba(120,190,255,0.6)';
-      ctx.lineWidth = a.smite ? 8 : 5;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = a.smite ? 'rgba(255,220,90,0.8)' : 'rgba(60,200,255,0.75)';
+      ctx.lineWidth = a.smite ? 10 : 7;
       ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = a.smite ? 3 : 1.6;
+      ctx.lineWidth = a.smite ? 3.5 : 2;
       ctx.stroke();
     }
     arcs.length = w;
@@ -345,11 +546,34 @@ export class Renderer {
     ctx.lineJoin = 'miter';
   }
 
+  // Vertical light pillars for thunderbolts and capstone upgrades.
+  drawPillars(ctx, dt) {
+    const bs = this.bolts;
+    let w = 0;
+    for (let i = 0; i < bs.length; i++) {
+      const b = bs[i];
+      b.life -= dt;
+      if (b.life <= 0) continue;
+      bs[w++] = b;
+      const a = b.life / b.max;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = a;
+      ctx.fillStyle = b.color || '#ffe9a8';
+      ctx.fillRect(b.x - 14 * a, 0, 28 * a, b.y);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(b.x - 5 * a, 0, 10 * a, b.y);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    bs.length = w;
+    ctx.globalAlpha = 1;
+  }
+
   drawTexts(ctx, dt) {
     const texts = this.texts;
     let w = 0;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
     for (let i = 0; i < texts.length; i++) {
       const t = texts[i];
       t.life -= dt;
@@ -357,15 +581,19 @@ export class Renderer {
       texts[w++] = t;
       const u = 1 - t.life / t.max;
       ctx.globalAlpha = Math.min(1, t.life * 3);
-      ctx.font = `bold ${t.size}px system-ui, sans-serif`;
-      const y = t.y - u * 22;
-      ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      ctx.fillText(t.str, t.x + 1, y + 1);
+      // pop in, then drift up
+      const sc = u < 0.12 ? 0.6 + (u / 0.12) * 0.6 : 1.2 - Math.min(0.2, (u - 0.12) * 1.5);
+      ctx.font = `800 ${Math.round(t.size * sc)}px ${FONT}`;
+      const y = t.y - u * t.rise;
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 3.5;
+      ctx.strokeText(t.str, t.x, y);
       ctx.fillStyle = t.color;
       ctx.fillText(t.str, t.x, y);
     }
     texts.length = w;
     ctx.globalAlpha = 1;
+    ctx.lineJoin = 'miter';
   }
 
   drawPlacement(ctx, ui) {
@@ -376,14 +604,17 @@ export class Renderer {
     this.rangeCircle(ctx, x, y, def.base.range, ok, def.base.minRange);
     ctx.save();
     ctx.translate(x, y);
-    ctx.globalAlpha = ok ? 0.85 : 0.45;
-    drawTower(ctx, ui.placing, [0, 0, 0], { ang: -Math.PI / 2, recoil: 0, time: this.time, pulse: 0 });
+    ctx.globalAlpha = ok ? 0.9 : 0.5;
+    drawTower(ctx, ui.placing, [0, 0, 0], { ang: -Math.PI / 2, recoil: 0, time: this.time, pulse: 0, tx: null, ty: null, pop: 0 });
     ctx.restore();
     ctx.globalAlpha = 1;
     if (!ok) {
-      ctx.strokeStyle = '#ff6b5a';
-      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = INK; ctx.lineWidth = 6;
       ctx.beginPath(); ctx.moveTo(x - 9, y - 9); ctx.lineTo(x + 9, y + 9); ctx.moveTo(x + 9, y - 9); ctx.lineTo(x - 9, y + 9); ctx.stroke();
+      ctx.strokeStyle = '#ff3d3d'; ctx.lineWidth = 3.5;
+      ctx.stroke();
+      ctx.lineCap = 'butt';
     }
   }
 
@@ -391,21 +622,53 @@ export class Renderer {
     let boss = null;
     for (const e of this.game.enemies) if (e.def.boss && (!boss || e.dist > boss.dist)) boss = e;
     if (!boss) return;
-    const w = 420, x = (W - w) / 2, y = 22;
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(x - 3, y - 3, w + 6, 20);
-    ctx.fillStyle = '#3a0f18';
-    ctx.fillRect(x, y, w, 14);
-    ctx.fillStyle = '#e0445a';
-    ctx.fillRect(x, y, w * Math.max(0, boss.hp / boss.maxHp), 14);
-    ctx.strokeStyle = '#ff9a8a';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(x, y, w, 14);
-    ctx.font = 'bold 12px system-ui, sans-serif';
+    const w = 440, x = (W - w) / 2, y = 20;
+    ctx.fillStyle = INK;
+    ctx.fillRect(x - 4, y - 4, w + 8, 24);
+    ctx.fillStyle = '#5a0820';
+    ctx.fillRect(x, y, w, 16);
+    const f = Math.max(0, boss.hp / boss.maxHp);
+    ctx.fillStyle = '#ff2d55';
+    ctx.fillRect(x, y, w * f, 16);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(x, y, w * f, 5);
+    ctx.font = `800 13px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';
-    ctx.fillText(`${boss.def.name}  ${Math.ceil(boss.hp)} / ${Math.ceil(boss.maxHp)}`, W / 2, y + 7.5);
+    const cost = this.game.leakCost(boss);
+    ctx.fillText(`${boss.def.name}  ${Math.ceil(boss.hp)} / ${Math.ceil(boss.maxHp)}   (leak: -${cost} ♥)`, W / 2, y + 8.5);
+  }
+
+  // Live streak counter in the top-left corner while a streak is running.
+  drawStreak(ctx) {
+    const g = this.game;
+    const left = RULES.streakWindow - (g.time - g.lastKill);
+    if (g.streak < 10 || left <= 0) return;
+    const pulse = 1 + Math.max(0, 0.25 - (g.time - g.lastKill)) * 1.2;
+    ctx.save();
+    ctx.translate(18, 30);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = `900 ${Math.round(24 * pulse)}px ${FONT}`;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = INK; ctx.lineWidth = 5;
+    const col = g.streak >= 100 ? '#ff7ae0' : g.streak >= 50 ? '#ffae2b' : '#ffe45c';
+    const label = `${g.streak} STREAK`;
+    ctx.strokeText(label, 0, 0);
+    ctx.fillStyle = col;
+    ctx.fillText(label, 0, 0);
+    ctx.fillStyle = INK;
+    ctx.fillRect(0, 17, 124, 7);
+    ctx.fillStyle = col;
+    ctx.fillRect(1.5, 18.5, 121 * (left / RULES.streakWindow), 4);
+    const next = RULES.streakStep - (g.streak % RULES.streakStep);
+    ctx.font = `700 11px ${FONT}`;
+    ctx.lineWidth = 3;
+    ctx.strokeText(`${next} to bonus`, 130, 21);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`${next} to bonus`, 130, 21);
+    ctx.restore();
   }
 
   drawBanner(ctx, dt) {
@@ -415,13 +678,43 @@ export class Renderer {
     if (b.t <= 0) { this.banner = null; return; }
     const a = Math.min(1, b.t * 2, (2 - b.t) * 5);
     ctx.globalAlpha = a;
-    ctx.font = 'bold 42px system-ui, sans-serif';
+    ctx.font = `900 46px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillText(b.text, W / 2 + 2, 152);
-    ctx.fillStyle = '#ffe9c4';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = INK; ctx.lineWidth = 7;
+    ctx.strokeText(b.text, W / 2, 150);
+    ctx.fillStyle = '#fff6d8';
     ctx.fillText(b.text, W / 2, 150);
     ctx.globalAlpha = 1;
+  }
+
+  drawCallout(ctx, dt) {
+    const c = this.callout;
+    if (!c) return;
+    c.t -= dt;
+    if (c.t <= 0) { this.callout = null; return; }
+    const u = 1 - c.t / c.max;
+    const sc = u < 0.1 ? 0.5 + u * 7 : 1.2 - Math.min(0.2, (u - 0.1) * 2);
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, c.t * 2.5);
+    ctx.translate(W / 2, 220);
+    ctx.scale(sc, sc);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.font = `900 40px ${FONT}`;
+    ctx.strokeStyle = INK; ctx.lineWidth = 8;
+    ctx.strokeText(c.text, 0, 0);
+    ctx.fillStyle = c.color;
+    ctx.fillText(c.text, 0, 0);
+    if (c.sub) {
+      ctx.font = `800 18px ${FONT}`;
+      ctx.lineWidth = 5;
+      ctx.strokeText(c.sub, 0, 34);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(c.sub, 0, 34);
+    }
+    ctx.restore();
   }
 }

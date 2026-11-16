@@ -4,7 +4,7 @@ import { TOWERS, TOWER_ORDER } from '../data/towers.js';
 import { ENEMIES } from '../data/enemies.js';
 import { DAMAGE_TYPES } from '../data/damage.js';
 import { RULES, TARGET_MODES } from '../data/rules.js';
-import { upgradeInfo } from '../sim/towers.js';
+import { upgradeInfo, computeStats, estimateDps } from '../sim/towers.js';
 import { drawTowerIcon } from '../render/towerArt.js';
 import { drawEnemyIcon } from '../render/enemyArt.js';
 
@@ -24,6 +24,54 @@ function iconCanvas(size) {
 }
 
 const fmt = (n) => (n >= 10000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n)));
+const num = (n) => (n >= 100 ? String(Math.round(n)) : n >= 10 ? n.toFixed(1).replace(/\.0$/, '') : n.toFixed(2).replace(/0$/, '').replace(/\.0$/, ''));
+const pct = (n) => `${Math.round(n * 100)}%`;
+const yes = (b) => (b ? 'yes' : 'no');
+
+// Rows shown in the tower panel and in upgrade before/after comparisons: [label, value text].
+function statRows(def, s) {
+  const k = def.kind;
+  const rows = [
+    ['DPS, one target', fmt(estimateDps(k, s, false))],
+    ['DPS, crowd', fmt(estimateDps(k, s, true))],
+    ['Damage', num(s.damage)],
+    [k === 'pulse' ? 'Pulses/s' : 'Attacks/s', num(s.rate)],
+    ['Range', String(Math.round(s.range))],
+  ];
+  if (k === 'bolt') {
+    rows.push(['Bolts per shot', String(s.shots)], ['Pierce', s.pierce >= 999 ? 'all' : String(s.pierce)]);
+    if (s.bounces) rows.push(['Ricochets', String(s.bounces)]);
+    if (s.armorPierce) rows.push(['Armour ignored', pct(s.armorPierce)]);
+    if (s.knockback) rows.push(['Knockback', String(s.knockback)]);
+    if (s.markPct) rows.push(['Mark bonus', `+${pct(s.markPct)}`]);
+    if (s.markRadius) rows.push(['Mark spread', String(s.markRadius)]);
+    if (s.execute) rows.push(['Execute below', pct(s.execute)]);
+    if (s.lance) rows.push(['Lance', 'full map']);
+  } else if (k === 'mortar') {
+    rows.push(['Blast radius', String(Math.round(s.radius))], ['Shells per volley', String(s.shells)]);
+    if (s.stun) rows.push(['Stun', `${s.stun}s`]);
+    if (s.burnDps) rows.push(['Burn', `${s.burnDps}/s`]);
+    if (s.poolDps) rows.push(['Fire pool', `${s.poolDps}/s for ${s.poolDur}s`]);
+    if (s.cluster) rows.push(['Bomblets', String(s.cluster)]);
+    if (s.scorch) rows.push(['Scorch', `+${pct(s.scorch)} dmg taken`]);
+  } else if (k === 'pulse') {
+    rows.push(['Slow', pct(s.slow)], ['Slow lasts', `${s.slowDur}s`]);
+    if (s.freezeEvery) rows.push(['Freeze', `every ${s.freezeEvery} pulses, ${s.freezeDur}s`]);
+    if (s.frozenAmp) rows.push(['Frozen take', `+${pct(s.frozenAmp)}`]);
+    if (s.brittle) rows.push(['Brittle', `+${pct(s.brittle)}`]);
+    if (s.shatterDmg) rows.push(['Shatter', String(s.shatterDmg)]);
+    if (s.globalSlow) rows.push(['Map-wide slow', pct(s.globalSlow)]);
+  } else if (k === 'chain') {
+    rows.push(['Enemies per chain', String(s.chains)], ['Jump loss', pct(1 - s.falloff)]);
+    if (s.forks > 1) rows.push(['Chains per strike', String(s.forks)]);
+    if (s.shieldMul) rows.push(['vs shields', `x${s.shieldMul}`]);
+    if (s.stunChance) rows.push(['Stun chance', pct(s.stunChance)]);
+    if (s.chargedPct) rows.push(['Charged', `+${pct(s.chargedPct)} arcane`]);
+    if (s.smiteEvery) rows.push(['Thunderbolt', `every ${s.smiteEvery}, x${s.smiteMul}`]);
+  }
+  rows.push(['Hits flyers', yes(s.hitsAir)], ['Sees stealth', yes(s.detect)]);
+  return rows;
+}
 const LOCK_TEXT = {
   paths: 'Locked: this ward already has two paths.',
   cap: 'Locked: only one path can go past tier 2.',
@@ -38,6 +86,7 @@ export class UI {
     this.selected = null;
     this.mouse = { x: 0, y: 0, inside: false };
     this.speed = 1;
+    this.previewRange = 0;
     this.paused = false;
     this.auto = false;
     this.cache = {};
@@ -76,7 +125,7 @@ export class UI {
     const info = $('shop-info');
     info.textContent = '';
     if (!type) {
-      info.textContent = 'Hover a ward to see what it does. Keys 1-4 pick a ward, Esc cancels.';
+      info.textContent = 'Hover a ward to see what it does. Keys 1-4 pick a ward, Esc cancels, F shows FPS.';
       return;
     }
     const def = TOWERS[type];
@@ -173,6 +222,8 @@ export class UI {
         this.game.startWave();
       } else if (k === 'Escape') {
         if (this.placing) this.setPlacing(null); else this.select(null);
+      } else if (k === 'f' || k === 'F') {
+        this.renderer.showFps = !this.renderer.showFps;
       } else if (k === 'r' || k === 'R') {
         this.restart();
       } else if (this.selected && (k === 'Backspace' || k === 'Delete')) {
@@ -190,27 +241,20 @@ export class UI {
   // ---- tower panel ---------------------------------------------------------------------------
   select(tower) {
     this.selected = tower || null;
+    this.previewRange = 0;
     this.buildPanel();
   }
 
   buyUpgrade(pi) {
-    if (this.selected && this.game.upgrade(this.selected, pi)) this.buildPanel();
+    if (this.selected && this.game.upgrade(this.selected, pi)) {
+      this.buildPanel();
+      // Keep the range preview on the button now under the pointer.
+      this.previewRange = 0;
+    }
   }
 
   sellSelected() {
     if (this.selected && this.game.sell(this.selected)) this.select(null);
-  }
-
-  statLine(t) {
-    const s = t.stats;
-    const dt = DAMAGE_TYPES[s.type];
-    const parts = [`${fmt(s.damage)} ${dt ? dt.name : ''}`.trim(), `${s.rate.toFixed(2)}/s`, `range ${Math.round(s.range)}`];
-    if (s.shots > 1) parts.push(`${s.shots} bolts`);
-    if (s.pierce > 1) parts.push(s.pierce >= 30 ? 'pierces all' : `pierce ${s.pierce}`);
-    if (s.radius) parts.push(`blast ${Math.round(s.radius)}`);
-    if (s.slow) parts.push(`slow ${Math.round(s.slow * 100)}%`);
-    if (s.chains) parts.push(`${s.chains} jumps${s.forks > 1 ? ` x${s.forks}` : ''}`);
-    return parts.join('  ·  ');
   }
 
   buildPanel() {
@@ -239,7 +283,9 @@ export class UI {
     s1.append(dmg); s2.append(kills);
     stats.append(s1, s2);
 
-    panel.append(head, stats, el('div', 'tp-line', this.statLine(t)));
+    const grid = el('div', 'tp-grid');
+    for (const [label, value] of statRows(def, t.stats).slice(0, 7)) grid.append(el('span', null, label), el('b', null, value));
+    panel.append(head, stats, grid);
 
     if (def.kind !== 'pulse') {
       const row = el('div', 'tp-target', 'Target');
@@ -268,10 +314,26 @@ export class UI {
         top.append(el('span', null, path.tiers[RULES.maxTier - 1].name), el('span', 'up-cost', 'MAX'));
         b.append(top);
       } else {
-        top.append(el('span', null, info.up.name), el('span', 'up-cost', info.ok ? String(info.up.cost) : 'Locked'));
+        top.append(el('span', null, `T${t.tiers[pi] + 1}  ${info.up.name}`), el('span', 'up-cost', info.ok ? String(info.up.cost) : 'Locked'));
         b.append(top, el('span', 'up-desc', info.ok ? info.up.desc : LOCK_TEXT[info.reason]));
         if (info.ok) {
+          // Before -> after for every stat this upgrade changes.
+          const tiers = t.tiers.slice();
+          tiers[pi]++;
+          const next = computeStats(def, tiers);
+          const before = new Map(statRows(def, t.stats));
+          const diff = el('span', 'up-diff');
+          for (const [label, value] of statRows(def, next)) {
+            const old = before.get(label);
+            if (old === value) continue;
+            const row = el('span', 'up-row');
+            row.append(el('span', 'up-label', label), el('span', 'up-old', old === undefined ? '-' : old), ' → ', el('b', null, value));
+            diff.append(row);
+          }
+          b.append(diff);
           b.addEventListener('click', () => this.buyUpgrade(pi));
+          b.addEventListener('pointerenter', () => { this.previewRange = next.range; });
+          b.addEventListener('pointerleave', () => { this.previewRange = 0; });
           upButtons.push({ b, cost: info.up.cost });
         } else {
           b.classList.add('locked');

@@ -6,6 +6,8 @@ import { upgradeInfo, computeStats, estimateDps } from '../public/js/sim/towers.
 
 const STEP = 1 / 60;
 const verbose = process.argv.includes('-v');
+const seedArg = process.argv.find((a) => a.startsWith('--seed='));
+const SEED = seedArg ? Number(seedArg.slice(7)) : 1;
 const only = process.argv.slice(2).find((a) => !a.startsWith('-'));
 
 // order: towers bought in this rotation. paths: [main, minor] path index per tower type.
@@ -20,6 +22,13 @@ const STRATEGIES = {
     order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'rime', 'mortar', 'coil'],
     paths: { bolt: [2, 0], mortar: [2, 1], rime: [0, 2], coil: [0, 2] },
     maxTowers: (w) => 3 + Math.floor(w * 0.6),
+    strict: true,
+  },
+  mixedEarly: { // same build as mixed, but calls the next wave early whenever the last one leaked nothing
+    order: ['bolt', 'bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'bolt'],
+    paths: { bolt: [0, 1], mortar: [0, 1], rime: [1, 0], coil: [1, 0] },
+    maxTowers: (w) => 3 + Math.floor(w * 0.7),
+    early: true,
   },
   focused: { // fewer towers, deeper upgrades
     order: ['bolt', 'bolt', 'rime', 'mortar', 'coil', 'mortar'],
@@ -31,6 +40,18 @@ const STRATEGIES = {
   },
   mortarOnly: {
     order: ['mortar'], paths: { mortar: [0, 1] }, maxTowers: (w) => 2 + Math.floor(w * 0.6),
+  },
+  markOnly: { // Hunter's Mark path, to check it pulls its weight
+    order: ['bolt'], paths: { bolt: [2, 1] }, maxTowers: (w) => 3 + Math.floor(w * 0.8), strict: true,
+  },
+  cinderOnly: {
+    order: ['mortar'], paths: { mortar: [2, 1] }, maxTowers: (w) => 2 + Math.floor(w * 0.6), strict: true,
+  },
+  freezeMix: { // Deep Freeze spires feeding bolts and coils
+    order: ['bolt', 'rime', 'bolt', 'coil', 'mortar', 'rime', 'coil', 'bolt'],
+    paths: { bolt: [0, 1], mortar: [0, 1], rime: [0, 2], coil: [0, 1] },
+    maxTowers: (w) => 3 + Math.floor(w * 0.7),
+    strict: true,
   },
   spamNoUpgrades: {
     order: ['bolt', 'mortar', 'coil', 'rime'], paths: {}, maxTowers: () => 99,
@@ -103,7 +124,9 @@ function spend(game, strat, spots, state) {
     for (const t of game.towers) {
       const plan = strat.paths[t.type];
       if (!plan) continue;
-      for (const pi of plan) {
+      // strict: follow the plan's main path first, the minor path only once it can't go further.
+      const order = strat.strict ? [upgradeInfo(t, plan[0]).ok ? plan[0] : plan[1]] : plan;
+      for (const pi of order) {
         const v = upgradeValue(t, pi);
         if (!v) continue;
         if (v.cost <= game.gold + lastIncome && (!pick || v.value > pick.value)) pick = v;
@@ -116,7 +139,7 @@ function spend(game, strat, spots, state) {
   }
 }
 
-function run(name, strat, seed = 1) {
+function run(name, strat, seed = SEED) {
   const game = new Game({ fx: false, seed });
   const spots = candidateSpots(game);
   const state = { bought: 0 };
@@ -130,19 +153,27 @@ function run(name, strat, seed = 1) {
   while (!game.over) {
     spend(game, strat, spots, state);
     const livesBefore = game.lives;
-    const goldBefore = game.gold;
-    game.startWave();
+    state.calledEarly = false;
+    if (!(strat.early && game.spawners.length)) game.startWave();
     let t = 0, steps = 0;
     while (!game.over && !game.clear) {
       game.step(STEP);
       if (boss.spawn === undefined && game.enemies.some((e) => e.def.boss)) boss.spawn = Math.round(game.time);
       if (game.enemies.length > maxEnemies) maxEnemies = game.enemies.length;
       if (++steps % 120 === 0) spend(game, strat, spots, state);
+      // Early caller: once a wave has finished spawning, call the next one (keeps one wave of overlap).
+      if (strat.early && state.safe && game.canStartWave && game.enemies.length && !state.calledEarly) {
+        spend(game, strat, spots, state);
+        game.startWave();
+        earlyCalls++;
+        state.calledEarly = true;
+      }
       if ((t += STEP) > 900) { log.push('  !! wave timed out'); game.over = 'lose'; break; }
     }
+    state.safe = game.lives === livesBefore;
     log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}`);
   }
-  console.log(`${name.padEnd(16)} ${game.over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}`);
+  console.log(`${name.padEnd(16)} ${game.over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}`);
   if (verbose) {
     console.log(log.join('\n'));
     const byType = {};
