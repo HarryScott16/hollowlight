@@ -1,0 +1,12 @@
+{
+  "name": "hollowlight",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hollowlight - a canvas tower defense game. No dependencies, no build step.",
+  "scripts": {
+    "start": "node server.js",
+    "bot": "node tools/bot.js",
+    "smoke": "node tools/smoke.js"
+  }
+}
