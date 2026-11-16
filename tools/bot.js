@@ -21,6 +21,11 @@ const STRATEGIES = {
     paths: { bolt: [2, 0], mortar: [2, 1], rime: [0, 2], coil: [0, 2] },
     maxTowers: (w) => 3 + Math.floor(w * 0.6),
   },
+  focused: { // fewer towers, deeper upgrades
+    order: ['bolt', 'bolt', 'rime', 'mortar', 'coil', 'mortar'],
+    paths: { bolt: [0, 2], mortar: [0, 1], rime: [1, 0], coil: [0, 2] },
+    maxTowers: (w) => Math.min(6, 3 + Math.floor(w * 0.4)),
+  },
   boltOnly: {
     order: ['bolt'], paths: { bolt: [1, 0] }, maxTowers: (w) => 3 + Math.floor(w * 0.8),
   },

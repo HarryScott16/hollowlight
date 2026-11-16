@@ -32,7 +32,7 @@ export const ENEMIES = {
     tags: ['Fast'], desc: 'Tiny and quick.',
   },
   gravemaw: {
-    name: 'Gravemaw', hp: 3200, speed: 24, gold: 300, lives: 60, r: 30,
+    name: 'Gravemaw', hp: 2900, speed: 24, gold: 300, lives: 60, r: 30,
     boss: true, slowRes: 0.5,
     tags: ['Boss'], desc: 'A mountain of health. Immune to freeze and stun, and slows are half as effective.',
   },
