@@ -9,10 +9,10 @@ import { SHIELD_MULT } from '../data/damage.js';
 import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { buildMap, mulberry32 } from './path.js';
 import { Grid } from './grid.js';
-import { createEnemy, updateEnemy, inherit, applySlow } from './enemies.js';
+import { createEnemy, updateEnemy, inherit, applySlow, regrow } from './enemies.js';
 import { createTower, computeStats, upgradeInfo, updateTower } from './towers.js';
 import { updateProjectiles, updateZones, launchShell } from './projectiles.js';
-import { endlessWave, ENDLESS } from './endless.js';
+import { endlessWave } from './endless.js';
 
 const scratch = [];
 const buf = [];
@@ -99,9 +99,11 @@ export class Game {
     }
     const wave = this.waveAt(this.wave);
     this.wave++;
-    if (this.endless) this.goldMul = ENDLESS.goldMul(this.wave);
+    this.goldMul = RULES.popGold(this.wave);
     for (const g of wave.groups) {
       const mods = { hpMul: g.hpMul || 1, speedMul: g.speedMul || 1, veiled: !!g.veiled, mending: !!g.mending };
+      // A boss's own health multiplier doesn't pass to what it sheds or summons.
+      if (g.kidHpMul) mods.kids = { ...mods, hpMul: g.kidHpMul };
       this.spawners.push({ type: g.type, left: g.count, gap: g.gap, t: g.delay || 0, mods, wave: this.wave });
     }
     this.emit('wave', { n: this.wave, banner: wave.banner || null, boss: wave.groups.some((g) => ENEMIES[g.type].boss) });
@@ -211,8 +213,8 @@ export class Game {
       const d2 = (e.x - t.x) ** 2 + (e.y - t.y) ** 2;
       if (d2 < min2) continue;
       let score;
-      if (mode === 'first') score = e.dist;
-      else if (mode === 'last') score = -e.dist;
+      if (mode === 'first') score = e.dist * e.prog;
+      else if (mode === 'last') score = -e.dist * e.prog;
       else if (mode === 'strong') score = (e.hp + e.shield) * 10000 + e.dist;
       else score = -d2;
       e._score = score;
@@ -247,13 +249,13 @@ export class Game {
     let dealt = 0;
     e.lastHit = this.time;
 
+    if (e.maxShield > 0) e.shieldCd = e.def.shieldDelay;
     if (e.shield > 0) {
       const sm = (opts && opts.shieldMul && type === 'arcane') ? opts.shieldMul
         : SHIELD_MULT[type] !== undefined ? SHIELD_MULT[type] : 1;
       if (sm <= 0) return 0;
       const soak = Math.min(e.shield, dmg * sm);
       e.shield -= soak;
-      e.shieldCd = 3;
       dmg -= soak / sm;
       dealt += soak;
     }
@@ -293,13 +295,19 @@ export class Game {
 
   // Spawns `count` inner enemies at e's position. The first one takes the carried damage.
   spawnShed(e, type, count, carry, dtype, opts, src) {
+    // A flyer bursting out of a walker takes off from the nearest point of the flight route.
+    const fly = ENEMIES[type].flying && !e.def.flying;
+    // A Veiled hulk's veil tears when its shell breaks: what it sheds can be seen.
+    let mods = e.mods.kids || e.mods;
+    if (mods.veiled && e.def.heavy && !e.def.boss) mods = mods.torn || (mods.torn = { ...mods, veiled: false });
+    const d0 = fly ? this.map.flyDistAt(e.dist) : e.dist;
     for (let i = 0; i < count; i++) {
-      const child = createEnemy(this, type, Math.max(0, e.dist - i * 10), e.wave, e.mods, e.root);
-      child.off = e.off + (count > 1 ? (i - (count - 1) / 2) * 7 : 0);
+      const child = createEnemy(this, type, Math.max(0, d0 - (fly ? i * 6 : i * 10)), e.wave, mods, e.root);
+      child.off = fly ? (this.rand() - 0.5) * 30 : e.off + (count > 1 ? (i - (count - 1) / 2) * 7 : 0);
       inherit(child, e);
       if (i === 0 && e.unpaid > 1) child.unpaid = e.unpaid - 1;
       child.wob = e.wob + i;
-      this.map.path.posAt(child.dist, child, child.off);
+      child.path.posAt(child.dist, child, child.off);
       this.enemies.push(child);
       if (i === 0 && carry > 0.01) this.damage(child, carry, dtype, src, opts && opts.dot ? opts : CARRY);
     }
@@ -470,6 +478,30 @@ export class Game {
     this.emit('lastlight', { x: g.x, y: g.y, r: LAST_LIGHT.radius, n });
   }
 
+  updateSpecial(e, dt) {
+    const d = e.def;
+    if (d.haste) {
+      this.grid.query(e.x, e.y, d.haste.radius, buf);
+      for (const o of buf) if (o !== e) { o.hasteT = 0.25; o.hasteF = d.haste.pct; }
+    }
+    if (d.heal && (e.healCd -= dt) <= 0) {
+      e.healCd = d.heal.every;
+      this.grid.query(e.x, e.y, d.heal.radius, buf);
+      let n = 0;
+      for (const o of buf) {
+        if (o === e || o.def.boss || !o.alive) continue;
+        if (regrow(this, o)) n++;
+        else if (o.def.hp > 10 && o.hp < o.maxHp) { o.hp = Math.min(o.maxHp, o.hp + o.maxHp * d.heal.pct); n++; }
+        if (n >= d.heal.max) break;
+      }
+      if (n) this.emit('healpulse', { x: e.x, y: e.y, r: d.heal.radius });
+    }
+    if (d.summon && (e.summonCd -= dt) <= 0) {
+      e.summonCd = d.summon.every;
+      this.spawnShed(e, d.summon.type, d.summon.count, 0);
+    }
+  }
+
   // ---- main step -----------------------------------------------------------------------------
   step(dt) {
     if (this.over) return;
@@ -506,6 +538,8 @@ export class Game {
       this.grid.query(t.x, t.y, t.stats.range, buf);
       for (const e of buf) if (e.veiled) e.revealT = 0.25;
     }
+    // Heralds, Menders and summoning bosses act on the Gloom around them.
+    for (let i = 0, n = es.length; i < n; i++) if (es[i].def.special && es[i].alive) this.updateSpecial(es[i], dt);
     for (let i = 0; i < this.towers.length; i++) updateTower(this, this.towers[i], dt);
     this.updateAbilities(dt);
     updateProjectiles(this, dt);

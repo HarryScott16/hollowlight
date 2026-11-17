@@ -280,6 +280,9 @@ export class Renderer {
           P.burst(f.x, f.y, 50, { color: '#ff2d55', speed: 300, life: 0.8, size: 4 });
           this.text(f.x, f.y - 50, 'IT BURSTS!', '#ff7a95', 22, 1.4, 26);
           break;
+        case 'healpulse':
+          this.ring(f.x, f.y, 8, f.r, 0.5, '#5dff8a', 2.5, 'rgba(90,255,140,0.10)');
+          break;
         case 'mend':
           P.burst(f.x, f.y, 6, { color: '#7dff9a', speed: 60, life: 0.5, size: 2.4, grav: -40 });
           break;
@@ -406,7 +409,10 @@ export class Renderer {
     const es = game.enemies;
     // With huge crowds, skip the small status overlays to keep the frame rate up.
     const lite = es.length > 450;
-    for (let i = 0; i < es.length; i++) drawEnemy(ctx, es[i], lite);
+    // Walkers first, then flyers above them.
+    let flyers = 0;
+    for (let i = 0; i < es.length; i++) { if (es[i].def.flying) flyers++; else drawEnemy(ctx, es[i], lite); }
+    if (flyers) for (let i = 0; i < es.length; i++) if (es[i].def.flying) drawEnemy(ctx, es[i], lite);
 
     const st = this._st;
     for (const t of game.towers) {
@@ -786,12 +792,17 @@ export class Renderer {
     ctx.fillRect(x, y, w * f, 16);
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.fillRect(x, y, w * f, 5);
+    if (boss.maxShield > 0 && boss.shield > 0) {
+      ctx.fillStyle = '#5fe0ff';
+      ctx.fillRect(x, y + 12, w * (boss.shield / boss.maxShield), 4);
+    }
     ctx.font = `800 13px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';
     const cost = this.game.leakCost(boss);
-    ctx.fillText(`${boss.def.name}  ${Math.ceil(boss.hp)} / ${Math.ceil(boss.maxHp)}   (leak: -${cost} ♥)`, W / 2, y + 8.5);
+    const sh = boss.shield > 0 ? `  +${Math.ceil(boss.shield)} shield` : '';
+    ctx.fillText(`${boss.def.name}  ${Math.ceil(boss.hp)} / ${Math.ceil(boss.maxHp)}${sh}   (leak: -${cost} ♥)`, W / 2, y + 8.5);
   }
 
   // Live streak counter in the top-left corner while a streak is running.

@@ -6,14 +6,20 @@ import { ENEMIES, PARENT } from '../data/enemies.js';
 // hitting its freshly shed inner layers.
 export function createEnemy(game, type, dist, wave, mods, root) {
   const def = ENEMIES[type];
-  const hp = def.hp * (def.tough ? mods.hpMul : 1);
+  const tough = def.tough ? mods.hpMul : 1;
+  const hp = def.hp * tough;
+  const shield = (def.shield || 0) * tough;
   const id = game.nextId++;
   const speed = def.speed * mods.speedMul;
+  // Flyers follow the flight route; `prog` scales their distance to ground-path terms so
+  // "first"/"last" targeting compares flyers and walkers fairly.
+  const path = def.flying ? game.map.flyPath : game.map.path;
   const e = {
-    id, root: root || id, type, def, wave, mods,
-    x: 0, y: 0, ang: 0, dist, off: (game.rand() - 0.5) * Math.max(4, Math.min(20, 34 - def.r)),
-    hp, maxHp: hp, shield: 0, maxShield: 0,
-    speed, curSpeed: speed, r: def.r, alive: true, leaked: false, veiled: !!mods.veiled,
+    id, root: root || id, type, def, wave, mods, path, prog: game.map.path.length / path.length,
+    x: 0, y: 0, ang: 0, dist, off: def.flying ? 0 : (game.rand() - 0.5) * Math.max(4, Math.min(20, 34 - def.r)),
+    hp, maxHp: hp, shield, maxShield: shield, shieldCd: 0,
+    speed, curSpeed: speed, r: def.r, alive: true, leaked: false, veiled: !!(mods.veiled || def.veiled),
+    hasteT: 0, hasteF: 0, healCd: def.heal ? def.heal.every : 0, summonCd: def.summon ? def.summon.every : 0,
     flash: 0, hitT: 0, frozenAmp: 0, wob: game.rand() * 6.28, phase: 0, lastHit: game.time,
     mendTop: mods.mending ? type : null,
     mends: 0,      // times this lineage has grown a layer back (capped at MAX_MENDS)
@@ -25,7 +31,7 @@ export function createEnemy(game, type, dist, wave, mods, root) {
     burnT: 0, burnDps: 0, burnSrc: null, revealT: 0, zoneT: -1,
     shatterT: 0, shatterDmg: 0, shatterRadius: 0, shatterSrc: null,
   };
-  game.map.path.posAt(dist, e, e.off);
+  path.posAt(dist, e, e.off);
   return e;
 }
 
@@ -58,6 +64,13 @@ export function updateEnemy(game, e, dt) {
   if (e.scorchT > 0) e.scorchT -= dt;
   if (e.shatterT > 0) e.shatterT -= dt;
   if (e.revealT > 0) e.revealT -= dt;
+  if (e.hasteT > 0) e.hasteT -= dt;
+  if (e.maxShield > 0) {
+    // Shields recharge once they've gone shieldDelay seconds without a hit.
+    if (e.shieldCd > 0) e.shieldCd -= dt;
+    else if (e.shield < e.maxShield) e.shield = Math.min(e.maxShield, e.shield + e.def.shieldRegen * e.mods.hpMul * dt);
+  }
+  if (e.def.heal && e.hp < e.maxHp) e.hp = Math.min(e.maxHp, e.hp + e.def.heal.regen * dt);
 
   if (e.burnT > 0) {
     e.burnT -= dt;
@@ -66,7 +79,7 @@ export function updateEnemy(game, e, dt) {
   }
 
   // Mending (endless modifier): a layer left alone for a while grows back its outer layer.
-  if (e.mendTop && e.type !== e.mendTop && e.mends < MAX_MENDS && game.time - e.lastHit > MEND_DELAY) mend(game, e);
+  if (e.mendTop && e.type !== e.mendTop && e.mends < MAX_MENDS && game.time - e.lastHit > MEND_DELAY && !regrow(game, e)) e.mendTop = null;
 
   let mul = 1;
   if (e.freezeT > 0 || e.stunT > 0) {
@@ -76,13 +89,13 @@ export function updateEnemy(game, e, dt) {
     if (e.chargedT > 0 && e.chargedSlow > slow) slow = e.chargedSlow;
     if (game.globalSlow > slow) slow = game.globalSlow;
     if (e.def.slowRes) slow *= 1 - e.def.slowRes;
-    mul = 1 - slow;
+    mul = (1 - slow) * (1 + (e.hasteT > 0 ? e.hasteF : 0));
   }
   e.curSpeed = e.speed * mul;
   e.dist += e.curSpeed * dt;
   e.wob += dt * (2 + e.curSpeed * 0.12);
 
-  const path = game.map.path;
+  const path = e.path;
   if (e.dist >= path.length) {
     e.alive = false;
     e.leaked = true;
@@ -92,9 +105,11 @@ export function updateEnemy(game, e, dt) {
   path.posAt(e.dist, e, e.off);
 }
 
-function mend(game, e) {
+// Grows back e's outer layer (Mote -> Skitter -> Shambler), at most MAX_MENDS times per lineage.
+// Used by the endless Mending modifier and by Menders. Returns false if it can't.
+export function regrow(game, e) {
   const up = PARENT[e.type];
-  if (!up) { e.mendTop = null; return; }
+  if (!up || e.mends >= MAX_MENDS) return false;
   const def = ENEMIES[up];
   e.type = up;
   e.def = def;
@@ -105,6 +120,7 @@ function mend(game, e) {
   e.mends++;
   e.unpaid++;   // the regrown layer pays nothing; the one inside it still pays once
   game.emit('mend', { x: e.x, y: e.y, r: e.r });
+  return true;
 }
 
 const DOT = { dot: true };

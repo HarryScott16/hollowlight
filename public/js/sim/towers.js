@@ -162,7 +162,7 @@ function pulse(game, t, dt) {
   // Up to maxHits enemies, those furthest along the path first.
   hitList.length = 0;
   for (const e of buf) if (e.alive && game.targetable(e, s, true)) hitList.push(e);
-  if (hitList.length > s.maxHits) { hitList.sort((a, b) => b.dist - a.dist); hitList.length = s.maxHits; }
+  if (hitList.length > s.maxHits) { hitList.sort((a, b) => b.dist * b.prog - a.dist * a.prog); hitList.length = s.maxHits; }
   for (const e of hitList) {
     if (!e.alive) continue;
     applySlow(e, s.slow, s.slowDur);

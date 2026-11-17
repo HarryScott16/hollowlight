@@ -92,9 +92,23 @@ export function buildMap(data) {
     trees.push({ x, y, r, rot: rand() * 6.28 });
   }
 
+  // Flyers take the corner-cutting route. `toFly[i]` maps ground sample i to the nearest point on
+  // the flight route, so a flyer that bursts out of a ground enemy starts at the right spot.
+  const flyPath = buildPath(data.flyPath, data.cornerRadius);
+  const toFly = new Float32Array(path.count);
+  for (let i = 0; i < path.count; i++) {
+    let best = Infinity, bi = 0;
+    for (let j = 0; j < flyPath.count; j++) {
+      const d = (flyPath.xs[j] - path.xs[i]) ** 2 + (flyPath.ys[j] - path.ys[i]) ** 2;
+      if (d < best) { best = d; bi = j; }
+    }
+    toFly[i] = bi * flyPath.step;
+  }
+
   const pad = RULES.towerRadius - 2;
   return {
-    data, path, trees,
+    data, path, flyPath, trees,
+    flyDistAt(groundDist) { return toFly[Math.max(0, Math.min(path.count - 1, Math.round(groundDist / path.step)))]; },
     width: data.width, height: data.height,
     // Terrain-only check (other towers are checked by the game).
     buildable(x, y) {

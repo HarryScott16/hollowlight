@@ -46,7 +46,7 @@ export const TOWERS = {
         { name: 'Keen Sight', cost: 100, desc: 'x2 damage and +30 range. Can see Veiled enemies.', add: { range: 30 }, mul: { damage: 2 }, set: { detect: true } },
         { name: 'Mark', cost: 220, desc: 'Hits mark the target for 4s: it takes +30% damage from everything. Bolts find weak points (ignore half of armour). Pierce 3, x1.2 rate.', set: { markPct: 0.3, markDur: 4, pierce: 3, armorPierce: 0.5 }, mul: { rate: 1.2 } },
         { name: 'Hunting Party', cost: 650, desc: 'Marks add +45% and spread to every enemy near the target. Bolts ignore all armour. x1.5 damage, x1.3 rate, pierce 4, +30 range.', set: { markPct: 0.45, markDur: 5, markRadius: 70, pierce: 4, armorPierce: 1 }, mul: { damage: 1.5, rate: 1.3 }, add: { range: 30 } },
-        { name: 'Death Sentence', cost: 2800, desc: 'Marks add +75% and spread wider. Marked non-boss enemies under 25% health are executed. x2 damage, x1.4 rate, pierce 5.', set: { markPct: 0.75, markRadius: 110, execute: 0.25, pierce: 5 }, mul: { damage: 2, rate: 1.4 }, add: { range: 40 } },
+        { name: 'Death Sentence', cost: 2800, desc: 'Marks add +75% and spread wider. Marked enemies under 25% health are executed (not hulks or bosses). x2 damage, x1.4 rate, pierce 5.', set: { markPct: 0.75, markRadius: 110, execute: 0.25, pierce: 5 }, mul: { damage: 2, rate: 1.4 }, add: { range: 40 } },
       ] },
     ],
   },

@@ -492,7 +492,11 @@ export class UI {
       counts.set(key, (counts.get(key) || 0) + g.count);
       total += pops(g.type) * g.count;
     }
-    $('preview-title').textContent = `Next: wave ${game.wave + 1}${game.endless ? ' (endless)' : ` of ${game.totalWaves}`}  ·  ${fmt(total)} pops`;
+    const gp = RULES.popGold(game.wave + 1);
+    const tough = Math.max(1, ...wave.groups.filter((g) => !ENEMIES[g.type].boss).map((g) => g.hpMul || 1));
+    const toughNote = tough > 1.005 ? `  ·  shells x${tough.toFixed(2)} health` : '';
+    const goldNote = gp < 1 ? `  ·  ${gp >= 0.1 ? gp.toFixed(2) : gp.toFixed(3)} gold per pop` : '';
+    $('preview-title').textContent = `Next: wave ${game.wave + 1}${game.endless ? ' (endless)' : ` of ${game.totalWaves}`}  ·  ${fmt(total)} pops${toughNote}${goldNote}`;
     for (const [key, n] of counts) {
       const [type, v] = key.split(':');
       const def = ENEMIES[type];

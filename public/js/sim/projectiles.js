@@ -5,7 +5,7 @@ const marks = [];
 function mark(game, e, s, src) {
   e.markT = Math.max(e.markT, s.markDur);
   e.markPct = Math.max(e.markPct, s.markPct);
-  if (s.execute && !e.def.boss && e.hp < e.maxHp * s.execute) {
+  if (s.execute && !e.def.heavy && e.hp < e.maxHp * s.execute) {
     game.damage(e, e.hp + e.shield + 1, 'true', src, EXECUTE);
     if (!e.alive) game.emit('execute', { x: e.x, y: e.y });
   }
