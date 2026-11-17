@@ -6,11 +6,12 @@ import { TOWERS } from '../data/towers.js';
 import { WAVES } from '../data/waves.js';
 import { ENEMIES, pops } from '../data/enemies.js';
 import { SHIELD_MULT } from '../data/damage.js';
+import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { buildMap, mulberry32 } from './path.js';
 import { Grid } from './grid.js';
-import { createEnemy, updateEnemy, inherit } from './enemies.js';
+import { createEnemy, updateEnemy, inherit, applySlow } from './enemies.js';
 import { createTower, computeStats, upgradeInfo, updateTower } from './towers.js';
-import { updateProjectiles, updateZones } from './projectiles.js';
+import { updateProjectiles, updateZones, launchShell } from './projectiles.js';
 
 const scratch = [];
 const buf = [];
@@ -51,6 +52,10 @@ export class Game {
     this.bestStreak = 0;
     this.lastKill = -99;
     this.income = [];         // gold earned per wave (index = wave - 1), for the bot and stats
+    this.flareCd = 0;         // Heartfire Flare cooldown (s); ready at the start
+    this.lastLight = true;    // the one free save per run
+    this.barrages = [];       // queued Saturation shells
+    this.strikes = [];        // queued Tempest thunderbolts
   }
 
   emit(type, data) {
@@ -71,6 +76,7 @@ export class Game {
     const bonus = this.earlyBonus;
     if (bonus) {
       this.addGold(bonus);
+      this.flareCd = Math.max(0, this.flareCd - FLARE.earlyCut);
       this.emit('bonus', { amount: bonus, label: 'Early call' });
     }
     const wave = this.waves[this.wave];
@@ -118,6 +124,9 @@ export class Game {
     this.spend(tower, info.up.cost);
     tower.tiers[pi]++;
     tower.stats = computeStats(tower.def, tower.tiers);
+    // Reaching tier 4 unlocks the ward type's ability, one-third charged.
+    const ab = ABILITIES[tower.type];
+    if (ab && tower.tiers[pi] === 4 && tower.abilityCd === null) tower.abilityCd = ab.cd * (2 / 3);
     this.refreshGlobals();
     this.emit('upgrade', { id: tower.id, x: tower.x, y: tower.y, path: pi, tier: tower.tiers[pi], name: info.up.name });
     return true;
@@ -315,6 +324,7 @@ export class Game {
   }
 
   leak(e) {
+    if (this.lastLight && !e.def.boss) { this.triggerLastLight(e); return; }
     const cost = this.leakCost(e);
     this.lives -= cost;
     this.leaked++;
@@ -325,6 +335,119 @@ export class Game {
       this.over = 'lose';
       this.emit('over', { result: 'lose' });
     }
+  }
+
+  // ---- abilities -----------------------------------------------------------------------------
+  get flareReady() { return !this.over && this.flareCd <= 0; }
+
+  useFlare() {
+    if (!this.flareReady) return false;
+    this.flareCd = FLARE.cd;
+    const list = this.enemies.slice();
+    for (const e of list) {
+      if (!e.alive) continue;
+      if (!e.def.heavy) e.stunT = Math.max(e.stunT, FLARE.stun);
+      this.damage(e, e.def.heavy ? FLARE.heavyDmg : FLARE.dmg, 'true', null, FLARE_HIT);
+    }
+    this.emit('flare', { x: MAP.goal.x, y: MAP.goal.y });
+    return true;
+  }
+
+  // Ward abilities, grouped by ward type: the ward whose ability is closest to ready.
+  abilityTower(type) {
+    let best = null;
+    for (const t of this.towers) {
+      if (t.type !== type || t.abilityCd === null) continue;
+      if (!best || t.abilityCd < best.abilityCd) best = t;
+    }
+    return best;
+  }
+
+  useAbility(type) {
+    const t = this.abilityTower(type);
+    if (!t || t.abilityCd > 0 || this.over) return false;
+    const ab = ABILITIES[type];
+    t.abilityCd = ab.cd;
+    const s = t.stats;
+    if (type === 'bolt') {
+      t.buffT = ab.dur;
+      t.buffRate = ab.rateMul;
+    } else if (type === 'mortar') {
+      this.barrages.push({ src: t, left: ab.shells, gap: ab.over / ab.shells, t: 0 });
+    } else if (type === 'rime') {
+      const list = this.enemies.slice();
+      for (const e of list) {
+        if (!e.alive) continue;
+        if (e.def.heavy) applySlow(e, ab.heavySlow, ab.dur);
+        else { e.freezeT = ab.dur; e.freezeImm = ab.dur + 0.5; e.frozenAmp = Math.max(e.frozenAmp, s.frozenAmp || 0.3); }
+        if (s.brittle) { e.brittleT = ab.dur; e.brittlePct = Math.max(e.brittlePct, s.brittle); }
+        if (s.shatterDmg) { e.shatterT = ab.dur; e.shatterDmg = s.shatterDmg; e.shatterRadius = s.shatterRadius; e.shatterSrc = t; }
+        this.damage(e, s.damage * ab.dmgMul, s.type, t, QUIET);
+      }
+      this.emit('hoarfrost', { x: t.x, y: t.y });
+    } else if (type === 'coil') {
+      // The strongest enemies by what they still hold, each struck once.
+      const list = this.enemies.filter((e) => e.alive).sort((a, b) => this.leakCost(b) - this.leakCost(a)).slice(0, ab.strikes);
+      list.forEach((e, i) => this.strikes.push({ e, t: (i * ab.over) / ab.strikes, src: t }));
+    }
+    this.emit('ability', { ward: type, name: ab.name, x: t.x, y: t.y });
+    return true;
+  }
+
+  updateAbilities(dt) {
+    if (this.flareCd > 0) this.flareCd = Math.max(0, this.flareCd - dt);
+    for (const t of this.towers) if (t.abilityCd > 0) t.abilityCd = Math.max(0, t.abilityCd - dt);
+
+    // Saturation: shells fall on random enemies (or random stretches of path).
+    for (const b of this.barrages) {
+      b.t -= dt;
+      while (b.t <= 0 && b.left > 0) {
+        b.t += b.gap;
+        b.left--;
+        let tx, ty;
+        const live = this.enemies.length ? this.enemies[Math.floor(this.rand() * this.enemies.length)] : null;
+        if (live && live.alive) { tx = live.x + (this.rand() - 0.5) * 30; ty = live.y + (this.rand() - 0.5) * 30; }
+        else { this.map.path.posAt(60 + this.rand() * (this.map.path.length - 80), aim, 0); tx = aim.x; ty = aim.y; }
+        launchShell(this, b.src, tx, ty, 0.55 + this.rand() * 0.35);
+      }
+    }
+    if (this.barrages.length) this.barrages = this.barrages.filter((b) => b.left > 0 && this.towers.includes(b.src));
+
+    // Tempest: thunderbolts land one after another.
+    const ab = ABILITIES.coil;
+    for (const st of this.strikes) {
+      st.t -= dt;
+      if (st.t > 0 || st.done) continue;
+      st.done = true;
+      const e = st.e;
+      if (!e.alive) continue;
+      const s = st.src.stats;
+      const dmg = Math.max(ab.minDmg, s.damage * ab.mul);
+      this.grid.query(e.x, e.y, ab.radius, buf);
+      const around = buf.slice();
+      const x = e.x, y = e.y;
+      if (!e.def.heavy) e.stunT = Math.max(e.stunT, ab.stun);
+      this.damage(e, dmg, s.type, st.src, BIG);
+      for (const o of around) if (o !== e && o.alive) this.damage(o, dmg * 0.5, s.type, st.src, QUIET);
+      this.emit('smite', { x, y, r: ab.radius });
+    }
+    if (this.strikes.length) this.strikes = this.strikes.filter((st) => !st.done);
+  }
+
+  // The one free save: a nova at the Heartfire destroys every non-boss enemy near it, including
+  // the one that got through. Nothing inside them escapes and they pay no gold.
+  triggerLastLight(leaker) {
+    this.lastLight = false;
+    const g = MAP.goal, r2 = LAST_LIGHT.radius ** 2;
+    let n = 0;
+    for (const e of this.enemies) {
+      if (!e.alive || e.def.boss) continue;
+      if (e !== leaker && (e.x - g.x) ** 2 + (e.y - g.y) ** 2 > r2) continue;
+      e.alive = false;
+      n++;
+      this.emit('death', { x: e.x, y: e.y, r: e.r, etype: e.type, gold: 0, boss: false, heavy: !!e.def.heavy, src: 0 });
+    }
+    this.emit('lastlight', { x: g.x, y: g.y, r: LAST_LIGHT.radius, n });
   }
 
   // ---- main step -----------------------------------------------------------------------------
@@ -364,6 +487,7 @@ export class Game {
       for (const e of buf) if (e.veiled) e.revealT = 0.25;
     }
     for (let i = 0; i < this.towers.length; i++) updateTower(this, this.towers[i], dt);
+    this.updateAbilities(dt);
     updateProjectiles(this, dt);
     updateZones(this, dt);
 
@@ -398,3 +522,6 @@ export class Game {
 
 const QUIET = { quiet: true };
 const CARRY = { quiet: true };
+const BIG = { big: true };
+const FLARE_HIT = { quiet: true };
+const aim = { x: 0, y: 0, ang: 0 };

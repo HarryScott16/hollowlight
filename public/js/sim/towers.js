@@ -57,6 +57,7 @@ export function createTower(game, type, x, y) {
     tiers: [0, 0, 0], stats: computeStats(def, [0, 0, 0]),
     cd: 0, ang: -Math.PI / 2, target: null, targetMode: 'first',
     dmg: 0, kills: 0, spent: def.cost, shatterTokens: 0,
+    abilityCd: null, buffT: 0, buffRate: 1,   // abilityCd stays null until the ward reaches tier 4
     recoil: 0, shotN: 0, pulseN: 0, pulseAnim: 0,
   };
 }
@@ -243,6 +244,8 @@ function chain(game, t, dt) {
 const BEHAVIOURS = { bolt, mortar, pulse, chain };
 
 export function updateTower(game, t, dt) {
+  // Overdraw: the attack timer runs buffRate times faster.
+  if (t.buffT > 0) { t.buffT -= dt; if (t.cd > 0) t.cd -= dt * (t.buffRate - 1); }
   if (t.cd > 0) t.cd -= dt;
   if (t.recoil > 0) t.recoil = Math.max(0, t.recoil - dt * 5);
   if (t.pulseAnim > 0) t.pulseAnim = Math.max(0, t.pulseAnim - dt * 2);

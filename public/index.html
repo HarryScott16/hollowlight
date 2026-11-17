@@ -11,7 +11,7 @@
   <div id="app">
     <header id="hud">
       <div class="hud-stats">
-        <span class="stat lives" title="Lives"><span class="glyph">&#9829;</span><b id="hud-lives">100</b></span>
+        <span class="stat lives" title="Lives"><span class="glyph">&#9829;</span><b id="hud-lives">150</b></span>
         <span class="stat gold" title="Gold"><span class="glyph">&#9670;</span><b id="hud-gold">0</b></span>
         <span class="stat wave" title="Wave">Wave <b id="hud-wave">0</b></span>
       </div>
@@ -42,6 +42,10 @@
         <div id="paused-tag" hidden>Paused</div>
       </div>
       <aside id="side">
+        <section id="abilities">
+          <h2>Abilities <span class="hint" id="last-light" title="">Last Light ready</span></h2>
+          <div id="ability-list"></div>
+        </section>
         <section id="shop">
           <h2>Wards <span class="hint">click, then place on the map</span></h2>
           <div id="shop-list"></div>

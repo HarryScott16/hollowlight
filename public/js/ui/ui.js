@@ -4,6 +4,7 @@ import { TOWERS, TOWER_ORDER } from '../data/towers.js';
 import { ENEMIES, pops } from '../data/enemies.js';
 import { DAMAGE_TYPES } from '../data/damage.js';
 import { RULES, TARGET_MODES } from '../data/rules.js';
+import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { upgradeInfo, computeStats, estimateDps } from '../sim/towers.js';
 import { drawTowerIcon } from '../render/towerArt.js';
 import { drawEnemyIcon } from '../render/enemyArt.js';
@@ -95,6 +96,7 @@ export class UI {
     this.panelTick = 0;
 
     this.buildShop();
+    this.buildAbilities();
     this.bindHud();
     this.bindCanvas();
     this.bindKeys();
@@ -127,7 +129,7 @@ export class UI {
     const info = $('shop-info');
     info.textContent = '';
     if (!type) {
-      info.textContent = 'Hover a ward to see what it does. Keys 1-4 pick a ward, Esc cancels, F shows FPS.';
+      info.textContent = 'Hover a ward to see what it does. Keys 1-4 pick a ward, Esc cancels, X fires the Flare, 5-8 ward abilities, F shows FPS.';
       return;
     }
     const def = TOWERS[type];
@@ -141,6 +143,57 @@ export class UI {
     for (const t in this.shopButtons) this.shopButtons[t].classList.toggle('active', t === type);
     this.canvas.classList.toggle('placing', !!type);
     this.showShopInfo(type);
+  }
+
+  // ---- abilities -----------------------------------------------------------------------------
+  buildAbilities() {
+    const list = $('ability-list');
+    this.abButtons = [];
+    const add = (id, name, key, desc, cls, use) => {
+      const b = el('button', `ab-btn ${cls}`);
+      b.type = 'button';
+      b.title = `${name} [${key}]: ${desc}`;
+      const cd = el('span', 'ab-cd'), time = el('span', 'ab-time');
+      b.append(cd, el('span', 'ab-name', name), el('span', 'ab-key', key), time);
+      b.addEventListener('click', use);
+      list.append(b);
+      this.abButtons.push({ id, b, cd, time, state: '' });
+    };
+    add('flare', 'Flare', FLARE.key, FLARE.desc, 'flare', () => this.game.useFlare());
+    for (const type of TOWER_ORDER) {
+      const ab = ABILITIES[type];
+      add(type, ab.name, ab.key, `${ab.desc} Unlocks when a ${TOWERS[type].name} reaches tier 4.`, '', () => this.game.useAbility(type));
+    }
+    $('last-light').title = LAST_LIGHT.desc;
+  }
+
+  updateAbilities() {
+    const g = this.game;
+    for (const a of this.abButtons) {
+      let left, max, locked = false;
+      if (a.id === 'flare') { left = g.flareCd; max = FLARE.cd; } else {
+        const t = g.abilityTower(a.id);
+        if (!t) locked = true; else { left = t.abilityCd; max = ABILITIES[a.id].cd; }
+      }
+      const state = locked ? 'locked' : left <= 0 ? 'ready' : 'cd';
+      if (state !== a.state) {
+        a.state = state;
+        a.b.classList.toggle('locked', state === 'locked');
+        a.b.classList.toggle('ready', state === 'ready');
+        a.b.disabled = state !== 'ready';
+        if (state !== 'cd') { a.cd.style.height = '0%'; a.time.textContent = state === 'locked' ? 'tier 4' : 'ready'; }
+      }
+      if (state === 'cd') {
+        a.cd.style.height = `${Math.round((left / max) * 100)}%`;
+        a.time.textContent = `${Math.ceil(left)}s`;
+      }
+    }
+    const spent = !g.lastLight;
+    if (this.cache.lastLight !== spent) {
+      this.cache.lastLight = spent;
+      $('last-light').textContent = spent ? 'Last Light spent' : 'Last Light ready';
+      $('last-light').classList.toggle('spent', spent);
+    }
   }
 
   // ---- HUD -----------------------------------------------------------------------------------
@@ -213,7 +266,12 @@ export class UI {
     window.addEventListener('keydown', (ev) => {
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
       const k = ev.key;
-      if (k >= '1' && k <= '9') {
+      const abType = TOWER_ORDER.find((t) => ABILITIES[t].key === k);
+      if (abType) {
+        this.game.useAbility(abType);
+      } else if (k === 'x' || k === 'X') {
+        this.game.useFlare();
+      } else if (k >= '1' && k <= '9') {
         const type = TOWER_ORDER[Number(k) - 1];
         if (type) this.setPlacing(this.placing === type ? null : type);
       } else if (k === ' ') {
@@ -442,6 +500,7 @@ export class UI {
 
     if (this.selected && !g.towers.includes(this.selected)) this.select(null);
     if (++this.panelTick % 8 === 0) this.updatePanel();
+    this.updateAbilities();
 
     if (g.over && this.cache.over !== g.over) {
       this.cache.over = g.over;

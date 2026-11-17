@@ -72,7 +72,6 @@ export function updateEnemy(game, e, dt) {
     let slow = e.slowT > 0 ? e.slowF : 0;
     if (e.chargedT > 0 && e.chargedSlow > slow) slow = e.chargedSlow;
     if (game.globalSlow > slow) slow = game.globalSlow;
-    if (game.whiteoutT > 0 && game.whiteout > slow) slow = game.whiteout;
     if (e.def.slowRes) slow *= 1 - e.def.slowRes;
     mul = 1 - slow;
   }

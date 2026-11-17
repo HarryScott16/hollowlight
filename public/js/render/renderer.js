@@ -36,6 +36,7 @@ export class Renderer {
     this.shake = 0;
     this.banner = null;
     this.callout = null;  // big centre text for streaks and capstones
+    this.flash = null;    // full-screen colour flash for abilities
     this.numBudget = 0;
     this.showFps = false;
     this.fps = { frames: 0, t: performance.now(), value: 0, worst: 0, last: performance.now() };
@@ -49,7 +50,7 @@ export class Renderer {
     this.pops.clear();
     this.multi.clear();
     this.shake = 0;
-    this.banner = this.callout = null;
+    this.banner = this.callout = this.flash = null;
     this.game.fx.length = 0;
   }
 
@@ -185,6 +186,33 @@ export class Renderer {
           P.burst(MAP.goal.x, MAP.goal.y, f.boss ? 40 : 14, { color: '#ff3d3d', speed: 180, life: 0.6, size: 3.5 });
           this.ring(MAP.goal.x, MAP.goal.y, 20, f.boss ? 140 : 70, 0.4, '#ff3d3d', 4);
           break;
+        case 'flare': {
+          this.flash = { color: '255,214,120', t: 0.35, max: 0.35, a: 0.55 };
+          this.shake = Math.max(this.shake, 12);
+          for (let k = 0; k < 3; k++) this.ring(f.x, f.y, 20, 1300, 0.9 + k * 0.25, k ? '#ffae2b' : '#fff6c0', 14 - k * 4, null, true);
+          P.burst(f.x, f.y, 90, { color: '#ffd23a', speed: 520, life: 1.0, size: 4 });
+          this.callout = { text: 'HEARTFIRE FLARE', sub: null, color: '#ffd23a', t: 1.3, max: 1.3 };
+          break;
+        }
+        case 'hoarfrost':
+          this.flash = { color: '170,235,255', t: 0.5, max: 0.5, a: 0.5 };
+          this.shake = Math.max(this.shake, 6);
+          this.ring(f.x, f.y, 10, 1300, 1.0, '#e8fbff', 10, 'rgba(180,240,255,0.10)', true);
+          this.callout = { text: 'HOARFROST', sub: null, color: '#aef0ff', t: 1.3, max: 1.3 };
+          break;
+        case 'ability':
+          if (f.ward !== 'rime') this.text(f.x, f.y - 34, f.name.toUpperCase(), '#ffe45c', 18, 1.3, 24);
+          this.ring(f.x, f.y, 8, 90, 0.5, '#ffe45c', 5, null, true);
+          P.burst(f.x, f.y, 30, { color: '#ffe45c', speed: 240, life: 0.6, size: 3.2 });
+          if (f.ward === 'mortar') this.shake = Math.max(this.shake, 5);
+          break;
+        case 'lastlight':
+          this.flash = { color: '255,240,190', t: 0.6, max: 0.6, a: 0.7 };
+          this.shake = Math.max(this.shake, 14);
+          for (let k = 0; k < 4; k++) this.ring(f.x, f.y, 10, f.r + k * 30, 0.6 + k * 0.15, '#fff1b0', 8 - k, k ? null : 'rgba(255,230,150,0.35)', true);
+          P.burst(f.x, f.y, 120, { color: '#fff1b0', speed: 420, life: 1.0, size: 4 });
+          this.callout = { text: 'LAST LIGHT!', sub: 'The Heartfire saved you, once', color: '#fff1b0', t: 2.6, max: 2.6 };
+          break;
         case 'wave':
           this.banner = { text: `Wave ${f.n}`, t: 2 };
           break;
@@ -290,6 +318,15 @@ export class Renderer {
       st.pop = pop > 0 ? Math.sin((1 - pop / POP_TIME) * Math.PI) * (pop / POP_TIME + 0.3) : 0;
       drawTower(ctx, t.type, t.tiers, st);
       ctx.restore();
+      // Overdraw: a spinning golden aura while the buff lasts
+      if (t.buffT > 0) {
+        ctx.strokeStyle = '#ffe45c';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 8]);
+        ctx.lineDashOffset = -this.time * 60;
+        ctx.beginPath(); ctx.arc(t.x, t.y, 30 + Math.sin(this.time * 20) * 2, 0, TAU); ctx.stroke();
+        ctx.setLineDash([]);
+      }
       // capstone towers shed motes of light
       if (dt > 0 && (t.tiers[0] >= 4 || t.tiers[1] >= 4 || t.tiers[2] >= 4) && Math.random() < 0.35) {
         const pi = t.tiers.indexOf(4);
@@ -315,11 +352,21 @@ export class Renderer {
     this.drawPlacement(ctx, ui);
 
     ctx.setTransform(s, 0, 0, s, 0, 0);
+    this.drawFlash(ctx, dt);
     this.drawBossBar(ctx);
     this.drawStreak(ctx);
     this.drawBanner(ctx, dt);
     this.drawCallout(ctx, dt);
     this.drawFps(ctx);
+  }
+
+  drawFlash(ctx, dt) {
+    const f = this.flash;
+    if (!f) return;
+    f.t -= dt;
+    if (f.t <= 0) { this.flash = null; return; }
+    ctx.fillStyle = `rgba(${f.color},${(f.a * f.t) / f.max})`;
+    ctx.fillRect(0, 0, W, H);
   }
 
   // Toggled with F: frames per second, worst frame time, and object counts.

@@ -1,7 +1,7 @@
 // Headless balance bot. Plays the real simulation with a few scripted strategies and reports
 // how each one fares. Usage: node tools/bot.js [strategyName] [-v]
 import { Game } from '../public/js/sim/game.js';
-import { TOWERS } from '../public/js/data/towers.js';
+import { TOWERS, TOWER_ORDER } from '../public/js/data/towers.js';
 import { upgradeInfo, computeStats, estimateDps } from '../public/js/sim/towers.js';
 
 const STEP = 1 / 60;
@@ -56,8 +56,8 @@ const STRATEGIES = {
   spamNoUpgrades: {
     order: ['bolt', 'mortar', 'coil', 'rime'], paths: {}, maxTowers: () => 99,
   },
-  lazy: { // buys the opening towers and then never spends again
-    order: ['bolt', 'bolt', 'rime'], paths: {}, maxTowers: () => 3,
+  lazy: { // buys the opening towers and then never spends again (or uses abilities)
+    order: ['bolt', 'bolt', 'rime'], paths: {}, maxTowers: () => 3, noAbilities: true,
   },
 };
 
@@ -139,7 +139,29 @@ function spend(game, strat, spots, state) {
   }
 }
 
+// Abilities, used the way a player would: the Flare as a panic button when enemies get close to
+// the Heartfire (or for the boss), ward abilities whenever there is a crowd or a hulk to hit.
+const abilityUse = { flare: 0, ward: 0 };
+function useAbilities(game) {
+  const len = game.map.path.length;
+  let near = 0, heavy = false;
+  for (const e of game.enemies) {
+    if (e.dist > len * 0.75) near++;
+    if (e.def.heavy) heavy = true;
+  }
+  if (game.flareReady && (near >= 12 || game.enemies.some((e) => e.def.boss && e.dist > len * 0.6))) {
+    game.useFlare(); abilityUse.flare++;
+  }
+  if (game.enemies.length >= 40 || heavy) {
+    for (const type of TOWER_ORDER) {
+      const t = game.abilityTower(type);
+      if (t && t.abilityCd <= 0 && game.useAbility(type)) abilityUse.ward++;
+    }
+  }
+}
+
 function run(name, strat, seed = SEED) {
+  abilityUse.flare = abilityUse.ward = 0;
   const game = new Game({ fx: false, seed });
   const spots = candidateSpots(game);
   const state = { bought: 0 };
@@ -167,6 +189,7 @@ function run(name, strat, seed = SEED) {
       if (boss.spawn === undefined && game.enemies.some((e) => e.def.boss)) boss.spawn = Math.round(game.time);
       if (game.enemies.length > maxEnemies) maxEnemies = game.enemies.length;
       if (++steps % 120 === 0) spend(game, strat, spots, state);
+      if (steps % 30 === 0 && !strat.noAbilities) useAbilities(game);
       // Early caller: once a wave has finished spawning, call the next one (keeps one wave of overlap).
       if (strat.early && state.safe && game.canStartWave && game.enemies.length && !state.calledEarly) {
         spend(game, strat, spots, state);
@@ -180,7 +203,7 @@ function run(name, strat, seed = SEED) {
     log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}${Object.keys(leaks).length ? `  leaks: ${Object.entries(leaks).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
     leaks = {};
   }
-  console.log(`${name.padEnd(16)} ${game.over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}`);
+  console.log(`${name.padEnd(16)} ${game.over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}  abilities ${abilityUse.flare}F/${abilityUse.ward}W${game.lastLight ? '' : '  LAST LIGHT used'}`);
   if (verbose) {
     console.log(log.join('\n'));
     const byType = {};

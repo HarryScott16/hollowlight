@@ -111,6 +111,14 @@ export function explode(game, x, y, s, src, sub) {
   }
 }
 
+// Lobs one of a mortar's shells at a point (used by the Saturation ability).
+export function launchShell(game, src, tx, ty, flight) {
+  game.projectiles.push({
+    kind: 'shell', x: src.x, y: src.y, sx: src.x, sy: src.y, tx, ty, t: 0, flight,
+    sub: false, src, s: src.stats, dead: false,
+  });
+}
+
 function updateShell(game, p, dt) {
   p.t += dt;
   const u = Math.min(1, p.t / p.flight);

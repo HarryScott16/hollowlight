@@ -216,3 +216,34 @@ main { flex: 1; display: flex; min-height: 0; }
 }
 .pv-new { font-size: 10px; font-weight: 800; color: #1d1030; background: var(--gold); border-radius: 3px; padding: 0 3px; margin-right: 4px; }
 .pv canvas.veiled { opacity: 0.45; }
+
+/* ---- abilities ---- */
+#ability-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.ab-btn {
+  position: relative;
+  overflow: hidden;
+  padding: 6px 2px 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 52px;
+  font-size: 11px;
+  line-height: 1.1;
+  text-align: center;
+}
+.ab-btn .ab-name { font-weight: 700; position: relative; }
+.ab-btn .ab-key {
+  position: relative;
+  font-size: 10px;
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+.ab-btn .ab-cd { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(10, 20, 35, 0.6); pointer-events: none; }
+.ab-btn .ab-time { position: relative; font-variant-numeric: tabular-nums; color: var(--dim); font-size: 10px; min-height: 11px; }
+.ab-btn.ready { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset, 0 0 10px rgba(255, 210, 58, 0.45); }
+.ab-btn.flare.ready { background: #8a3a12; }
+.ab-btn.locked { opacity: 0.4; }
+#last-light.spent { color: var(--red); text-decoration: line-through; }
