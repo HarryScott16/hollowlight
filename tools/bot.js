@@ -18,6 +18,7 @@ const ENDLESS_CAP = Number((process.argv.find((a) => a.startsWith("--cap=")) || 
 // maxUpgrades: total upgrades it ever buys. group: which balance target the build is held to.
 //   lazy        2-3 wards, little or no upgrading           -> should lose around waves 8-12
 //   reasonable  a mixed defence with tier 3s, no tier 4s    -> tested around 25-35, loses before 40
+//   plateau     three tier 4s as fast as possible, then stops -> loses lives late 20s, lost by ~30-35
 //   strong      a full composition with tier 4s             -> wins wave 40, but not with full lives
 //   probe       one-trick builds, to see what each counter-check punishes
 const STRATEGIES = {
@@ -49,6 +50,14 @@ const STRATEGIES = {
     order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'mortar'],
     paths: { bolt: [2, 0], mortar: [0, 1], rime: [2, 1], coil: [0, 2] },
     maxTowers: (w) => Math.min(9, 3 + Math.floor(w * 0.3)), tierCap: 3,
+  },
+
+  // Plateau: rushes three wards to tier 4, then never spends again. The late waves should catch
+  // it: losing lives in the late 20s, lost by about 30-35.
+  plateau: { // up to eight wards; after the Gravemaw it saves hard for tier 4s, and stops at three
+    reveal: true, group: 'plateau', order: ['bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil'],
+    paths: { bolt: [0, 2], mortar: [0, 1], rime: [1, 2], coil: [1, 0] },
+    maxTowers: (w) => Math.min(8, 3 + Math.floor(w * 0.5)), save: 6, saveFrom: 11, stopAtT4: 3,
   },
 
   // Strong: the same kind of mix, taken to tier 4, spending everything.
@@ -159,6 +168,8 @@ function ensureReveal(game, strat) {
 }
 
 function spend(game, strat, spots, state) {
+  // Plateau builds stop investing for good once they own this many tier 4 wards.
+  if (strat.stopAtT4 && game.towers.filter((t) => t.tiers.includes(4)).length >= strat.stopAtT4) return;
   if (!ensureReveal(game, strat)) return;
   for (let guard = 0; guard < 50; guard++) {
     const canUpgrade = strat.maxUpgrades === undefined || state.upgrades < strat.maxUpgrades;
@@ -172,7 +183,7 @@ function spend(game, strat, spots, state) {
     }
     // Save for the best-value upgrade only if `save` waves of income (default 1) will cover it;
     // otherwise buy the best one affordable now. Strong builds save up for tier 4s after wave 10.
-    const lastIncome = (game.income[game.wave - 2] || 300) * (game.wave > 10 ? strat.save || 1 : 1);
+    const lastIncome = (game.income[game.wave - 2] || 300) * (game.wave >= (strat.saveFrom || 11) ? strat.save || 1 : 1);
     let pick = null, now = null;
     if (!canUpgrade) return;
     for (const t of game.towers) {
@@ -219,7 +230,7 @@ function run(name, strat, seed = SEED) {
   abilityUse.flare = abilityUse.ward = 0;
   const game = new Game({ fx: false, seed });
   const spots = candidateSpots(game);
-  const state = { bought: 0, upgrades: 0, livesAt: {} };
+  const state = { bought: 0, upgrades: 0, livesAt: {}, t4At: {} };
   const log = [];
   let maxEnemies = 0;
   const boss = { result: 'none', cost: 0, time: 0 };
@@ -267,6 +278,10 @@ function run(name, strat, seed = SEED) {
     state.safe = game.lives === livesBefore;
     if (!state.safe && !state.firstLeak) state.firstLeak = game.wave;
     if (game.wave % 5 === 0 && !game.over) state.livesAt[game.wave] = game.lives;
+    const t4now = game.towers.filter((tw) => tw.tiers.includes(4)).length;
+    if (t4now && !state.firstT4) state.firstT4 = game.wave;
+    if (t4now >= 3 && !state.thirdT4) state.thirdT4 = game.wave;
+    if (game.wave === 20 || game.wave === 30) state.t4At[game.wave] = t4now;
     // sim cost: wall-clock ms per simulated second on this machine. At 3x speed the browser runs
     // 3 sim-seconds per real second, so 3x this is the share of each second spent simulating.
     const cost = ((Date.now() - wall0) / Math.max(1, t)).toFixed(1);
@@ -288,18 +303,20 @@ function run(name, strat, seed = SEED) {
   }
   const t4 = game.towers.filter((t) => t.tiers.includes(4)).length, t3 = game.towers.filter((t) => t.tiers.includes(3)).length;
   results.push({ name, group: strat.group, over: game.over || 'cap', wave: game.wave, lives: game.lives, firstLeak: state.firstLeak,
-    livesAt: state.livesAt, towers: game.towers.length, t3, t4, lastLight: !game.lastLight, peak: maxEnemies });
+    livesAt: state.livesAt, towers: game.towers.length, t3, t4, lastLight: !game.lastLight, peak: maxEnemies,
+    firstT4: state.firstT4, thirdT4: state.thirdT4, t4At: state.t4At });
   return game;
 }
 
 const results = [];
 function table() {
   const at = (r, w) => (r.livesAt[w] !== undefined ? r.livesAt[w] : r.wave <= w ? '-' : '?');
-  console.log('\n| Build | Group | Result | First leak | Lives @20 | @25 | @30 | @35 | Wards (T3/T4) | Peak enemies |');
-  console.log('|---|---|---|---|---|---|---|---|---|---|');
+  const t4 = (r, w) => (r.t4At[w] !== undefined ? r.t4At[w] : '-');
+  console.log('\n| Build | Group | Result | First leak | Lives @25 | @30 | @35 | First / 3rd T4 | T4s @20 / @30 / end | Wards (T3/T4) | Peak enemies |');
+  console.log('|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of results) {
     const res = r.over === 'win' ? `**won**, ${r.lives}/150${r.lastLight ? ' (Last Light used)' : ''}` : r.over === 'lose' ? `lost on wave ${r.wave}` : `reached wave ${r.wave}`;
-    console.log(`| ${r.name} | ${r.group} | ${res} | ${r.firstLeak || 'never'} | ${at(r, 20)} | ${at(r, 25)} | ${at(r, 30)} | ${at(r, 35)} | ${r.towers} (${r.t3}/${r.t4}) | ${r.peak} |`);
+    console.log(`| ${r.name} | ${r.group} | ${res} | ${r.firstLeak || 'never'} | ${at(r, 25)} | ${at(r, 30)} | ${at(r, 35)} | ${r.firstT4 ? `${r.firstT4} / ${r.thirdT4 || '-'}` : '-'} | ${t4(r, 20)} / ${t4(r, 30)} / ${r.t4} | ${r.towers} (${r.t3}/${r.t4}) | ${r.peak} |`);
   }
 }
 

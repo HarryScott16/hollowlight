@@ -416,3 +416,88 @@ Caveats:
   `strongCinder` fall to them. If you want a second ward after the Rot Censer, the Longeye
   (map-wide sniper, sees stealth) eases both flyers and stealth.
 
+---
+
+## 10. Second playtest pass (2026-11-17)
+
+Feedback: with 3 max-level wards by wave 20, nothing pushed back until wave 40, where the run
+collapsed. Waves 21-39 were too easy and tier 4s came too soon.
+
+### Waves 21-39: a steady climb in stretches
+
+The hand-written waves 21-29 and 31-39 are replaced by `themed()` waves in `data/waves.js`. The pop
+budget grows smoothly: 7.5% a wave from ~4.6k at wave 21 to ~8.9k at 30, then 9.6% a wave to ~20k at
+39. Wave 40 is ~24k plus the boss. Each stretch mixes several threats, so a few strong wards in one
+place can't cover it:
+
+| Waves | Stretch | Mix |
+|---|---|---|
+| 21-24 | Veiled armour | half-Veiled Dreadhulks, Husks and Nullbacks behind Aegis, with Menders; Veiled Broods; a colossus intro at 23 |
+| 25-29 | Air and hide | Gloomwing flocks (40% Veiled) over Arcane-proof Nullbacks, with Heralds and colossi |
+| 31-34 | Shield wall | Aegis lines and Menders around colossi, Heralds pushing them on |
+| 35-39 | The long night | everything; Veiled giants at 38 |
+
+- Small and mid-sized Gloom are sized from 60% of wave 21's budget, plus 4% a wave. Hulks and
+  colossi carry the rest of the budget, so spawns climb steadily from ~350 to ~540 a wave.
+- TOUGH is now 6% a wave from 21 and 12% after 30 (x1.79 at wave 30, x5.74 at 40). PACE is
+  unchanged. CROWD now only touches the hand-written waves 16-20.
+- The Hollow King has 85,000 HP.
+
+### Tier 4 pacing and gold
+
+- Tier 4 prices are up 30% (Siege Lance 4,200, Cataclysm 4,700, Smite 4,900, ...). Tier 4 power per
+  gold is now 1.65-2.4x the base ward (`node tools/report.js`), still above tier 3.
+- The clear reward is uncapped again (`100 + 25w`: 600 at wave 20, 1,100 at 40), so late waves pay
+  for continued building. Cumulative gold: 7k by wave 10, 12k by 15, 18k by 20, 32k by 30, 49k by 40.
+- Streaks no longer pay gold (see below).
+- Result: strong builds buy their first tier 4 on wave 15-16, have 2 by wave 20, 4-5 by 30 and 7 by
+  40, and keep spending in between.
+
+### UI
+
+- **Upgrade text:** each path has a one-line identity and each tier a short line about what it
+  does. The exact numbers (the old descriptions, the before/after stat diff, and the ward's stat
+  grid) show only on hover or while Shift is held.
+- **Gold is always a whole number.** Fractional texts are rounded or skipped, and the preview says
+  "1 gold per N pops".
+- **Streaks:** no centre-screen popup and no streak gold. The rising pop pitch, the corner counter
+  and a chime every 250 stay.
+- **Speed:** a 5x button, and the per-frame step cap rises from 12 to 20.
+
+### Bot results
+
+New `plateau` build: up to 8 wards. After the Gravemaw it saves hard for tier 4s, and stops investing
+for good once it owns 3. New columns: the waves of the first and third tier 4, and the tier 4 count
+at waves 20 and 30 and at the end.
+
+| Build | Group | Result | First leak | Lives @25 | @30 | @35 | First / 3rd T4 | T4s @20 / @30 / end | Wards (T3/T4) | Peak enemies |
+|---|---|---|---|---|---|---|---|---|---|---|
+| lazy | lazy | lost on wave 8 | 6 | - | - | - | - | - / - / 0 | 3 (0/0) | 131 |
+| minimal | lazy | lost on wave 9 | 5 | - | - | - | - | - / - / 0 | 2 (0/0) | 152 |
+| lazyTier1 | lazy | lost on wave 10 | 9 | - | - | - | - | - / - / 0 | 3 (0/0) | 151 |
+| mixed | reasonable | lost on wave 35 | 35 | 150 | 150 | - | - | 0 / 0 / 0 | 14 (14/0) | 399 |
+| mixedAlt | reasonable | lost on wave 30 | 30 | 150 | - | - | - | 0 / 0 / 0 | 14 (14/0) | 400 |
+| focused | reasonable | lost on wave 30 | 30 | 150 | - | - | - | 0 / 0 / 0 | 9 (9/0) | 424 |
+| plateau | plateau | lost on wave 33 | 33 | 150 | 150 | - | 15 / 22 | 2 / 3 / 3 | 8 (0/3) | 413 |
+| strong | strong | lost on wave 40 | 40 | 150 | 150 | 150 | 16 / 23 | 2 / 4 / 7 | 16 (1/7) | 857 |
+| strongAlt | strong | **won**, 150/150 | never | 150 | 150 | 150 | 15 / 23 | 2 / 5 / 7 | 16 (1/7) | 392 |
+| strongFreeze | strong | **won**, 122/150 (Last Light used) | 40 | 150 | 150 | 150 | 15 / 23 | 2 / 4 / 7 | 16 (1/7) | 607 |
+| strongCinder | probe | lost on wave 21 | 11 | - | - | - | 17 / - | 1 / - / 2 | 13 (2/2) | 408 |
+| spamNoUpgrades | probe | lost on wave 20 | 20 | - | - | - | - | 0 / - / 0 | 60 (0/0) | 312 |
+| noDetection | probe | lost on wave 20 | 20 | - | - | - | - | 0 / - / 0 | 13 (8/0) | 384 |
+| groundOnly | probe | lost on wave 12 | 9 | - | - | - | - | - / - / 0 | 8 (3/0) | 220 |
+| boltOnly | probe | lost on wave 12 | 6 | - | - | - | - | - / - / 0 | 15 (6/0) | 205 |
+| coilOnly | probe | lost on wave 10 | 5 | - | - | - | - | - / - / 0 | 8 (1/0) | 113 |
+
+Endless: `strongAlt` reaches wave 48.
+
+Caveats:
+- **Plateau gets its 3rd tier 4 on wave 22, not 20.** With tier 4s 30% dearer, even a dedicated
+  rusher can't afford three by wave 20; slowing tier 4s and "3 by 20" pull against each other.
+- **Plateau doesn't bleed before it falls.** It holds without a leak until wave 32-33, then
+  collapses. A leaked hulk costs 100+ lives, so the bots go from fine to lost in a wave or two. A
+  player who uses the Flare and reacts will bleed more gradually.
+- **Strong builds kept pace the whole way.** Their deepest point stays ~77-85% of the path from wave
+  24 to 39, and wave 40 is the peak: one loses narrowly (the King leaks at 1-5%), one wins with 122
+  lives, and one wins clean.
+

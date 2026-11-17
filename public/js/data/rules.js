@@ -8,7 +8,7 @@ export const RULES = {
   maxTier: 4,            // tiers per upgrade path
   maxPaths: 2,           // a tower may invest in this many paths
   minorTierCap: 2,       // only one path may go above this tier
-  waveReward: (wave) => Math.min(350, 100 + 25 * wave),  // paid when a wave is fully cleared (wave is 1-based)
+  waveReward: (wave) => 100 + 25 * wave,  // paid when a wave is fully cleared (wave is 1-based): 1,100 by wave 40
   earlyBonus: (wave) => 40 + 16 * wave,   // paid for calling the next wave while enemies remain
   // Gold per layer broken. Full until wave 8, then it tapers as the crowds grow (0.25 at wave 16,
   // 0.07 at 30, 0.04 at 40), so 40 waves of ever bigger hordes don't flood the player with money
