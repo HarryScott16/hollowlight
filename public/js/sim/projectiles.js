@@ -15,18 +15,18 @@ const EXECUTE = { big: true };
 function hitBolt(game, p, e) {
   const s = p.s;
   game.damage(e, p.dmg, s.type, p.src, s.armorPierce ? { armorPierce: s.armorPierce } : null);
-  if (e.alive && s.knockback && !e.def.boss) e.dist = Math.max(0, e.dist - s.knockback);
+  if (e.alive && s.knockback && !e.def.heavy) e.dist = Math.max(0, e.dist - s.knockback);
   if (s.markPct) {
     if (s.markRadius) {
       game.grid.query(e.x, e.y, s.markRadius, marks);
       const list = marks.slice();
-      for (const m of list) if (m.alive && game.targetable(m, s)) mark(game, m, s, p.src);
+      for (const m of list) if (m.alive && game.targetable(m, s, true)) mark(game, m, s, p.src);
       game.emit('markburst', { x: e.x, y: e.y, r: s.markRadius });
     } else if (e.alive) {
       mark(game, e, s, p.src);
     }
   }
-  p.hit.push(e.id);
+  p.hit.push(e.root);
   p.homing = false;
   if (--p.pierce > 0) return;
   // Ricochet: hop to the nearest enemy this bolt hasn't hit yet.
@@ -34,7 +34,7 @@ function hitBolt(game, p, e) {
     game.grid.query(e.x, e.y, 150, marks);
     let best = null, bestD = Infinity;
     for (const o of marks) {
-      if (!game.targetable(o, s) || p.hit.includes(o.id)) continue;
+      if (!game.targetable(o, s) || p.hit.includes(o.root)) continue;
       const d = (o.x - e.x) ** 2 + (o.y - e.y) ** 2;
       if (d < bestD) { bestD = d; best = o; }
     }
@@ -67,7 +67,7 @@ function updateBolt(game, p, dt) {
   game.grid.query(p.x, p.y, 40 + 6 * (p.s.boltSize || 1), buf);
   for (let i = 0; i < buf.length && !p.dead; i++) {
     const e = buf[i];
-    if (!e.alive || p.hit.includes(e.id) || !game.targetable(e, p.s)) continue;
+    if (!e.alive || p.hit.includes(e.root) || !game.targetable(e, p.s)) continue;
     const rr = e.r + 4 + 3 * (p.s.boltSize || 1);
     if ((e.x - p.x) ** 2 + (e.y - p.y) ** 2 <= rr * rr) hitBolt(game, p, e);
   }
@@ -83,7 +83,7 @@ export function explode(game, x, y, s, src, sub) {
     if ((e.x - x) ** 2 + (e.y - y) ** 2 > reach * reach) continue;
     game.damage(e, dmg, s.type, src);
     if (!e.alive) continue;
-    if (s.stun && !e.def.boss) e.stunT = Math.max(e.stunT, s.stun * (sub ? 0.5 : 1));
+    if (s.stun && !e.def.heavy) e.stunT = Math.max(e.stunT, s.stun * (sub ? 0.5 : 1));
     if (s.burnDps) { e.burnT = s.burnDur; e.burnDps = Math.max(e.burnDps, s.burnDps); e.burnSrc = src; }
   }
   game.emit('explosion', { x, y, r, sub });

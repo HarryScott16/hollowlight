@@ -149,18 +149,18 @@ function pulse(game, t, dt) {
   if (t.cd > 0) return;
   game.grid.query(t.x, t.y, s.range, buf);
   let any = false;
-  for (const e of buf) if (game.targetable(e, s)) { any = true; break; }
+  for (const e of buf) if (game.targetable(e, s, true)) { any = true; break; }
   if (!any) return;
   t.cd += 1 / s.rate;
   t.pulseN++;
   t.pulseAnim = 1;
   const freeze = s.freezeEvery && t.pulseN % s.freezeEvery === 0;
   for (const e of buf) {
-    if (!e.alive || !game.targetable(e, s)) continue;
+    if (!e.alive || !game.targetable(e, s, true)) continue;
     applySlow(e, s.slow, s.slowDur);
     if (s.brittle) { e.brittleT = s.slowDur; e.brittlePct = Math.max(e.brittlePct, s.brittle); }
     if (s.shatterDmg) { e.shatterT = s.slowDur; e.shatterDmg = s.shatterDmg; e.shatterRadius = s.shatterRadius; e.shatterSrc = t; }
-    if (freeze && !e.def.boss && e.freezeImm <= 0) {
+    if (freeze && !e.def.heavy && e.freezeImm <= 0) {
       e.freezeT = s.freezeDur; e.freezeImm = s.freezeDur + 1.5; e.frozenAmp = s.frozenAmp || 0;
     }
     game.damage(e, s.damage, s.type, t, QUIET);
@@ -179,10 +179,10 @@ function strike(game, t, s, first, smite) {
   const opts = { shieldMul: s.shieldMul };
   for (let j = 0; j < s.chains && cur; j++) {
     pts.push(cur.x, cur.y);
-    chainHit.push(cur);
+    chainHit.push(cur.root);
     game.damage(cur, dmg, s.type, t, opts);
     if (cur.alive) {
-      if (!cur.def.boss) {
+      if (!cur.def.heavy) {
         if (smite && j === 0) cur.stunT = Math.max(cur.stunT, 1);
         else if (s.stunChance && game.rand() < s.stunChance) cur.stunT = Math.max(cur.stunT, s.stunDur);
       }
@@ -194,7 +194,7 @@ function strike(game, t, s, first, smite) {
       if (r) {
         game.grid.query(cur.x, cur.y, r, buf);
         const around = buf.slice();
-        for (const e of around) if (e !== cur && game.targetable(e, s)) game.damage(e, s.damage * s.smiteMul * 0.5, s.type, t, opts);
+        for (const e of around) if (e !== cur && game.targetable(e, s, true)) game.damage(e, s.damage * s.smiteMul * 0.5, s.type, t, opts);
         game.emit('smite', { x: cur.x, y: cur.y, r });
       }
       dmg = s.damage;
@@ -203,7 +203,7 @@ function strike(game, t, s, first, smite) {
     game.grid.query(cur.x, cur.y, s.jumpRange, buf);
     let best = null, bestD = Infinity;
     for (const e of buf) {
-      if (!game.targetable(e, s) || chainHit.includes(e)) continue;
+      if (!game.targetable(e, s) || chainHit.includes(e.root)) continue;
       const d = (e.x - cur.x) ** 2 + (e.y - cur.y) ** 2;
       if (d < bestD) { bestD = d; best = e; }
     }

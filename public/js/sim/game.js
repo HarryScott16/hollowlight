@@ -4,11 +4,11 @@ import { MAP } from '../data/map.js';
 import { RULES } from '../data/rules.js';
 import { TOWERS } from '../data/towers.js';
 import { WAVES, WAVE_HP } from '../data/waves.js';
-import { ENEMIES } from '../data/enemies.js';
+import { ENEMIES, pops } from '../data/enemies.js';
 import { SHIELD_MULT } from '../data/damage.js';
 import { buildMap, mulberry32 } from './path.js';
 import { Grid } from './grid.js';
-import { createEnemy, updateEnemy } from './enemies.js';
+import { createEnemy, updateEnemy, inherit } from './enemies.js';
 import { createTower, computeStats, upgradeInfo, updateTower } from './towers.js';
 import { updateProjectiles, updateZones } from './projectiles.js';
 
@@ -45,6 +45,8 @@ export class Game {
     this.earned = 0;
     this.leaked = 0;
     this.kills = 0;
+    this.pops = 0;            // layers broken (a Husk shell counts 6)
+    this.goldMul = 1;         // gold per layer (drops in endless mode)
     this.streak = 0;          // kills chained less than RULES.streakWindow apart
     this.bestStreak = 0;
     this.lastKill = -99;
@@ -73,7 +75,8 @@ export class Game {
     const wave = this.waves[this.wave];
     this.wave++;
     for (const g of wave.groups) {
-      this.spawners.push({ type: g.type, left: g.count, gap: g.gap, t: g.delay || 0, hp: (g.hp || 1) * (ENEMIES[g.type].boss ? 1 : WAVE_HP(this.wave)), wave: this.wave });
+      const mods = { hpMul: (g.hp || 1) * (ENEMIES[g.type].boss ? 1 : WAVE_HP(this.wave)), speedMul: 1, veiled: !!g.veiled };
+      this.spawners.push({ type: g.type, left: g.count, gap: g.gap, t: g.delay || 0, mods, wave: this.wave });
     }
     this.emit('wave', { n: this.wave });
     return true;
@@ -146,10 +149,11 @@ export class Game {
   }
 
   // ---- targeting -----------------------------------------------------------------------------
-  targetable(e, s) {
+  // `area` attacks (pulses, explosions, fire) hit Veiled enemies without needing to see them.
+  targetable(e, s, area) {
     if (!e.alive) return false;
     if (e.def.flying && !s.hitsAir) return false;
-    if (e.def.stealth && !s.detect) return false;
+    if (e.veiled && !area && !s.detect && e.revealT <= 0) return false;
     return true;
   }
 
@@ -198,8 +202,10 @@ export class Game {
     if (e.chargedT > 0 && type === 'arcane') amp += e.chargedPct;
     if (e.scorchT > 0) amp += e.scorchPct;
     if (e.freezeT > 0) amp += e.frozenAmp || 0;
-    let dmg = amount * mult * amp;
+    const k = mult * amp;
+    let dmg = amount * k;
     let dealt = 0;
+    e.lastHit = this.time;
 
     if (e.shield > 0) {
       const sm = (opts && opts.shieldMul && type === 'arcane') ? opts.shieldMul
@@ -222,19 +228,50 @@ export class Game {
       e.flash = 0.09;
       e.hitT = 0.12;
       if (!(opts && opts.quiet) || dealt >= 40) {
-        this.emit('hit', { x: e.x, y: e.y, dtype: type, resisted: mult < 0.75, amt: dealt, maxHp: e.maxHp, big: !!(opts && opts.big) });
+        this.emit('hit', { x: e.x, y: e.y, dtype: type, resisted: mult < 0.75, amt: dealt, maxHp: e.maxHp, big: !!(opts && opts.big), heavy: !!e.def.heavy });
       }
     }
-    if (e.hp <= 0) this.kill(e, src);
+    if (e.def.phases) this.checkPhases(e, src);
+    if (e.hp <= 0) {
+      // Overkill carries into the inner layers, converted back to raw damage so their own
+      // resistances apply.
+      const carry = k > 0 ? -e.hp / k : 0;
+      this.kill(e, src, carry, type, opts);
+    }
     return dealt;
   }
 
-  kill(e, src) {
+  // Bosses burst out extra enemies as their health crosses each phase threshold.
+  checkPhases(e, src) {
+    const ph = e.def.phases;
+    while (e.phase < ph.length && e.hp / e.maxHp <= ph[e.phase].at) {
+      const p = ph[e.phase++];
+      this.spawnShed(e, p.type, p.count, 0, null, null);
+      this.emit('phase', { x: e.x, y: e.y, n: e.phase, r: e.r });
+    }
+  }
+
+  // Spawns `count` inner enemies at e's position. The first one takes the carried damage.
+  spawnShed(e, type, count, carry, dtype, opts, src) {
+    for (let i = 0; i < count; i++) {
+      const child = createEnemy(this, type, Math.max(0, e.dist - i * 10), e.wave, e.mods, e.root);
+      child.off = e.off + (count > 1 ? (i - (count - 1) / 2) * 7 : 0);
+      inherit(child, e);
+      child.wob = e.wob + i;
+      this.map.path.posAt(child.dist, child, child.off);
+      this.enemies.push(child);
+      if (i === 0 && carry > 0.01) this.damage(child, carry, dtype, src, opts && opts.dot ? opts : CARRY);
+    }
+  }
+
+  kill(e, src, carry = 0, dtype = 'true', opts = null) {
     e.alive = false;
     this.kills++;
+    this.pops += e.def.gold;
     if (src) src.kills++;
-    this.addGold(e.def.gold);
-    this.emit('death', { x: e.x, y: e.y, r: e.r, etype: e.type, gold: e.def.gold, boss: !!e.def.boss, src: src ? src.id : 0 });
+    const gold = e.def.gold * this.goldMul;
+    this.addGold(gold);
+    this.emit('death', { x: e.x, y: e.y, r: e.r, etype: e.type, gold, boss: !!e.def.boss, heavy: !!e.def.heavy, src: src ? src.id : 0 });
     this.streak = this.time - this.lastKill <= RULES.streakWindow ? this.streak + 1 : 1;
     this.lastKill = this.time;
     if (this.streak > this.bestStreak) this.bestStreak = this.streak;
@@ -246,18 +283,21 @@ export class Game {
     if (e.shatterT > 0) {
       this.pending.push({ x: e.x, y: e.y, r: e.shatterRadius, dmg: e.shatterDmg, src: e.shatterSrc });
     }
-    const split = e.def.split;
-    if (split) {
-      for (let i = 0; i < split.count; i++) {
-        const child = createEnemy(this, split.type, Math.max(0, e.dist - i * 9), e.wave, e.hpMul);
-        this.enemies.push(child);
-      }
-    }
+    // Bosses that die before every phase has burst still release the rest.
+    const ph = e.def.phases;
+    if (ph) while (e.phase < ph.length) { const p = ph[e.phase++]; this.spawnShed(e, p.type, p.count, 0); }
+    const shed = e.def.shed;
+    if (shed) for (let i = 0; i < shed.length; i++) this.spawnShed(e, shed[i].type, shed[i].count, i === 0 ? carry : 0, dtype, opts, src);
   }
 
-  // Leaks cost lives in proportion to the health the enemy still has (at least 1).
+  // A leak costs one life per layer the enemy still holds: its own remaining health (in layers)
+  // plus everything inside it. At least 1.
   leakCost(e) {
-    return Math.max(1, Math.ceil(e.def.lives * Math.max(0, e.hp) / e.maxHp));
+    const d = e.def;
+    let n = Math.ceil(d.gold * Math.max(0, e.hp) / e.maxHp);
+    for (const s of d.shed || []) n += pops(s.type) * s.count;
+    if (d.phases) for (let i = e.phase; i < d.phases.length; i++) n += pops(d.phases[i].type) * d.phases[i].count;
+    return Math.max(1, n);
   }
 
   leak(e) {
@@ -284,7 +324,7 @@ export class Game {
       const s = sp[i];
       s.t -= dt;
       while (s.t <= 0 && s.left > 0) {
-        this.enemies.push(createEnemy(this, s.type, 0, s.wave, s.hp));
+        this.enemies.push(createEnemy(this, s.type, 0, s.wave, s.mods));
         s.left--;
         s.t += s.gap;
       }
@@ -336,3 +376,4 @@ export class Game {
 }
 
 const QUIET = { quiet: true };
+const CARRY = { quiet: true };

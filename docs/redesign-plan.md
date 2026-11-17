@@ -1,4 +1,11 @@
-# Hollowlight redesign plan (proposal, awaiting approval)
+# Hollowlight redesign plan (approved 2026-11-17)
+
+Decisions on approval:
+- **One ability per ward** for now (plus Heartfire Flare), unlocked when that ward reaches tier 4 on
+  any path. The per-path abilities in §3 are the target for later.
+- **Damage numbers only on big hits.**
+- **No difficulty settings yet** (they need a menu). The game runs at Normal: 150 lives, x1.0 prices.
+  Later job: add the Easy/Hard selector described in §2.
 
 Sources: `docs/research-btd6.md`, `docs/research-other-td.md`. Mechanics and principles are borrowed;
 all names, enemies and upgrades stay Hollowlight's own.

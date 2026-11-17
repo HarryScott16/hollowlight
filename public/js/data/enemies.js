@@ -1,40 +1,79 @@
 // Enemy stats. All balance numbers live here.
-//   hp, speed (px/s), gold (on kill), lives (lost if it reaches the Heartfire), r (radius)
-//   Leaks cost lives in proportion to the health the enemy has left (minimum 1).
-//   mult:    damage multipliers by damage type (missing = 1)
-//   split:   { type, count } spawned on death
-//   slowRes: fraction of slows ignored; boss: immune to freeze, stun, knockback and executes
+//
+// Most Gloom are stacks of thin 10 HP layers. Breaking a layer sheds the enemy into its inner
+// form (`shed`), pays `gold`, and any overkill damage carries into the inner form. So one hit
+// from a basic ward strips one layer, and bigger hits strip several.
+//
+//   hp       health of this layer/shell (layers are 10; shells, hulks and bosses more)
+//   speed    px/s;  r: radius;  gold: paid when this layer/shell breaks (1 per 10 HP of base health)
+//   shed     [{ type, count }] spawned when it breaks
+//   phases   bosses only: [{ at (hp fraction), type, count }] burst out as health crosses `at`
+//   mult     damage multipliers by damage type (missing = 1)
+//   tough    health scales in endless mode (layers never do: basic Gloom always die in one hit)
+//   heavy    immune to stun, freeze, knockback and execute; slows are `slowRes` less effective
+//   boss     gets the big health bar
+// "Pops" (total layers to clear it, = gold it pays, = lives it costs if it leaks untouched) is
+// derived from these by `pops()` below.
 export const ENEMIES = {
-  shambler: {
-    name: 'Shambler', hp: 34, speed: 78, gold: 9, lives: 1, r: 11,
-    tags: [], desc: 'Basic Gloom walker. No strengths, no weaknesses.',
+  mote: {
+    name: 'Mote', hp: 10, speed: 80, gold: 1, r: 7,
+    tags: [], desc: 'The last flicker of a Gloom. One hit and it is gone.',
   },
   skitter: {
-    name: 'Skitter', hp: 16, speed: 150, gold: 6, lives: 1, r: 8,
-    tags: ['Fast'], desc: 'Fast and fragile. Arrives in swarms; slows and chain attacks handle them.',
+    name: 'Skitter', hp: 10, speed: 135, gold: 1, r: 8,
+    shed: [{ type: 'mote', count: 1 }],
+    tags: ['Fast'], desc: 'Quick and thin. Sheds into a Mote.',
   },
-  husk: {
-    name: 'Husk', hp: 150, speed: 54, gold: 22, lives: 2, r: 14,
-    mult: { kinetic: 0.4, blast: 1.3 },
-    tags: ['Plated'], desc: 'Heavy plating shrugs off most Kinetic damage. Weak to Blast.',
+  shambler: {
+    name: 'Shambler', hp: 10, speed: 70, gold: 1, r: 11,
+    shed: [{ type: 'skitter', count: 1 }],
+    tags: [], desc: 'Slow on the outside, quick on the inside: sheds into a Skitter.',
   },
   brood: {
-    name: 'Brood', hp: 105, speed: 62, gold: 12, lives: 3, r: 15,
-    split: { type: 'broodling', count: 3 },
-    tags: ['Splits'], desc: 'Bursts into 3 Broodlings, which each burst into 2 Mites.',
+    name: 'Brood', hp: 10, speed: 90, gold: 1, r: 14,
+    shed: [{ type: 'shambler', count: 2 }],
+    tags: ['Splits'], desc: 'A sack of Gloom. Bursts into 2 Shamblers.',
   },
-  broodling: {
-    name: 'Broodling', hp: 34, speed: 95, gold: 4, lives: 1, r: 9,
-    split: { type: 'mite', count: 2 },
-    tags: ['Splits'], desc: 'Bursts into 2 Mites.',
+  husk: {
+    name: 'Husk', hp: 60, speed: 55, gold: 6, r: 15, tough: true,
+    mult: { kinetic: 0.5, blast: 1.5 },
+    shed: [{ type: 'brood', count: 2 }],
+    tags: ['Plated'], desc: 'A plated shell: Kinetic does half damage, Blast does 50% more. Cracks open into 2 Broods.',
   },
-  mite: {
-    name: 'Mite', hp: 10, speed: 135, gold: 2, lives: 1, r: 5,
-    tags: ['Fast'], desc: 'Tiny and quick.',
+  dreadhulk: {
+    name: 'Dreadhulk', hp: 400, speed: 42, gold: 40, r: 24, tough: true, heavy: true, slowRes: 0.5,
+    shed: [{ type: 'husk', count: 4 }],
+    tags: ['Heavy'], desc: 'A lumbering hulk. Cannot be stunned, frozen or knocked back. Breaks into 4 Husks.',
+  },
+  colossus: {
+    name: 'Gloomcolossus', hp: 2000, speed: 36, gold: 200, r: 28, tough: true, heavy: true, slowRes: 0.5,
+    shed: [{ type: 'dreadhulk', count: 2 }, { type: 'husk', count: 4 }],
+    tags: ['Heavy'], desc: 'A walking fortress. Breaks into 2 Dreadhulks and 4 Husks.',
   },
   gravemaw: {
-    name: 'Gravemaw', hp: 15000, speed: 34, gold: 450, lives: 25, r: 30,
-    boss: true, slowRes: 0.5,
-    tags: ['Boss'], desc: 'A mountain of health. Immune to freeze, stun and knockback; slows are half as effective. If it gets through it costs up to 25 lives, fewer the more you have hurt it.',
+    name: 'Gravemaw', hp: 4000, speed: 32, gold: 400, r: 30, tough: true, heavy: true, boss: true, slowRes: 0.5,
+    shed: [{ type: 'dreadhulk', count: 2 }],
+    phases: [{ at: 0.75, type: 'husk', count: 2 }, { at: 0.5, type: 'husk', count: 2 }, { at: 0.25, type: 'husk', count: 2 }],
+    tags: ['Boss'], desc: 'The boss. Bursts out Husks as it is hurt and splits into 2 Dreadhulks when it falls. If it reaches the Heartfire, everything left in it gets through.',
   },
 };
+
+// Total layers inside an enemy type (including everything it sheds and its boss phases).
+const popCache = {};
+export function pops(type) {
+  if (popCache[type] !== undefined) return popCache[type];
+  const d = ENEMIES[type];
+  let n = d.gold;
+  for (const s of d.shed || []) n += pops(s.type) * s.count;
+  for (const p of d.phases || []) n += pops(p.type) * p.count;
+  popCache[type] = n;
+  return n;
+}
+
+// Which type a layer grows back into (used by the endless "Mending" modifier). Only single-layer
+// sheds mend (Mote -> Skitter -> Shambler); a split never re-forms, so mending can't multiply.
+export const PARENT = {};
+for (const [type, d] of Object.entries(ENEMIES)) {
+  if (d.heavy || !d.shed || d.shed.length !== 1 || d.shed[0].count !== 1) continue;
+  PARENT[d.shed[0].type] = type;
+}

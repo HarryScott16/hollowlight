@@ -5,9 +5,11 @@ import { ENEMIES } from '../data/enemies.js';
 const TAU = Math.PI * 2;
 const INK = '#1d1030';
 
+// Layer colours run bright and warm on the outside to pale on the inside, so a wave visibly
+// "cools" as it is peeled.
 export const ENEMY_COLORS = {
-  shambler: '#a25cff', skitter: '#ff5a2e', husk: '#7f93b8', brood: '#22d36f',
-  broodling: '#5cf08f', mite: '#d9ff3d', gravemaw: '#ff2d55',
+  mote: '#d9ff3d', skitter: '#ff5a2e', shambler: '#a25cff', brood: '#22d36f',
+  husk: '#7f93b8', dreadhulk: '#4a5578', colossus: '#6a3a8f', gravemaw: '#ff2d55',
 };
 
 function eye(ctx, x, y, r, color = '#fff36b') {
@@ -88,14 +90,62 @@ const ART = {
     ctx.fillRect(8, -4, 3.5, 8);
   },
 
-  brood(ctx, e) { sack(ctx, e, 15, ENEMY_COLORS.brood, '#b9ffd2', 4); },
-  broodling(ctx, e) { sack(ctx, e, 9, ENEMY_COLORS.broodling, '#e0ffe9', 2); },
+  brood(ctx, e) { sack(ctx, e, 14, ENEMY_COLORS.brood, '#b9ffd2', 4); },
 
-  mite(ctx, e) {
+  mote(ctx, e) {
     legs(ctx, 2, 6, -2, 2, e.wob, INK);
-    ctx.fillStyle = ENEMY_COLORS.mite;
-    ctx.beginPath(); ctx.ellipse(0, 0, 5.5, 4.5, 0, 0, TAU); ctx.fill(); outline(ctx, 1.4);
-    eye(ctx, 3, 0, 1.3, INK);
+    ctx.fillStyle = ENEMY_COLORS.mote;
+    ctx.beginPath(); ctx.ellipse(0, 0, 6.5, 5.5, 0, 0, TAU); ctx.fill(); outline(ctx, 1.5);
+    ctx.fillStyle = '#f6ffc0';
+    ctx.beginPath(); ctx.ellipse(-1.5, -1.8, 2.6, 1.6, 0, 0, TAU); ctx.fill();
+    eye(ctx, 3.4, 0, 1.5, INK);
+  },
+
+  dreadhulk(ctx, e) {
+    const step = Math.sin(e.wob * 0.8);
+    ctx.fillStyle = '#262c45';
+    for (const [x, y] of [[-12, -19], [-12, 19], [9, -20], [9, 20]]) {
+      const s = (x < 0 ? step : -step) * 3;
+      ctx.beginPath(); ctx.ellipse(x + s, y, 7, 5, 0, 0, TAU); ctx.fill(); outline(ctx, 2);
+    }
+    ctx.fillStyle = ENEMY_COLORS.dreadhulk;
+    ctx.beginPath();
+    ctx.moveTo(24, 0); ctx.lineTo(14, -18); ctx.lineTo(-10, -21); ctx.lineTo(-24, -10);
+    ctx.lineTo(-24, 10); ctx.lineTo(-10, 21); ctx.lineTo(14, 18); ctx.closePath();
+    ctx.fill(); outline(ctx, 3);
+    // armour plates
+    ctx.fillStyle = '#8fa0c8';
+    for (const y of [-11, 0, 11]) {
+      ctx.beginPath(); ctx.moveTo(-18, y - 4); ctx.lineTo(4, y - 5); ctx.lineTo(8, y); ctx.lineTo(4, y + 5); ctx.lineTo(-18, y + 4); ctx.closePath(); ctx.fill(); outline(ctx, 1.6);
+    }
+    ctx.fillStyle = '#1d1030';
+    ctx.beginPath(); ctx.moveTo(24, 0); ctx.lineTo(13, -8); ctx.lineTo(13, 8); ctx.closePath(); ctx.fill();
+    eye(ctx, 15, -10, 3, '#ff4a3a'); eye(ctx, 15, 10, 3, '#ff4a3a');
+  },
+
+  colossus(ctx, e) {
+    const step = Math.sin(e.wob * 0.7);
+    ctx.fillStyle = '#3a1d52';
+    for (const [x, y] of [[-15, -23], [-15, 23], [10, -24], [10, 24]]) {
+      const s = (x < 0 ? step : -step) * 3;
+      ctx.beginPath(); ctx.ellipse(x + s, y, 8.5, 6, 0, 0, TAU); ctx.fill(); outline(ctx, 2.2);
+    }
+    ctx.fillStyle = ENEMY_COLORS.colossus;
+    ctx.beginPath(); ctx.ellipse(-2, 0, 28, 24, 0, 0, TAU); ctx.fill(); outline(ctx, 3.2);
+    // spikes
+    ctx.fillStyle = '#d6c2ff';
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI * 0.55 + i * (Math.PI * 0.9 / 6);
+      ctx.beginPath();
+      ctx.moveTo(-2 + Math.cos(a - 0.17) * 26, Math.sin(a - 0.17) * 22);
+      ctx.lineTo(-2 + Math.cos(a) * 37, Math.sin(a) * 32);
+      ctx.lineTo(-2 + Math.cos(a + 0.17) * 26, Math.sin(a + 0.17) * 22);
+      ctx.closePath(); ctx.fill(); outline(ctx, 1.4);
+    }
+    ctx.fillStyle = '#9a6ad0';
+    ctx.beginPath(); ctx.ellipse(-8, -8, 13, 7, -0.3, 0, TAU); ctx.fill();
+    eye(ctx, 16, -9, 3.4, '#ffe14a'); eye(ctx, 16, 9, 3.4, '#ffe14a');
+    eye(ctx, 21, 0, 2.6, '#ffe14a');
   },
 
   gravemaw(ctx, e) {
@@ -186,6 +236,9 @@ export function drawEnemy(ctx, e) {
   ctx.rotate(e.ang);
   // Squash-and-stretch pop when hit.
   if (e.hitT > 0) { const k = e.hitT * 2.2; ctx.scale(1 - k * 0.5, 1 + k); }
+  // Veiled enemies are see-through until a ward reveals them.
+  const veil = e.veiled && e.revealT <= 0;
+  if (veil) ctx.globalAlpha = 0.38;
   if (makeCanvas && !e.def.boss && ART[e.type]) {
     const frame = Math.floor(((e.wob % TAU) / TAU) * FRAMES) % FRAMES;
     const half = spriteHalf(e.def.r);
@@ -193,9 +246,20 @@ export function drawEnemy(ctx, e) {
   } else {
     (ART[e.type] || ART.shambler)(ctx, e);
   }
+  if (veil) ctx.globalAlpha = 1;
+  // Shells and hulks crack as they lose health.
+  if (e.def.hp > 10 && e.hp < e.maxHp) drawCracks(ctx, e);
   ctx.restore();
 
   const r = e.r;
+  if (e.veiled) {
+    ctx.strokeStyle = e.revealT > 0 ? '#ff7ae0' : 'rgba(225,200,255,0.75)';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([3, 4]);
+    ctx.lineDashOffset = e.wob * 4;
+    ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+  }
   if (e.freezeT > 0) {
     ctx.fillStyle = 'rgba(190,245,255,0.5)';
     ctx.strokeStyle = '#2fb8ff';
@@ -256,7 +320,7 @@ export function drawEnemy(ctx, e) {
   }
 
   // health bar (bosses get a big bar at the top of the screen instead)
-  if (!e.def.boss && (e.hp < e.maxHp || e.shield > 0)) {
+  if (!e.def.boss && e.def.hp > 10 && (e.hp < e.maxHp || e.shield > 0)) {
     const w = Math.max(18, r * 2.1), y = -r - 9;
     ctx.fillStyle = INK;
     ctx.fillRect(-w / 2 - 1.5, y - 1.5, w + 3, 6);
@@ -269,6 +333,26 @@ export function drawEnemy(ctx, e) {
     }
   }
   ctx.restore();
+}
+
+const crackRand = (seed, i) => { const x = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453; return x - Math.floor(x); };
+function drawCracks(ctx, e) {
+  const n = Math.min(7, Math.ceil((1 - e.hp / e.maxHp) * 7));
+  const r = e.r * 0.95;
+  ctx.strokeStyle = 'rgba(20,10,35,0.85)';
+  ctx.lineWidth = e.def.heavy ? 2.4 : 1.8;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const a = crackRand(e.root, i) * TAU;
+    const len = r * (0.55 + crackRand(e.root, i + 9) * 0.45);
+    const bend = (crackRand(e.root, i + 17) - 0.5) * 0.9;
+    const x0 = Math.cos(a) * r * 0.15, y0 = Math.sin(a) * r * 0.15;
+    const xm = Math.cos(a + bend) * len * 0.55, ym = Math.sin(a + bend) * len * 0.55;
+    ctx.moveTo(x0, y0); ctx.lineTo(xm, ym); ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+  }
+  ctx.stroke();
+  ctx.lineCap = 'butt';
 }
 
 // Icon for the wave preview.
