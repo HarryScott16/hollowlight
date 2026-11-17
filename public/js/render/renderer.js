@@ -148,7 +148,9 @@ export class Renderer {
           this.ring(f.x, f.y, f.r * 0.5, f.r * 2.4, 0.28, color, 3);
           this.stain(f.x, f.y, f.r, color);
           if (f.gold > 0) {
-            this.text(f.x, f.y - f.r - 4, `+${Math.round(f.gold * 10) / 10}`, '#ffd23a', f.boss ? 24 : f.heavy ? 16 : 12, f.boss ? 1.8 : 0.8);
+            // Gold is shown in whole numbers only; a shell worth less than 1 just sends its coins.
+            const g = Math.round(f.gold);
+            if (g >= 1) this.text(f.x, f.y - f.r - 4, `+${g}`, '#ffd23a', f.boss ? 24 : f.heavy ? 16 : 12, f.boss ? 1.8 : 0.8);
             for (let k = 0; k < (f.heavy ? 5 : 2) && this.coins.length < 30; k++) this.coins.push({ x: f.x + (Math.random() - 0.5) * 20, y: f.y, t: -k * 0.05, dur: 0.55 + Math.random() * 0.2 });
           }
           if (f.heavy && !f.boss) {
@@ -163,7 +165,7 @@ export class Renderer {
             P.burst(f.x, f.y, 120, { color: '#ffb36b', speed: 380, life: 1.2, size: 4.5 });
             P.burst(f.x, f.y, 60, { color: '#ff2d55', speed: 260, life: 1.0, size: 4 });
             for (let k = 0; k < 4; k++) this.ring(f.x, f.y, 10, 90 + k * 60, 0.5 + k * 0.2, '#fff1b0', 5, null, true);
-            this.callout = { text: 'BOSS SLAIN!', sub: `+${f.gold} gold`, color: '#ffd23a', t: 2.4, max: 2.4 };
+            this.callout = { text: 'BOSS SLAIN!', sub: Math.round(f.gold) >= 1 ? `+${Math.round(f.gold)} gold` : null, color: '#ffd23a', t: 2.4, max: 2.4 };
           }
           break;
         }
@@ -226,11 +228,12 @@ export class Renderer {
           P.burst(f.x, f.y, 18, { color: '#ffd23a', speed: 140, life: 0.5, size: 3 });
           break;
         case 'bonus':
-          this.text(W / 2, 96, `${f.label}  +${f.amount}`, '#ffd23a', 20, 2.2, 18);
+          this.text(W / 2, 96, `${f.label}  +${Math.round(f.amount)}`, '#ffd23a', 20, 2.2, 18);
           break;
         case 'streak':
-          if (f.n % 250 === 0) S.streak();
-          if (f.n % 250 === 0 || f.n === 100) this.callout = { text: `${f.n} POP STREAK!`, sub: `+${f.gold} gold`, color: f.n >= 100 ? '#ff7ae0' : f.n >= 50 ? '#ffae2b' : '#ffe45c', t: 1.6, max: 1.6 };
+          // Streaks are felt, not announced: a chime every 250, the rising pop pitch, and the
+          // small counter in the corner. No centre-screen popup.
+          S.streak();
           break;
         case 'leak':
           S.leak(f.boss || f.amount >= 20);
@@ -827,12 +830,6 @@ export class Renderer {
     ctx.fillRect(0, 17, 124, 7);
     ctx.fillStyle = col;
     ctx.fillRect(1.5, 18.5, 121 * (left / RULES.streakWindow), 4);
-    const next = RULES.streakStep - (g.streak % RULES.streakStep);
-    ctx.font = `700 11px ${FONT}`;
-    ctx.lineWidth = 3;
-    ctx.strokeText(`${next} to bonus`, 130, 21);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(`${next} to bonus`, 130, 21);
     ctx.restore();
   }
 

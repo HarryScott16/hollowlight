@@ -15,12 +15,10 @@ export const RULES = {
   // (BTD6 does the same in its late rounds). Cumulative gold: ~7k by wave 10, ~16k by 20,
   // ~26k by 30, ~38k by 40: a few tier 4s for a strong defence, not a full set.
   popGold: (wave) => (wave <= 8 ? 1 : Math.max(0.03, (8 / wave) ** 2)),
-  // Kill streaks: layers broken less than streakWindow seconds apart keep a streak alive.
-  // Every streakStep pops pays streakGold (scaled like kill gold in endless): about +10% income
-  // for a defence that never lets up. Flat on purpose: streaks can run for millions of pops.
+  // Kill streaks: layers broken less than streakWindow seconds apart keep a streak alive. Streaks
+  // pay no gold; they drive the pop pitch, the corner counter and a chime every streakChime pops.
   streakWindow: 1.6,
-  streakStep: 50,
-  streakGold: 5,
+  streakChime: 250,
 };
 
 export const TARGET_MODES = [

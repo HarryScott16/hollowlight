@@ -5,7 +5,7 @@ import { UI } from './ui/ui.js';
 import { Sound } from './audio/sound.js';
 
 const STEP = 1 / 60;        // fixed simulation step
-const MAX_STEPS = 12;       // per frame, so a slow frame can't spiral
+const MAX_STEPS = 20;       // per frame (5x speed needs ~5 at 60 fps), so a slow frame can't spiral
 
 const canvas = document.getElementById('game');
 const game = new Game();

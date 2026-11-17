@@ -324,11 +324,7 @@ export class Game {
     this.streak = this.time - this.lastKill <= RULES.streakWindow ? this.streak + 1 : 1;
     this.lastKill = this.time;
     if (this.streak > this.bestStreak) this.bestStreak = this.streak;
-    if (this.streak % RULES.streakStep === 0) {
-      const bonus = RULES.streakGold * this.goldMul;
-      this.addGold(bonus);
-      this.emit('streak', { n: this.streak, gold: bonus });
-    }
+    if (this.streak % RULES.streakChime === 0) this.emit('streak', { n: this.streak });
     // Shatter: a chilled enemy explodes, as often as the spire's shatter rate allows.
     if (e.shatterT > 0 && e.shatterSrc && e.shatterSrc.shatterTokens >= 1) {
       e.shatterSrc.shatterTokens--;

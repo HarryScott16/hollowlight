@@ -307,6 +307,11 @@ export class UI {
   }
 
   bindKeys() {
+    // Holding Shift shows every number in the ward panel.
+    const details = (on) => document.body.classList.toggle('details', on);
+    window.addEventListener('keydown', (ev) => { if (ev.key === 'Shift') details(true); });
+    window.addEventListener('keyup', (ev) => { if (ev.key === 'Shift') details(false); });
+    window.addEventListener('blur', () => details(false));
     window.addEventListener('keydown', (ev) => {
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
       const k = ev.key;
@@ -389,9 +394,12 @@ export class UI {
     s1.append(dmg); s2.append(kills);
     stats.append(s1, s2);
 
+    // The numbers stay out of the way: hover the hint (or hold Shift) to see them.
+    const numbers = el('div', 'tp-numbers');
     const grid = el('div', 'tp-grid');
     for (const [label, value] of statRows(def, t.stats).slice(0, 7)) grid.append(el('span', null, label), el('b', null, value));
-    panel.append(head, stats, grid);
+    numbers.append(el('span', 'tp-hint', 'Numbers: hover here or hold Shift'), grid);
+    panel.append(head, stats, numbers);
 
     if (def.kind !== 'pulse') {
       const row = el('div', 'tp-target', 'Target');
@@ -412,18 +420,22 @@ export class UI {
       const pips = el('span', 'pips');
       for (let i = 0; i < RULES.maxTier; i++) pips.append(el('span', i < t.tiers[pi] ? 'pip on' : 'pip'));
       ph.append(el('span', null, `${path.name}  [${'QWE'[pi]}]`), pips);
+      const identity = el('div', 'path-blurb', path.blurb);
       const b = el('button', 'up-btn');
       b.type = 'button';
       const top = el('span', 'up-top');
       if (info.reason === 'max') {
         b.classList.add('maxed');
         top.append(el('span', null, path.tiers[RULES.maxTier - 1].name), el('span', 'up-cost', 'MAX'));
-        b.append(top);
+        b.append(top, el('span', 'up-desc', path.tiers[RULES.maxTier - 1].blurb));
       } else {
         top.append(el('span', null, `T${t.tiers[pi] + 1}  ${info.up.name}`), el('span', 'up-cost', info.ok ? String(info.up.cost) : 'Locked'));
-        b.append(top, el('span', 'up-desc', info.ok ? info.up.desc : LOCK_TEXT[info.reason]));
+        b.append(top, el('span', 'up-desc', info.ok ? info.up.blurb : LOCK_TEXT[info.reason]));
         if (info.ok) {
-          // Before -> after for every stat this upgrade changes.
+          // The exact numbers, shown on hover or while Shift is held: the full description and
+          // before -> after for every stat this upgrade changes.
+          const detail = el('span', 'up-detail');
+          detail.append(el('span', 'up-exact', info.up.desc));
           const tiers = t.tiers.slice();
           tiers[pi]++;
           const next = computeStats(def, tiers);
@@ -436,7 +448,8 @@ export class UI {
             row.append(el('span', 'up-label', label), el('span', 'up-old', old === undefined ? '-' : old), ' → ', el('b', null, value));
             diff.append(row);
           }
-          b.append(diff);
+          detail.append(diff);
+          b.append(detail);
           b.addEventListener('click', () => this.buyUpgrade(pi));
           b.addEventListener('pointerenter', () => { this.previewRange = next.range; });
           b.addEventListener('pointerleave', () => { this.previewRange = 0; });
@@ -445,7 +458,7 @@ export class UI {
           b.classList.add('locked');
         }
       }
-      box.append(ph, b);
+      box.append(ph, identity, b);
       panel.append(box);
     });
 
@@ -495,7 +508,8 @@ export class UI {
     const gp = RULES.popGold(game.wave + 1);
     const tough = Math.max(1, ...wave.groups.filter((g) => !ENEMIES[g.type].boss).map((g) => g.hpMul || 1));
     const toughNote = tough > 1.005 ? `  ·  shells x${tough.toFixed(2)} health` : '';
-    const goldNote = gp < 1 ? `  ·  ${gp >= 0.1 ? gp.toFixed(2) : gp.toFixed(3)} gold per pop` : '';
+    // Whole numbers only: "1 gold per 14 pops" rather than "0.07 gold per pop".
+    const goldNote = gp < 1 ? `  ·  1 gold per ${Math.round(1 / gp)} pops` : '';
     $('preview-title').textContent = `Next: wave ${game.wave + 1}${game.endless ? ' (endless)' : ` of ${game.totalWaves}`}  ·  ${fmt(total)} pops${toughNote}${goldNote}`;
     for (const [key, n] of counts) {
       const [type, v] = key.split(':');
