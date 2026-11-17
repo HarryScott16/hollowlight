@@ -79,15 +79,27 @@ for (const t of game.towers) {
 ui.select(game.towers[0]);
 console.log('towers', game.towers.map((t) => `${t.type}:${t.tiers.join('')}`).join(' '));
 
-let wavesRun = 0;
-for (let guard = 0; guard < 400 && wavesRun < 13; guard++) {
-  if (game.over === 'win') { ui.continueEndless(); }
-  if (game.over) break;
-  if (game.canStartWave && game.clear) { game.startWave(); wavesRun++; }
-  frames(60);
-  game.useFlare();
-  for (const type of order) game.useAbility(type);
+// Plays a stretch of waves starting at `from` (1-based), skipping ahead between stretches so
+// every new enemy, every boss and the switch into endless mode get drawn.
+function play(from, count) {
+  if (game.wave < from - 1) { game.wave = game.rewarded = from - 1; }
+  let run = 0;
+  for (let guard = 0; guard < 600 && run < count; guard++) {
+    if (game.over === 'win') { ui.continueEndless(); }
+    if (game.over) break;
+    if (game.canStartWave && game.clear) { game.startWave(); run++; }
+    frames(60);
+    game.useFlare();
+    for (const type of order) game.useAbility(type);
+  }
+  // let the last wave in the stretch finish
+  for (let guard = 0; guard < 400 && !game.clear && !game.over; guard++) frames(60);
 }
+play(1, 15);
+for (const w of [20, 30, 40]) { game.lives = 1e6; play(w, 1); }
+if (game.over === 'win') ui.continueEndless();
+play(41, 1);
+play(50, 1);
 // sell one, exercise restart
 ui.select(game.towers[1]);
 ui.sellSelected();

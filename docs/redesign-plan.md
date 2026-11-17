@@ -157,6 +157,8 @@ and cooldowns are roughly one wave long.
 
 ## 4. The 10 waves
 
+*Superseded by the 40-wave campaign in §9.*
+
 Fodder HP never scales (`WAVE_HP` is removed). Each new threat **appears alone first**, then gets
 mixed in. Targets: waves 1-2 are easy wins, wave 3 is the first check, and the T3 spike lands
 around waves 4-5.
@@ -184,6 +186,8 @@ first appearances. Wave 8 and wave 10 get a warning banner.
 ---
 
 ## 5. Endless mode (after wave 10)
+
+*Endless now starts after wave 40; see §9.*
 
 On victory, the screen offers **Continue into the endless night**. Waves are generated from a budget:
 
@@ -279,3 +283,136 @@ Tuned during the bot passes (commits "Step 1" to "Step 7" on the `redesign` bran
 
 The bots leave a lot of gold unspent in endless, so players who spend everything should go further.
 The campaign is deliberately generous: good play loses no lives, and the challenge lives in endless.
+
+---
+
+## 9. The 40-wave campaign (2026-11-17)
+
+Why: with 10 waves, two wards and one upgrade carried a player through wave 6 without a leak. That's
+60-70% of the game for almost no investment. The campaign is now 40 waves, and endless starts after
+wave 40. The feel stays the same: wards are strong, Gloom peel in 10 HP layers, and difficulty comes
+from quantity and variety.
+
+### The rest of the Gloom (from the original design)
+
+Each one appears alone first, with a banner, then mixes in.
+
+| Enemy | First wave | HP | Speed | Pops | What it does | Answer among the 4 wards |
+|---|---|---|---|---|---|---|
+| Herald | 7 | 40 | 72 | 8 | Gloom within 95 px move 30% faster | focus it (Bolt "Strong" targeting, Hunter's Mark) |
+| Gloomwing | 9 | 40 | 92 | 4 | flies the corner-cutting route (1,250 px vs 3,100 px on the ground) | Bolt Ward, Storm Coil (Mortar, Rime and fire can't hit it) |
+| Aegis | 11 | 20 + 70 shield | 70 | 8 | the shield recharges 35/s after 2 s without a hit | Storm Coil (Arcane x2 on shields), steady area damage |
+| Nullback | 13 | 80 | 58 | 22 | Arcane does x0.2 | anything but Storm Coil |
+| Wisp | 14 | 30 | 112 | 3 | always Veiled | Hunter's Mark, Frost Sight, area damage |
+| Mender | 15 | 50 | 62 | 11 | every 2.5 s regrows the outer layer of 12 nearby Gloom or patches 25% of a shell; regenerates 12/s | kill it fast: **no proper counter yet** (see below) |
+
+Also new to the campaign: the Gloomcolossus (wave 23, was endless-only).
+
+Mechanics added for them: a flight route with its own path (flyers bursting out of walkers take off
+from the nearest point), recharging shields, haste and heal auras, always-Veiled types, and timed
+summons for bosses.
+
+### Bosses
+
+| Wave | Boss | HP | Gimmick |
+|---|---|---|---|
+| 10 | Gravemaw | 4,000 | bursts Husks at 75/50/25%, splits into 2 Dreadhulks |
+| 20 | Veilmother | 7,500 | always Veiled, trails 3 Wisps every 2.5 s, bursts Menders at 50%, then 20 Wisps |
+| 30 | Bastion | 16,000 + 3,000 shield | plated (Kinetic x0.5), the shield recharges 500/s after 3 s; bursts Aegis and Nullbacks at 66/33%; splits into a colossus and 6 Nullbacks |
+| 40 | The Hollow King | 85,000 | frost-immune (no Frost damage, no slow); calls a new host at every fifth of its health (flyers + Heralds, hulks + Menders, Aegis + Wisps, a big flock); bursts into 30 Wisps and 30 Gloomwings |
+
+The King bursts into a swarm on purpose. A version that split into two colossi either won cleanly or
+lost outright, because a colossus leak costs 520 lives. With the swarm, killing it late costs lives,
+not the game.
+
+### Shape of the campaign
+
+- **1-5**: unchanged.
+- **6-15**: one new kind per wave (Veiled, Herald, Dreadhulk, Gloomwing, Gravemaw, Aegis, Nullback,
+  Wisp, Mender) at 550-2,000 pops. Lazy builds fall here.
+- **16-30**: themed waves (armour 16/26, flyers 17/22, stealth 18/24, Heralds 25, wings and shadows
+  27), with the Veilmother at 20, the Gloomcolossus at 23 and the Bastion at 30.
+- **31-40**: everything at once, with themes (Black sky, Shadows, Heralds everywhere, the fortress,
+  the colossi march, Veiled giants), and the Hollow King at 40.
+
+On top of the hand-written counts (`data/waves.js`, printed by `node tools/waves.js`):
+- **CROWD**: waves 16-30 thicken up to x1.225. From 31 the small and mid-sized groups are cut to
+  x0.9, which keeps the peak enemy count where the browser holds its frame rate.
+- **TOUGH**: from wave 21, shells, hulks and multi-layer Gloom gain 7.5% health per wave, and a
+  further 4% per wave after 30 (x2.06 at 30, x6.3 at 40). **Basic 10 HP layers never change and
+  bosses keep their own health.** Late waves demand heavy damage (tier 4s) on top of crowd control.
+  The preview shows it ("shells x2.06 health").
+- **PACE**: from wave 26, +1% speed per wave (+15% at 40).
+- **Veiled hulks**: the veil tears when the shell breaks, so what they shed is visible. Small Veiled
+  groups and Wisps stay Veiled.
+- **Death Sentence** execute no longer works on hulks (the enemy data always said heavies were
+  immune; the code only excluded bosses).
+
+### Economy
+
+- Gold per pop is 1 up to wave 8, then `(8 / wave)^2`: 0.25 at wave 16, 0.07 at 30, 0.04 at 40
+  (floor 0.03). The preview shows it.
+- The clear reward is `100 + 25w`, capped at 350.
+- Cumulative gold: ~2.5k by wave 5, 7k by 10, 16k by 20, 27k by 30, 39k by 40. That buys a strong
+  defence of ~7 tier 4s by the end, not a full set.
+
+### Endless (41+)
+
+A pop budget of `26,000 x 1.09^(n-40)` filled from the whole roster. Toughness carries on from wave 40
+(x1.06 per wave) and speed from +15%. The four bosses rotate every 10th wave at
+`70,000 x 1.6^((n-40)/10)` HP, and their spawn doesn't inherit the boss multiplier. The modifiers
+(Veiled hulks, Mending, Swift, Armoured, Shadows, Frenzy) move to waves 45-70. The spawn cap is 450.
+
+### Bot builds and results (`node tools/bot.js`)
+
+Builds are grouped by the target they're held to:
+- **lazy**: 2-3 wards, little or no upgrading. `minimal` is the reported case: a Rime Spire with one
+  upgrade and an unupgraded Mortar.
+- **reasonable**: mixed builds capped at tier 3.
+- **strong**: mixed builds that save for tier 4s after wave 10.
+- **probe**: one-trick builds.
+
+Reasonable and strong builds buy one Frost Sight spire from wave 12, as a player who reads the
+stealth banners would. New columns: first leak, lives at 20/25/30/35, wards (T3/T4), peak enemies.
+`--trace=N` logs each leak on wave N, and verbose mode shows how deep the furthest enemy got.
+
+| Build | Group | Result | First leak | Lives @20 | @25 | @30 | @35 | Wards (T3/T4) | Peak enemies |
+|---|---|---|---|---|---|---|---|---|---|
+| lazy | lazy | lost on wave 8 | 6 | - | - | - | - | 3 (0/0) | 131 |
+| minimal | lazy | lost on wave 9 | 5 | - | - | - | - | 2 (0/0) | 152 |
+| lazyTier1 | lazy | lost on wave 10 | 9 | - | - | - | - | 3 (0/0) | 151 |
+| mixed | reasonable | lost on wave 33 | 33 | 150 | 150 | 150 | - | 14 (14/0) | 558 |
+| mixedAlt | reasonable | lost on wave 28 | 28 | 150 | 150 | - | - | 14 (14/0) | 460 |
+| focused | reasonable | lost on wave 28 | 26 | 150 | 150 | - | - | 9 (9/0) | 461 |
+| strong | strong | lost on wave 39 | 38 | 150 | 150 | 150 | 150 | 16 (0/7) | 922 |
+| strongAlt | strong | **won**, 150/150 (Last Light used) | never | 150 | 150 | 150 | 150 | 16 (1/7) | 453 |
+| strongFreeze | strong | **won**, 43/150 (Last Light used) | 40 | 150 | 150 | 150 | 150 | 16 (1/7) | 703 |
+| strongCinder | probe | lost on wave 22 | 11 | 67 | - | - | - | 14 (2/2) | 505 |
+| spamNoUpgrades | probe | lost on wave 20 | 20 | - | - | - | - | 60 (0/0) | 315 |
+| noDetection | probe | lost on wave 20 | 20 | - | - | - | - | 13 (8/0) | 383 |
+| groundOnly | probe | lost on wave 12 | 9 | - | - | - | - | 8 (3/0) | 220 |
+| boltOnly | probe | lost on wave 12 | 6 | - | - | - | - | 15 (6/0) | 188 |
+| coilOnly | probe | lost on wave 10 | 6 | - | - | - | - | 8 (1/0) | 113 |
+
+Endless: `strongAlt` reaches wave 44. Every build spends its Last Light on wave 10 (a Skitter or two
+during the Gravemaw fight), which is why "Last Light used" appears on wins with full lives.
+
+Caveats:
+- **Losses come as cliffs.** A leaked hulk costs 120+ of 150 lives, so the bots mostly go from no
+  leaks straight to a lost run. A player who reacts (Flare, rebuilding, selling) will bleed lives
+  more gradually than the bots.
+- **The peak of 922** belongs to a defence that is collapsing (`strong`, waves 38-39). Healthy
+  defences peak at 450-700. The sim costs at most ~15 ms per simulated second.
+
+### Counters the 4 wards don't provide
+
+- **Mender**: the original design has it "regenerate unless blighted". Nothing in the current four
+  wards applies Blight, so the only answer is to kill it fast. It's in the game as designed, not
+  redesigned around the gap. **Add the Rot Censer first**: Blight stops Menders and the endless
+  Mending modifier, and its damage-over-time grinds tough shells.
+- Everything else has an answer. Flyers: Bolt and Coil. Shields: Coil. Nullbacks: everything but
+  Coil. Stealth: Hunter's Mark, Frost Sight, area damage. Plate: Mortar, Ballista or Mark armour
+  pierce. Flyers are the thinnest: only 2 of the 4 wards hit them, and `groundOnly` and
+  `strongCinder` fall to them. If you want a second ward after the Rot Censer, the Longeye
+  (map-wide sniper, sees stealth) eases both flyers and stealth.
+

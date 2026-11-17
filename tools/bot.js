@@ -14,53 +14,89 @@ const ENDLESS = process.argv.includes('--endless');
 const ENDLESS_CAP = Number((process.argv.find((a) => a.startsWith("--cap=")) || "--cap=60").slice(6));
 
 // order: towers bought in this rotation. paths: [main, minor] path index per tower type.
-// maxTowers(wave) caps the tower count so the bot also upgrades.
+// maxTowers(wave) caps the tower count so the bot also upgrades. tierCap: highest tier it buys.
+// maxUpgrades: total upgrades it ever buys. group: which balance target the build is held to.
+//   lazy        2-3 wards, little or no upgrading           -> should lose around waves 8-12
+//   reasonable  a mixed defence with tier 3s, no tier 4s    -> tested around 25-35, loses before 40
+//   strong      a full composition with tier 4s             -> wins wave 40, but not with full lives
+//   probe       one-trick builds, to see what each counter-check punishes
 const STRATEGIES = {
+  lazy: { // buys the opening wards and then never spends again (or uses abilities)
+    group: 'lazy', order: ['bolt', 'bolt', 'rime'], paths: {}, maxTowers: () => 3, noAbilities: true,
+  },
+  minimal: { // a Rime Spire with one upgrade and an unupgraded Mortar
+    group: 'lazy', order: ['rime', 'mortar'], paths: { rime: [1, 0] }, maxTowers: () => 2, maxUpgrades: 1,
+  },
+  lazyTier1: { // three wards, tier 1 on each
+    group: 'lazy', order: ['bolt', 'mortar', 'rime'], paths: { bolt: [0], mortar: [0], rime: [1] }, maxTowers: () => 3, tierCap: 1,
+  },
+
+  // Reasonable: decent mixes that cover armour, flyers and stealth, upgraded to tier 3.
   mixed: {
-    order: ['bolt', 'bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'bolt'],
-    paths: { bolt: [0, 1], mortar: [0, 1], rime: [1, 0], coil: [1, 0] },
-    maxTowers: (w) => 3 + Math.floor(w * 0.7),
+    reveal: true, group: 'reasonable',
+    order: ['bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'bolt', 'mortar', 'coil', 'bolt'],
+    paths: { bolt: [0, 2], mortar: [0, 1], rime: [1, 2], coil: [1, 0] },
+    maxTowers: (w) => Math.min(14, 3 + Math.floor(w * 0.45)), tierCap: 3,
   },
   mixedAlt: {
-    order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'rime', 'mortar', 'coil'],
+    reveal: true, group: 'reasonable',
+    order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'rime', 'mortar', 'coil', 'bolt'],
     paths: { bolt: [2, 0], mortar: [2, 1], rime: [0, 2], coil: [0, 2] },
-    maxTowers: (w) => 3 + Math.floor(w * 0.6),
-    strict: true,
+    maxTowers: (w) => Math.min(14, 3 + Math.floor(w * 0.45)), tierCap: 3, strict: true,
   },
-  mixedEarly: { // same build as mixed, but calls the next wave early whenever the last one leaked nothing
-    order: ['bolt', 'bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'bolt'],
-    paths: { bolt: [0, 1], mortar: [0, 1], rime: [1, 0], coil: [1, 0] },
-    maxTowers: (w) => 3 + Math.floor(w * 0.7),
-    early: true,
+  focused: { // fewer wards, every one taken to tier 3
+    reveal: true, group: 'reasonable',
+    order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'mortar'],
+    paths: { bolt: [2, 0], mortar: [0, 1], rime: [2, 1], coil: [0, 2] },
+    maxTowers: (w) => Math.min(9, 3 + Math.floor(w * 0.3)), tierCap: 3,
   },
-  focused: { // fewer towers, deeper upgrades
-    order: ['bolt', 'bolt', 'rime', 'mortar', 'coil', 'mortar'],
-    paths: { bolt: [0, 2], mortar: [0, 1], rime: [1, 0], coil: [0, 2] },
-    maxTowers: (w) => Math.min(6, 3 + Math.floor(w * 0.4)),
+
+  // Strong: the same kind of mix, taken to tier 4, spending everything.
+  strong: {
+    reveal: true, group: 'strong', save: 4,
+    order: ['bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'bolt', 'mortar', 'coil', 'bolt', 'mortar', 'coil'],
+    paths: { bolt: [0, 2], mortar: [0, 1], rime: [1, 2], coil: [1, 0] },
+    maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.5)),
   },
-  boltOnly: { // takes Keen Sight (sees Veiled) as its minor path
-    order: ['bolt'], paths: { bolt: [1, 2] }, maxTowers: (w) => 3 + Math.floor(w * 1.3),
+  strongAlt: {
+    reveal: true, group: 'strong', save: 4,
+    order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'rime', 'mortar', 'coil', 'bolt', 'coil', 'mortar'],
+    paths: { bolt: [2, 0], mortar: [2, 1], rime: [0, 2], coil: [0, 2] },
+    maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.5)), strict: true,
   },
-  mortarOnly: {
-    order: ['mortar'], paths: { mortar: [0, 1] }, maxTowers: (w) => 2 + Math.floor(w * 0.6),
+
+  strongFreeze: { // Hunter's Mark bolts, Big Shells, Deep Freeze spires, Forking coils
+    reveal: true, group: 'strong', save: 4,
+    order: ['bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'mortar', 'coil', 'bolt', 'coil', 'mortar'],
+    paths: { bolt: [2, 0], mortar: [0, 1], rime: [0, 2], coil: [1, 0] },
+    maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.5)), strict: true,
   },
-  markOnly: { // Hunter's Mark path, to check it pulls its weight
-    order: ['bolt'], paths: { bolt: [2, 1] }, maxTowers: (w) => 3 + Math.floor(w * 1.3), strict: true,
+  strongCinder: { // tier 4s, but Twin-shot bolts are its only real anti-air: the flyer check
+    reveal: true, group: 'probe', save: 4,
+    order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'rime', 'mortar', 'coil', 'bolt', 'coil', 'mortar'],
+    paths: { bolt: [1, 2], mortar: [2, 0], rime: [1, 2], coil: [0, 1] },
+    maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.5)), strict: true,
   },
-  cinderOnly: {
-    order: ['mortar'], paths: { mortar: [2, 1] }, maxTowers: (w) => 2 + Math.floor(w * 0.6), strict: true,
-  },
-  freezeMix: { // Deep Freeze spires feeding bolts and coils
-    order: ['bolt', 'rime', 'bolt', 'coil', 'mortar', 'rime', 'coil', 'bolt'],
-    paths: { bolt: [0, 1], mortar: [0, 1], rime: [0, 2], coil: [0, 1] },
-    maxTowers: (w) => 3 + Math.floor(w * 0.7),
-    strict: true,
-  },
+
+  // Probes: lopsided builds the themed waves are meant to punish.
   spamNoUpgrades: {
-    order: ['bolt', 'mortar', 'coil', 'rime'], paths: {}, maxTowers: () => 60,
+    group: 'probe', order: ['bolt', 'mortar', 'coil', 'rime'], paths: {}, maxTowers: () => 60,
   },
-  lazy: { // buys the opening towers and then never spends again (or uses abilities)
-    order: ['bolt', 'bolt', 'rime'], paths: {}, maxTowers: () => 3, noAbilities: true,
+  noDetection: { // the strong mix with no way to see Veiled
+    group: 'probe',
+    order: ['bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'bolt', 'mortar', 'coil', 'bolt', 'mortar', 'coil'],
+    paths: { bolt: [0, 1], mortar: [0, 1], rime: [1, 0], coil: [1, 0] },
+    maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.5)),
+  },
+  groundOnly: { // Mortars and Rime: nothing that hits flyers
+    group: 'probe', order: ['mortar', 'rime', 'mortar', 'mortar', 'rime'], paths: { mortar: [0, 1], rime: [2, 1] },
+    maxTowers: (w) => Math.min(16, 2 + Math.floor(w * 0.5)),
+  },
+  boltOnly: { // Twin-shot bolts with Keen Sight: fast, sees Veiled, but no answer to plate
+    group: 'probe', order: ['bolt'], paths: { bolt: [1, 2] }, maxTowers: (w) => Math.min(24, 3 + w), strict: true,
+  },
+  coilOnly: { // all Arcane: shields melt, Nullbacks don't
+    group: 'probe', order: ['coil'], paths: { coil: [1, 0] }, maxTowers: (w) => Math.min(18, 2 + Math.floor(w * 0.6)),
   },
 };
 
@@ -110,8 +146,22 @@ function upgradeValue(t, pi) {
   return { t, pi, cost: info.up.cost, value: (gain * util) / info.up.cost };
 }
 
+// Builds that read the banners get one Frost Sight spire (Blizzard tier 2) once Veiled waves
+// start to matter, the way a player would after "Wisps: always Veiled".
+function ensureReveal(game, strat) {
+  if (!strat.reveal || game.wave < 12 || game.towers.some((t) => t.stats.reveal)) return true;
+  const rime = game.towers.filter((t) => t.type === 'rime' && upgradeInfo(t, 2).ok).sort((a, b) => b.tiers[2] - a.tiers[2])[0];
+  if (!rime) return true;
+  const info = upgradeInfo(rime, 2);
+  if (game.gold < info.up.cost) return false;   // save for it
+  game.upgrade(rime, 2);
+  return true;
+}
+
 function spend(game, strat, spots, state) {
+  if (!ensureReveal(game, strat)) return;
   for (let guard = 0; guard < 50; guard++) {
+    const canUpgrade = strat.maxUpgrades === undefined || state.upgrades < strat.maxUpgrades;
     if (game.towers.length < strat.maxTowers(game.wave)) {
       const type = strat.order[state.bought % strat.order.length];
       if (game.gold < TOWERS[type].cost) return;
@@ -120,24 +170,26 @@ function spend(game, strat, spots, state) {
       state.bought++;
       continue;
     }
-    // Save for the best-value upgrade only if about one wave of income will cover it;
-    // otherwise buy the best one affordable now.
-    const lastIncome = game.income[game.wave - 2] || 300;
+    // Save for the best-value upgrade only if `save` waves of income (default 1) will cover it;
+    // otherwise buy the best one affordable now. Strong builds save up for tier 4s after wave 10.
+    const lastIncome = (game.income[game.wave - 2] || 300) * (game.wave > 10 ? strat.save || 1 : 1);
     let pick = null, now = null;
+    if (!canUpgrade) return;
     for (const t of game.towers) {
       const plan = strat.paths[t.type];
       if (!plan) continue;
       // strict: follow the plan's main path first, the minor path only once it can't go further.
       const order = strat.strict ? [upgradeInfo(t, plan[0]).ok ? plan[0] : plan[1]] : plan;
       for (const pi of order) {
+        if (pi === undefined || (strat.tierCap !== undefined && t.tiers[pi] >= strat.tierCap)) continue;
         const v = upgradeValue(t, pi);
         if (!v) continue;
         if (v.cost <= game.gold + lastIncome && (!pick || v.value > pick.value)) pick = v;
         if (v.cost <= game.gold && (!now || v.value > now.value)) now = v;
       }
     }
-    if (pick && game.gold >= pick.cost) { game.upgrade(pick.t, pick.pi); continue; }
-    if (!pick && now) { game.upgrade(now.t, now.pi); continue; }
+    if (pick && game.gold >= pick.cost) { game.upgrade(pick.t, pick.pi); state.upgrades++; continue; }
+    if (!pick && now) { game.upgrade(now.t, now.pi); state.upgrades++; continue; }
     return;
   }
 }
@@ -149,10 +201,10 @@ function useAbilities(game) {
   const len = game.map.path.length;
   let near = 0, heavy = false;
   for (const e of game.enemies) {
-    if (e.dist > len * 0.75) near++;
+    if (e.dist * e.prog > len * 0.75) near++;
     if (e.def.heavy) heavy = true;
   }
-  if (game.flareReady && (near >= 12 || game.enemies.some((e) => e.def.boss && e.dist > len * 0.6))) {
+  if (game.flareReady && (near >= 12 || game.enemies.some((e) => e.def.boss && e.dist * e.prog > len * 0.6))) {
     game.useFlare(); abilityUse.flare++;
   }
   if (game.enemies.length >= 40 || heavy) {
@@ -167,13 +219,18 @@ function run(name, strat, seed = SEED) {
   abilityUse.flare = abilityUse.ward = 0;
   const game = new Game({ fx: false, seed });
   const spots = candidateSpots(game);
-  const state = { bought: 0 };
+  const state = { bought: 0, upgrades: 0, livesAt: {} };
   const log = [];
   let maxEnemies = 0;
   const boss = { result: 'none', cost: 0, time: 0 };
   const leak = game.leak.bind(game), kill = game.kill.bind(game);
   let leaks = {};
+  const trace = Number((process.argv.find((a) => a.startsWith('--trace=')) || '--trace=0').slice(8));
   game.leak = (e) => {
+    if (trace && game.wave === trace) {
+      const b = game.enemies.find((x) => x.def.boss && x.alive);
+      console.log(`    t=${(game.time - state.waveT).toFixed(1)}s leak ${e.type} -${game.leakCost(e)}  lives ${game.lives}  enemies ${game.enemies.length}  boss ${b ? `${Math.round(100 * b.hp / b.maxHp)}% at ${Math.round(100 * b.dist / b.path.length)}% of path` : 'gone'}`);
+    }
     if (e.def.boss) { boss.result = `leaked at ${Math.round(100 * e.hp / e.maxHp)}% hp`; boss.cost = game.leakCost(e); }
     const k = (e.veiled ? 'veiled ' : '') + e.type;
     leaks[k] = (leaks[k] || 0) + game.leakCost(e);
@@ -188,7 +245,8 @@ function run(name, strat, seed = SEED) {
     const livesBefore = game.lives;
     state.calledEarly = false;
     if (!(strat.early && game.spawners.length)) game.startWave();
-    let t = 0, steps = 0;
+    state.waveT = game.time;
+    let t = 0, steps = 0, deepest = 0;
     const wall0 = Date.now();
     while (!game.over && !game.clear) {
       game.step(STEP);
@@ -196,6 +254,7 @@ function run(name, strat, seed = SEED) {
       if (game.enemies.length > maxEnemies) maxEnemies = game.enemies.length;
       if (++steps % 120 === 0) spend(game, strat, spots, state);
       if (steps % 30 === 0 && !strat.noAbilities) useAbilities(game);
+      if (steps % 15 === 0) for (const e of game.enemies) { const p = e.dist / e.path.length; if (p > deepest) deepest = p; }
       // Early caller: once a wave has finished spawning, call the next one (keeps one wave of overlap).
       if (strat.early && state.safe && game.canStartWave && game.enemies.length && !state.calledEarly) {
         spend(game, strat, spots, state);
@@ -206,10 +265,12 @@ function run(name, strat, seed = SEED) {
       if ((t += STEP) > 900) { log.push('  !! wave timed out'); game.over = 'lose'; break; }
     }
     state.safe = game.lives === livesBefore;
+    if (!state.safe && !state.firstLeak) state.firstLeak = game.wave;
+    if (game.wave % 5 === 0 && !game.over) state.livesAt[game.wave] = game.lives;
     // sim cost: wall-clock ms per simulated second on this machine. At 3x speed the browser runs
     // 3 sim-seconds per real second, so 3x this is the share of each second spent simulating.
     const cost = ((Date.now() - wall0) / Math.max(1, t)).toFixed(1);
-    log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s ${cost.padStart(5)}ms/s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}${Object.keys(leaks).length ? `  leaks: ${Object.entries(leaks).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
+    log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s ${cost.padStart(5)}ms/s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore}) deepest ${String(Math.round(deepest * 100)).padStart(3)}%  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}${Object.keys(leaks).length ? `  leaks: ${Object.entries(leaks).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
     leaks = {};
   }
   console.log(`${name.padEnd(16)} ${(game.over || 'cap').toUpperCase().padEnd(5)} wave ${game.wave}/${game.endless ? 'endless' : game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}  abilities ${abilityUse.flare}F/${abilityUse.ward}W${game.lastLight ? '' : '  LAST LIGHT used'}`);
@@ -225,12 +286,27 @@ function run(name, strat, seed = SEED) {
       console.log(`    ${k.padEnd(26)} x${v.n}  dmg ${Math.round(v.dmg).toString().padStart(7)}  kills ${String(v.kills).padStart(4)}  dmg/gold ${(v.dmg / v.spent).toFixed(1)}`);
     }
   }
+  const t4 = game.towers.filter((t) => t.tiers.includes(4)).length, t3 = game.towers.filter((t) => t.tiers.includes(3)).length;
+  results.push({ name, group: strat.group, over: game.over || 'cap', wave: game.wave, lives: game.lives, firstLeak: state.firstLeak,
+    livesAt: state.livesAt, towers: game.towers.length, t3, t4, lastLight: !game.lastLight, peak: maxEnemies });
   return game;
+}
+
+const results = [];
+function table() {
+  const at = (r, w) => (r.livesAt[w] !== undefined ? r.livesAt[w] : r.wave <= w ? '-' : '?');
+  console.log('\n| Build | Group | Result | First leak | Lives @20 | @25 | @30 | @35 | Wards (T3/T4) | Peak enemies |');
+  console.log('|---|---|---|---|---|---|---|---|---|---|');
+  for (const r of results) {
+    const res = r.over === 'win' ? `**won**, ${r.lives}/150${r.lastLight ? ' (Last Light used)' : ''}` : r.over === 'lose' ? `lost on wave ${r.wave}` : `reached wave ${r.wave}`;
+    console.log(`| ${r.name} | ${r.group} | ${res} | ${r.firstLeak || 'never'} | ${at(r, 20)} | ${at(r, 25)} | ${at(r, 30)} | ${at(r, 35)} | ${r.towers} (${r.t3}/${r.t4}) | ${r.peak} |`);
+  }
 }
 
 const t0 = Date.now();
 for (const [name, strat] of Object.entries(STRATEGIES)) {
-  if (only && only !== name) continue;
+  if (only && !only.split(',').some((k) => k === name || k === strat.group)) continue;
   run(name, strat);
 }
+table();
 console.log(`(${Date.now() - t0} ms)`);
