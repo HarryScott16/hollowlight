@@ -11,10 +11,11 @@ export const RULES = {
   waveReward: (wave) => 100 + 25 * wave,  // paid when a wave is fully cleared (wave is 1-based)
   earlyBonus: (wave) => 40 + 16 * wave,   // paid for calling the next wave while enemies remain
   // Kill streaks: layers broken less than streakWindow seconds apart keep a streak alive.
-  // Every streakStep pops pays streakGold(streak): about +10% income for a defence that never lets up.
+  // Every streakStep pops pays streakGold (scaled like kill gold in endless): about +10% income
+  // for a defence that never lets up. Flat on purpose: streaks can run for millions of pops.
   streakWindow: 1.6,
   streakStep: 50,
-  streakGold: (streak) => 5 + Math.floor(streak / 500),
+  streakGold: 5,
 };
 
 export const TARGET_MODES = [

@@ -11,7 +11,7 @@ const SEED = seedArg ? Number(seedArg.slice(7)) : 1;
 const only = process.argv.slice(2).find((a) => !a.startsWith('-'));
 // --endless: keep playing generated waves after a win, up to wave 60.
 const ENDLESS = process.argv.includes('--endless');
-const ENDLESS_CAP = 60;
+const ENDLESS_CAP = Number((process.argv.find((a) => a.startsWith("--cap=")) || "--cap=60").slice(6));
 
 // order: towers bought in this rotation. paths: [main, minor] path index per tower type.
 // maxTowers(wave) caps the tower count so the bot also upgrades.
@@ -189,6 +189,7 @@ function run(name, strat, seed = SEED) {
     state.calledEarly = false;
     if (!(strat.early && game.spawners.length)) game.startWave();
     let t = 0, steps = 0;
+    const wall0 = Date.now();
     while (!game.over && !game.clear) {
       game.step(STEP);
       if (boss.spawn === undefined && game.enemies.some((e) => e.def.boss)) boss.spawn = Math.round(game.time);
@@ -205,7 +206,10 @@ function run(name, strat, seed = SEED) {
       if ((t += STEP) > 900) { log.push('  !! wave timed out'); game.over = 'lose'; break; }
     }
     state.safe = game.lives === livesBefore;
-    log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}${Object.keys(leaks).length ? `  leaks: ${Object.entries(leaks).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
+    // sim cost: wall-clock ms per simulated second on this machine. At 3x speed the browser runs
+    // 3 sim-seconds per real second, so 3x this is the share of each second spent simulating.
+    const cost = ((Date.now() - wall0) / Math.max(1, t)).toFixed(1);
+    log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s ${cost.padStart(5)}ms/s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}${Object.keys(leaks).length ? `  leaks: ${Object.entries(leaks).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
     leaks = {};
   }
   console.log(`${name.padEnd(16)} ${(game.over || 'cap').toUpperCase().padEnd(5)} wave ${game.wave}/${game.endless ? 'endless' : game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}  abilities ${abilityUse.flare}F/${abilityUse.ward}W${game.lastLight ? '' : '  LAST LIGHT used'}`);

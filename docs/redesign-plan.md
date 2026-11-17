@@ -239,3 +239,43 @@ Each step gets a commit and a bot run, so balance can be checked as it goes.
 grid need checking at wave 9/10 and in endless. The cap and promotion in §5 are the safety valve.
 The whole change touches most sim files and every data file. It's a big diff, but the structure
 (data-driven stats, headless sim, bot) stays the same.
+
+---
+
+## 8. Implementation notes (where the build differs from the proposal)
+
+Tuned during the bot passes (commits "Step 1" to "Step 7" on the `redesign` branch):
+
+- **Waves 9 and 10 are thicker** than the table in §4: 2,620 and ~3,020 pops (more hulks, Husks,
+  Broods; a Veiled Skitter stream on the boss wave). Cumulative gold by wave 10: ~12,900.
+- **Streak gold is a flat 5 gold per 50 pops** (scaled by the endless gold cut). A version that grew
+  with the streak paid thousands per pop in late endless, where streaks run for millions of pops.
+- **Hunter's Mark** bolts ignore 50% of armour at T2 and all of it at T3, so the path can crack Husks.
+- **Cinder** numbers are lower than §3: burn 4/8/15 per second, pools 10/20/50 per second.
+  Cluster Charge gets x1.5 and Inferno x2 shell damage. **Fire pools don't stack**: an enemy burns in one
+  pool per tick, and each pool burns at most 25 enemies per tick. Stacked uncapped pools out-damaged
+  every other ward by 10x in endless.
+- **Rime Shatter** is rate-limited (8/s at T3, 20/s at T4) so chain reactions can't run away.
+- **Support paths** (Deep Freeze, Blizzard, Static) got small damage bumps so they don't fall off.
+  Their real value (freeze, reveal, slow, stun) doesn't show in the layers/s estimate.
+- **Endless:** shells, hulks and the boss gain **8%** health per wave from wave 16 (not 5%), and the
+  spawn cap is **200**. Mending regrows a layer at most twice per enemy, and a regrown layer pays no
+  gold (the layer inside it still pays once).
+- **Abilities** are one per ward type, unlocked at tier 4 on any path (Overdraw, Saturation, Hoarfrost,
+  Tempest). The per-path abilities in §3 are for later.
+- **Not done yet:** difficulty settings (needs a menu).
+
+### Bot results at commit time (`node tools/bot.js`, `--endless`)
+
+| Build | Campaign | Endless reached |
+|---|---|---|
+| mixed | win, 150/150 lives | wave 40 |
+| mixedAlt | win, 150/150 | wave 46 |
+| focused | win, 150/150 | wave 26 |
+| freezeMix | win, 150/150 (Last Light used) | wave 43 |
+| spamNoUpgrades | win, 150/150 | (not run) |
+| single-ward builds | all win (markOnly 91, cinderOnly 120, mortarOnly 143) | |
+| lazy (3 wards, never spends) | loses at wave 7 | |
+
+The bots leave a lot of gold unspent in endless, so players who spend everything should go further.
+The campaign is deliberately generous: good play loses no lives, and the challenge lives in endless.

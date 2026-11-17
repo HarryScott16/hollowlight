@@ -9,11 +9,11 @@ import { mulberry32 } from './path.js';
 
 export const ENDLESS = {
   budget: (n) => Math.round(2400 * 1.13 ** (n - 10)),
-  toughMul: (n) => (n <= 15 ? 1 : 1.05 ** (n - 15)),
+  toughMul: (n) => (n <= 15 ? 1 : 1.08 ** (n - 15)),
   speedMul: (n) => 1 + Math.min(0.6, Math.max(0, n - 20) * 0.015),
   goldMul: (n) => (n <= 20 ? 1 : n <= 30 ? 0.5 : n <= 40 ? 0.25 : 0.1),
   bossMul: (n) => 1.6 ** (n / 10 - 1),   // Gravemaw health on waves 20, 30, ...
-  maxSpawns: 250,
+  maxSpawns: 200,
 };
 
 // Modifiers switch on at these waves and stay on. Each is announced once with a banner.

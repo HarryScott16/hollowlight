@@ -297,6 +297,7 @@ export class Game {
       const child = createEnemy(this, type, Math.max(0, e.dist - i * 10), e.wave, e.mods, e.root);
       child.off = e.off + (count > 1 ? (i - (count - 1) / 2) * 7 : 0);
       inherit(child, e);
+      if (i === 0 && e.unpaid > 1) child.unpaid = e.unpaid - 1;
       child.wob = e.wob + i;
       this.map.path.posAt(child.dist, child, child.off);
       this.enemies.push(child);
@@ -309,14 +310,14 @@ export class Game {
     this.kills++;
     this.pops += e.def.gold;
     if (src) src.kills++;
-    const gold = e.def.gold * this.goldMul;
+    const gold = e.unpaid > 0 ? 0 : e.def.gold * this.goldMul;
     this.addGold(gold);
     this.emit('death', { x: e.x, y: e.y, r: e.r, etype: e.type, gold, boss: !!e.def.boss, heavy: !!e.def.heavy, src: src ? src.id : 0 });
     this.streak = this.time - this.lastKill <= RULES.streakWindow ? this.streak + 1 : 1;
     this.lastKill = this.time;
     if (this.streak > this.bestStreak) this.bestStreak = this.streak;
     if (this.streak % RULES.streakStep === 0) {
-      const bonus = RULES.streakGold(this.streak);
+      const bonus = RULES.streakGold * this.goldMul;
       this.addGold(bonus);
       this.emit('streak', { n: this.streak, gold: bonus });
     }

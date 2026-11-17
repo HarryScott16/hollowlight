@@ -15,7 +15,7 @@ export const WAVES = [
   /* 7 */ { groups: [g('husk', 20, 0.7), g('brood', 50, 0.25, 4), g('skitter', 120, 0.08, 10), g('brood', 10, 0.6, 18, V)] },
   /* 8 */ { groups: [g('dreadhulk', 1, 1), g('husk', 30, 0.55, 8), g('brood', 60, 0.22, 10), g('shambler', 100, 0.12, 16)],
     banner: 'A Dreadhulk approaches' },
-  /* 9 */ { groups: [g('dreadhulk', 3, 4), g('husk', 40, 0.45, 3), g('brood', 80, 0.18, 6), g('shambler', 80, 0.15, 12, V), g('skitter', 100, 0.08, 20)] },
-  /* 10 */ { groups: [g('gravemaw', 1, 1), g('husk', 30, 0.6, 4), g('dreadhulk', 2, 6, 8), g('brood', 60, 0.25, 12), g('skitter', 150, 0.08, 22)],
+  /* 9 */ { groups: [g('dreadhulk', 4, 3.5), g('husk', 50, 0.38, 3), g('brood', 90, 0.16, 6), g('shambler', 90, 0.14, 12, V), g('skitter', 120, 0.07, 20)] },
+  /* 10 */ { groups: [g('gravemaw', 1, 1), g('husk', 40, 0.5, 4), g('dreadhulk', 4, 4, 8), g('brood', 80, 0.2, 12), g('skitter', 160, 0.07, 22), g('skitter', 50, 0.15, 26, V)],
     banner: 'The Gravemaw rises' },
 ];

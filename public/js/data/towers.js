@@ -44,8 +44,8 @@ export const TOWERS = {
       ] },
       { name: "Hunter's Mark", tiers: [
         { name: 'Keen Sight', cost: 100, desc: 'x2 damage and +30 range. Can see Veiled enemies.', add: { range: 30 }, mul: { damage: 2 }, set: { detect: true } },
-        { name: 'Mark', cost: 220, desc: 'Hits mark the target for 4s: it takes +30% damage from everything. Pierce 3, x1.2 rate.', set: { markPct: 0.3, markDur: 4, pierce: 3 }, mul: { rate: 1.2 } },
-        { name: 'Hunting Party', cost: 650, desc: 'Marks add +45% and spread to every enemy near the target. x1.5 damage, x1.3 rate, pierce 4, +30 range.', set: { markPct: 0.45, markDur: 5, markRadius: 70, pierce: 4 }, mul: { damage: 1.5, rate: 1.3 }, add: { range: 30 } },
+        { name: 'Mark', cost: 220, desc: 'Hits mark the target for 4s: it takes +30% damage from everything. Bolts find weak points (ignore half of armour). Pierce 3, x1.2 rate.', set: { markPct: 0.3, markDur: 4, pierce: 3, armorPierce: 0.5 }, mul: { rate: 1.2 } },
+        { name: 'Hunting Party', cost: 650, desc: 'Marks add +45% and spread to every enemy near the target. Bolts ignore all armour. x1.5 damage, x1.3 rate, pierce 4, +30 range.', set: { markPct: 0.45, markDur: 5, markRadius: 70, pierce: 4, armorPierce: 1 }, mul: { damage: 1.5, rate: 1.3 }, add: { range: 30 } },
         { name: 'Death Sentence', cost: 2800, desc: 'Marks add +75% and spread wider. Marked non-boss enemies under 25% health are executed. x2 damage, x1.4 rate, pierce 5.', set: { markPct: 0.75, markRadius: 110, execute: 0.25, pierce: 5 }, mul: { damage: 2, rate: 1.4 }, add: { range: 40 } },
       ] },
     ],
@@ -71,8 +71,8 @@ export const TOWERS = {
       { name: 'Cinder', tiers: [
         { name: 'Hot Shells', cost: 120, desc: 'Blasts set enemies burning: 4 damage/s for 3s. Burns carry on into inner layers.', set: { burnDps: 4, burnDur: 3 } },
         { name: 'Cinder Pool', cost: 280, desc: 'Leaves fire on the ground for 3s dealing 10 damage/s.', set: { poolDps: 10, poolDur: 3 } },
-        { name: 'Cluster Charge', cost: 800, desc: 'Each shell scatters 5 bomblets. Fire burns hotter (20/s, burns 8/s).', set: { cluster: 5, poolDps: 20, burnDps: 8 } },
-        { name: 'Inferno', cost: 3500, desc: 'Fire lasts 6s, deals 60 damage/s, spreads 40% wider, and enemies in it take +25% damage. Burns 15/s.', set: { poolDps: 60, poolDur: 6, poolRadiusMul: 1.4, scorch: 0.25, burnDps: 15 } },
+        { name: 'Cluster Charge', cost: 800, desc: 'x1.5 shell damage and each shell scatters 5 bomblets. Fire burns hotter (20/s, burns 8/s).', set: { cluster: 5, poolDps: 20, burnDps: 8 }, mul: { damage: 1.5 } },
+        { name: 'Inferno', cost: 3500, desc: 'x2 shell damage. Fire lasts 6s, deals 50 damage/s, spreads 40% wider, and enemies in it take +25% damage. Burns 15/s.', set: { poolDps: 50, poolDur: 6, poolRadiusMul: 1.4, scorch: 0.25, burnDps: 15 }, mul: { damage: 2 } },
       ] },
     ],
   },

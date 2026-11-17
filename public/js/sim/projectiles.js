@@ -144,6 +144,7 @@ export function updateProjectiles(game, dt) {
 }
 
 const ZONE_TICK = 0.25;
+const ZONE_MAX_HITS = 25;   // enemies burned per pool per tick
 const DOT = { dot: true };
 export function updateZones(game, dt) {
   const zones = game.zones;
@@ -153,10 +154,16 @@ export function updateZones(game, dt) {
     if (z.tick > 0) continue;
     z.tick += ZONE_TICK;
     game.grid.query(z.x, z.y, z.r + 20, buf);
+    let hits = 0;
     for (const e of buf) {
       if (!e.alive || e.def.flying) continue;
+      if ((e.x - z.x) ** 2 + (e.y - z.y) ** 2 > (z.r + e.r * 0.5) ** 2) continue;
+      // Overlapping pools don't stack: an enemy burns in one pool per tick.
+      if (game.time - e.zoneT < ZONE_TICK * 0.9) continue;
+      e.zoneT = game.time;
       if (z.scorch) { e.scorchT = ZONE_TICK * 2; e.scorchPct = z.scorch; }
       game.damage(e, z.dps * ZONE_TICK, 'blast', z.src, DOT);
+      if (++hits >= ZONE_MAX_HITS) break;
     }
   }
   let w = 0;

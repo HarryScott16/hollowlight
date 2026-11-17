@@ -16,11 +16,13 @@ export function createEnemy(game, type, dist, wave, mods, root) {
     speed, curSpeed: speed, r: def.r, alive: true, leaked: false, veiled: !!mods.veiled,
     flash: 0, hitT: 0, frozenAmp: 0, wob: game.rand() * 6.28, phase: 0, lastHit: game.time,
     mendTop: mods.mending ? type : null,
+    mends: 0,      // times this lineage has grown a layer back (capped at MAX_MENDS)
+    unpaid: 0,     // layers grown back that pay no gold when broken again
     // status effects
     slowT: 0, slowF: 0, freezeT: 0, freezeImm: 0, stunT: 0,
     markT: 0, markPct: 0, brittleT: 0, brittlePct: 0,
     chargedT: 0, chargedPct: 0, chargedSlow: 0, scorchT: 0, scorchPct: 0,
-    burnT: 0, burnDps: 0, burnSrc: null, revealT: 0,
+    burnT: 0, burnDps: 0, burnSrc: null, revealT: 0, zoneT: -1,
     shatterT: 0, shatterDmg: 0, shatterRadius: 0, shatterSrc: null,
   };
   game.map.path.posAt(dist, e, e.off);
@@ -30,7 +32,7 @@ export function createEnemy(game, type, dist, wave, mods, root) {
 // Inner layers keep the outer layer's lingering effects (slows, marks, burns), like shrapnel
 // still on fire. Freezes, stuns and shatter charges do not carry over.
 const INHERIT = ['slowT', 'slowF', 'markT', 'markPct', 'brittleT', 'brittlePct', 'chargedT', 'chargedPct',
-  'chargedSlow', 'burnT', 'burnDps', 'burnSrc', 'scorchT', 'scorchPct', 'revealT', 'mendTop'];
+  'chargedSlow', 'burnT', 'burnDps', 'burnSrc', 'scorchT', 'scorchPct', 'revealT', 'mendTop', 'mends'];
 export function inherit(child, parent) {
   for (const k of INHERIT) child[k] = parent[k];
 }
@@ -41,6 +43,7 @@ export function applySlow(e, factor, dur) {
 }
 
 const MEND_DELAY = 3;
+const MAX_MENDS = 2;
 
 export function updateEnemy(game, e, dt) {
   if (e.flash > 0) e.flash -= dt;
@@ -63,7 +66,7 @@ export function updateEnemy(game, e, dt) {
   }
 
   // Mending (endless modifier): a layer left alone for a while grows back its outer layer.
-  if (e.mendTop && e.type !== e.mendTop && game.time - e.lastHit > MEND_DELAY) mend(game, e);
+  if (e.mendTop && e.type !== e.mendTop && e.mends < MAX_MENDS && game.time - e.lastHit > MEND_DELAY) mend(game, e);
 
   let mul = 1;
   if (e.freezeT > 0 || e.stunT > 0) {
@@ -99,6 +102,8 @@ function mend(game, e) {
   e.speed = def.speed * e.mods.speedMul;
   e.r = def.r;
   e.lastHit = game.time;
+  e.mends++;
+  e.unpaid++;   // the regrown layer pays nothing; the one inside it still pays once
   game.emit('mend', { x: e.x, y: e.y, r: e.r });
 }
 
