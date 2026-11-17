@@ -280,7 +280,9 @@ export class Game {
       this.addGold(bonus);
       this.emit('streak', { n: this.streak, gold: bonus });
     }
-    if (e.shatterT > 0) {
+    // Shatter: a chilled enemy explodes, as often as the spire's shatter rate allows.
+    if (e.shatterT > 0 && e.shatterSrc && e.shatterSrc.shatterTokens >= 1) {
+      e.shatterSrc.shatterTokens--;
       this.pending.push({ x: e.x, y: e.y, r: e.shatterRadius, dmg: e.shatterDmg, src: e.shatterSrc });
     }
     // Bosses that die before every phase has burst still release the rest.
@@ -342,6 +344,13 @@ export class Game {
     this.grid.clear();
     for (let i = 0; i < es.length; i++) if (es[i].alive) this.grid.insert(es[i]);
 
+    // Frost Sight spires reveal Veiled enemies in range to every ward.
+    for (let i = 0; i < this.towers.length; i++) {
+      const t = this.towers[i];
+      if (!t.stats.reveal) continue;
+      this.grid.query(t.x, t.y, t.stats.range, buf);
+      for (const e of buf) if (e.veiled) e.revealT = 0.25;
+    }
     for (let i = 0; i < this.towers.length; i++) updateTower(this, this.towers[i], dt);
     updateProjectiles(this, dt);
     updateZones(this, dt);

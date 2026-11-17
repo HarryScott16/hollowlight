@@ -73,14 +73,25 @@ function updateBolt(game, p, dt) {
   }
 }
 
+const inBlast = [];
 export function explode(game, x, y, s, src, sub) {
   const r = s.radius * (sub ? 0.6 : 1);
   const dmg = s.damage * (sub ? 0.5 : 1);
+  const cap = Math.max(1, Math.round((s.maxHits || 999) * (sub ? 0.4 : 1)));
   game.grid.query(x, y, r + 34, buf);
+  inBlast.length = 0;
   for (const e of buf) {
     if (!e.alive || e.def.flying) continue;
     const reach = r + e.r * 0.6;
-    if ((e.x - x) ** 2 + (e.y - y) ** 2 > reach * reach) continue;
+    const d2 = (e.x - x) ** 2 + (e.y - y) ** 2;
+    if (d2 > reach * reach) continue;
+    e._d2 = d2;
+    inBlast.push(e);
+  }
+  // A blast breaks up to `cap` enemies, nearest the centre first.
+  if (inBlast.length > cap) { inBlast.sort((a, b) => a._d2 - b._d2); inBlast.length = cap; }
+  for (const e of inBlast) {
+    if (!e.alive) continue;
     game.damage(e, dmg, s.type, src);
     if (!e.alive) continue;
     if (s.stun && !e.def.heavy) e.stunT = Math.max(e.stunT, s.stun * (sub ? 0.5 : 1));

@@ -32,8 +32,8 @@ const yes = (b) => (b ? 'yes' : 'no');
 function statRows(def, s) {
   const k = def.kind;
   const rows = [
-    ['DPS, one target', fmt(estimateDps(k, s, false))],
-    ['DPS, crowd', fmt(estimateDps(k, s, true))],
+    ['Layers/s, crowd', fmt(estimateDps(k, s, true) / 10)],
+    ['Damage/s, one target', fmt(estimateDps(k, s, false))],
     ['Damage', num(s.damage)],
     [k === 'pulse' ? 'Pulses/s' : 'Attacks/s', num(s.rate)],
     ['Range', String(Math.round(s.range))],
@@ -48,28 +48,30 @@ function statRows(def, s) {
     if (s.execute) rows.push(['Execute below', pct(s.execute)]);
     if (s.lance) rows.push(['Lance', 'full map']);
   } else if (k === 'mortar') {
-    rows.push(['Blast radius', String(Math.round(s.radius))], ['Shells per volley', String(s.shells)]);
+    rows.push(['Blast radius', String(Math.round(s.radius))], ['Enemies per blast', String(s.maxHits)], ['Shells per volley', String(s.shells)]);
     if (s.stun) rows.push(['Stun', `${s.stun}s`]);
     if (s.burnDps) rows.push(['Burn', `${s.burnDps}/s`]);
     if (s.poolDps) rows.push(['Fire pool', `${s.poolDps}/s for ${s.poolDur}s`]);
     if (s.cluster) rows.push(['Bomblets', String(s.cluster)]);
     if (s.scorch) rows.push(['Scorch', `+${pct(s.scorch)} dmg taken`]);
   } else if (k === 'pulse') {
-    rows.push(['Slow', pct(s.slow)], ['Slow lasts', `${s.slowDur}s`]);
+    rows.push(['Enemies per pulse', String(s.maxHits)], ['Slow', pct(s.slow)], ['Slow lasts', `${s.slowDur}s`]);
+    if (s.reveal) rows.push(['Reveals Veiled', 'yes']);
     if (s.freezeEvery) rows.push(['Freeze', `every ${s.freezeEvery} pulses, ${s.freezeDur}s`]);
     if (s.frozenAmp) rows.push(['Frozen take', `+${pct(s.frozenAmp)}`]);
     if (s.brittle) rows.push(['Brittle', `+${pct(s.brittle)}`]);
-    if (s.shatterDmg) rows.push(['Shatter', String(s.shatterDmg)]);
+    if (s.shatterDmg) rows.push(['Shatter', `${s.shatterDmg} (max ${s.shatterRate}/s)`]);
     if (s.globalSlow) rows.push(['Map-wide slow', pct(s.globalSlow)]);
   } else if (k === 'chain') {
-    rows.push(['Enemies per chain', String(s.chains)], ['Jump loss', pct(1 - s.falloff)]);
+    rows.push(['Enemies per chain', String(s.chains)]);
+    if (s.falloff < 1) rows.push(['Jump loss', pct(1 - s.falloff)]);
     if (s.forks > 1) rows.push(['Chains per strike', String(s.forks)]);
-    if (s.shieldMul) rows.push(['vs shields', `x${s.shieldMul}`]);
+    if (s.heavyMul) rows.push(['vs hulks and bosses', `x${s.heavyMul}`]);
     if (s.stunChance) rows.push(['Stun chance', pct(s.stunChance)]);
     if (s.chargedPct) rows.push(['Charged', `+${pct(s.chargedPct)} arcane`]);
     if (s.smiteEvery) rows.push(['Thunderbolt', `every ${s.smiteEvery}, x${s.smiteMul}`]);
   }
-  rows.push(['Hits flyers', yes(s.hitsAir)], ['Sees stealth', yes(s.detect)]);
+  rows.push(['Sees Veiled', yes(s.detect)]);
   return rows;
 }
 const LOCK_TEXT = {

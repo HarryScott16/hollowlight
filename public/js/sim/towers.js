@@ -19,29 +19,32 @@ export function computeStats(def, tiers) {
 }
 
 // Rough damage per second, used for the upgrade panel and balance reports (the simulation
-// never reads it). `crowd` assumes enemies bunched around the target; otherwise one lone target.
-const CROWD = 6;
+// never reads it). Divide by 10 for layers popped per second. `crowd` assumes a dense, deep crowd
+// around the target (overkill carries into inner layers, so it isn't wasted); otherwise one target.
 export function estimateDps(kind, s, crowd = true) {
   if (kind === 'bolt') {
-    const perBolt = crowd ? Math.min(s.pierce, s.lance ? 4 : 2) + (s.bounces || 0) : 1;
+    const perBolt = crowd ? Math.min(s.pierce, s.lance ? 10 : 5) + (s.bounces || 0) : 1;
     return s.damage * s.rate * s.shots * perBolt * (1 + (s.markPct || 0));
   }
   if (kind === 'mortar') {
-    const hits = crowd ? Math.min(CROWD, 2 * (s.radius / 55) ** 2) : 1;
-    let d = s.damage * hits * s.shells * (1 + (s.cluster || 0) * (crowd ? 0.35 : 0.1));
+    const hits = crowd ? Math.min(s.maxHits, 5 * (s.radius / 55) ** 2) : 1;
+    let d = s.damage * hits * s.shells * (1 + (s.cluster || 0) * (crowd ? 0.3 : 0.1));
     d += (s.burnDps || 0) * (s.burnDur || 0) * hits;
     d += (s.poolDps || 0) * (s.poolDur || 0) * hits * 0.5 * (s.poolRadiusMul || 1);
     return d * s.rate * (1 + (s.scorch || 0));
   }
   if (kind === 'pulse') {
-    return s.damage * s.rate * (crowd ? Math.min(CROWD, 3 * (s.range / 100)) : 1) + (crowd ? (s.shatterDmg || 0) * 0.5 : 0);
+    const hits = crowd ? Math.min(s.maxHits, 5 * (s.range / 105)) : 1;
+    let d = s.damage * s.rate * hits;
+    if (crowd && s.shatterDmg) d += Math.min(s.shatterRate, hits * s.rate) * s.shatterDmg * 2;
+    return d;
   }
   if (kind === 'chain') {
     let jumps = 0, f = 1;
-    const n = crowd ? Math.min(s.chains, CROWD * 1.5) : 1;
+    const n = crowd ? Math.min(s.chains, 12) : 1;
     for (let j = 0; j < n; j++) { jumps += f; f *= s.falloff; }
     let d = s.damage * jumps * (crowd ? s.forks : 1);
-    if (s.smiteEvery) d += (s.damage * (s.smiteMul - 1) + (crowd ? s.damage * s.smiteMul * 0.5 * 3 : 0)) / s.smiteEvery;
+    if (s.smiteEvery) d += (s.damage * (s.smiteMul - 1) + (crowd ? s.damage * s.smiteMul * 0.5 * 5 : 0)) / s.smiteEvery;
     return d * s.rate * (1 + (s.chargedPct || 0));
   }
   return 0;
@@ -53,7 +56,7 @@ export function createTower(game, type, x, y) {
     id: game.nextId++, type, def, x, y,
     tiers: [0, 0, 0], stats: computeStats(def, [0, 0, 0]),
     cd: 0, ang: -Math.PI / 2, target: null, targetMode: 'first',
-    dmg: 0, kills: 0, spent: def.cost,
+    dmg: 0, kills: 0, spent: def.cost, shatterTokens: 0,
     recoil: 0, shotN: 0, pulseN: 0, pulseAnim: 0,
   };
 }
@@ -155,8 +158,12 @@ function pulse(game, t, dt) {
   t.pulseN++;
   t.pulseAnim = 1;
   const freeze = s.freezeEvery && t.pulseN % s.freezeEvery === 0;
-  for (const e of buf) {
-    if (!e.alive || !game.targetable(e, s, true)) continue;
+  // Up to maxHits enemies, those furthest along the path first.
+  hitList.length = 0;
+  for (const e of buf) if (e.alive && game.targetable(e, s, true)) hitList.push(e);
+  if (hitList.length > s.maxHits) { hitList.sort((a, b) => b.dist - a.dist); hitList.length = s.maxHits; }
+  for (const e of hitList) {
+    if (!e.alive) continue;
     applySlow(e, s.slow, s.slowDur);
     if (s.brittle) { e.brittleT = s.slowDur; e.brittlePct = Math.max(e.brittlePct, s.brittle); }
     if (s.shatterDmg) { e.shatterT = s.slowDur; e.shatterDmg = s.shatterDmg; e.shatterRadius = s.shatterRadius; e.shatterSrc = t; }
@@ -168,6 +175,7 @@ function pulse(game, t, dt) {
   game.emit('pulse', { x: t.x, y: t.y, r: s.range, freeze });
 }
 const QUIET = { quiet: true };
+const hitList = [];
 
 // --- chain: instant lightning that jumps between enemies ------------------------------------
 const chainHit = [];
@@ -180,7 +188,7 @@ function strike(game, t, s, first, smite) {
   for (let j = 0; j < s.chains && cur; j++) {
     pts.push(cur.x, cur.y);
     chainHit.push(cur.root);
-    game.damage(cur, dmg, s.type, t, opts);
+    game.damage(cur, s.heavyMul && cur.def.heavy ? dmg * s.heavyMul : dmg, s.type, t, opts);
     if (cur.alive) {
       if (!cur.def.heavy) {
         if (smite && j === 0) cur.stunT = Math.max(cur.stunT, 1);
@@ -238,6 +246,7 @@ export function updateTower(game, t, dt) {
   if (t.cd > 0) t.cd -= dt;
   if (t.recoil > 0) t.recoil = Math.max(0, t.recoil - dt * 5);
   if (t.pulseAnim > 0) t.pulseAnim = Math.max(0, t.pulseAnim - dt * 2);
+  if (t.stats.shatterRate) t.shatterTokens = Math.min(t.stats.shatterRate, t.shatterTokens + t.stats.shatterRate * dt);
   BEHAVIOURS[t.def.kind](game, t, dt);
   // Idle towers stay ready rather than banking negative cooldown.
   if (t.cd < 0) t.cd = 0;
