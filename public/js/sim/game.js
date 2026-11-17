@@ -12,6 +12,7 @@ import { Grid } from './grid.js';
 import { createEnemy, updateEnemy, inherit, applySlow } from './enemies.js';
 import { createTower, computeStats, upgradeInfo, updateTower } from './towers.js';
 import { updateProjectiles, updateZones, launchShell } from './projectiles.js';
+import { endlessWave, ENDLESS } from './endless.js';
 
 const scratch = [];
 const buf = [];
@@ -34,6 +35,8 @@ export class Game {
     this.rewarded = 0;        // number of waves whose clear reward has been paid
     this.time = 0;
     this.over = null;         // null | 'win' | 'lose'
+    this.endless = false;     // continuing past the last campaign wave
+    this.endlessWaves = new Map();
     this.nextId = 1;
     this.enemies = [];
     this.towers = [];
@@ -66,8 +69,23 @@ export class Game {
 
   // ---- waves ---------------------------------------------------------------------------------
   get totalWaves() { return this.waves.length; }
-  waveAt(i) { return this.waves[i] || null; }
-  get canStartWave() { return !this.over && this.wave < this.waves.length && this.spawners.length === 0; }
+  // Wave i (0-based): campaign waves, then generated endless waves once endless mode is on.
+  waveAt(i) {
+    if (i < this.waves.length) return this.waves[i];
+    if (!this.endless) return null;
+    let w = this.endlessWaves.get(i);
+    if (!w) { w = endlessWave(i + 1, this.seed); this.endlessWaves.set(i, w); }
+    return w;
+  }
+
+  // After winning the campaign: keep going.
+  continueEndless() {
+    if (this.over !== 'win') return false;
+    this.over = null;
+    this.endless = true;
+    return true;
+  }
+  get canStartWave() { return !this.over && (this.endless || this.wave < this.waves.length) && this.spawners.length === 0; }
   get clear() { return this.spawners.length === 0 && this.enemies.length === 0; }
   get earlyBonus() { return this.enemies.length > 0 ? RULES.earlyBonus(this.wave + 1) : 0; }
 
@@ -79,13 +97,14 @@ export class Game {
       this.flareCd = Math.max(0, this.flareCd - FLARE.earlyCut);
       this.emit('bonus', { amount: bonus, label: 'Early call' });
     }
-    const wave = this.waves[this.wave];
+    const wave = this.waveAt(this.wave);
     this.wave++;
+    if (this.endless) this.goldMul = ENDLESS.goldMul(this.wave);
     for (const g of wave.groups) {
-      const mods = { hpMul: 1, speedMul: 1, veiled: !!g.veiled };
+      const mods = { hpMul: g.hpMul || 1, speedMul: g.speedMul || 1, veiled: !!g.veiled, mending: !!g.mending };
       this.spawners.push({ type: g.type, left: g.count, gap: g.gap, t: g.delay || 0, mods, wave: this.wave });
     }
-    this.emit('wave', { n: this.wave });
+    this.emit('wave', { n: this.wave, banner: wave.banner || null, boss: wave.groups.some((g) => ENEMIES[g.type].boss) });
     return true;
   }
 
@@ -512,7 +531,7 @@ export class Game {
       while (this.rewarded < this.wave) total += RULES.waveReward(++this.rewarded);
       this.addGold(total);
       this.emit('bonus', { amount: total, label: `Wave ${this.wave} cleared` });
-      if (this.wave >= this.waves.length) {
+      if (this.wave >= this.waves.length && !this.endless) {
         this.over = 'win';
         this.emit('over', { result: 'win' });
       }

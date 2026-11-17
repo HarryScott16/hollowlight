@@ -9,6 +9,9 @@ const verbose = process.argv.includes('-v');
 const seedArg = process.argv.find((a) => a.startsWith('--seed='));
 const SEED = seedArg ? Number(seedArg.slice(7)) : 1;
 const only = process.argv.slice(2).find((a) => !a.startsWith('-'));
+// --endless: keep playing generated waves after a win, up to wave 60.
+const ENDLESS = process.argv.includes('--endless');
+const ENDLESS_CAP = 60;
 
 // order: towers bought in this rotation. paths: [main, minor] path index per tower type.
 // maxTowers(wave) caps the tower count so the bot also upgrades.
@@ -178,7 +181,9 @@ function run(name, strat, seed = SEED) {
   };
   game.kill = (e, src) => { if (e.def.boss) boss.result = `killed after ${game.time.toFixed(0) - boss.spawn}s`; kill(e, src); };
   let earlyCalls = 0;
-  while (!game.over) {
+  for (;;) {
+    if (game.over === 'win' && ENDLESS) game.continueEndless();
+    if (game.over || game.wave >= ENDLESS_CAP) break;
     spend(game, strat, spots, state);
     const livesBefore = game.lives;
     state.calledEarly = false;
@@ -203,7 +208,7 @@ function run(name, strat, seed = SEED) {
     log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}${Object.keys(leaks).length ? `  leaks: ${Object.entries(leaks).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
     leaks = {};
   }
-  console.log(`${name.padEnd(16)} ${game.over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}  abilities ${abilityUse.flare}F/${abilityUse.ward}W${game.lastLight ? '' : '  LAST LIGHT used'}`);
+  console.log(`${name.padEnd(16)} ${(game.over || 'cap').toUpperCase().padEnd(5)} wave ${game.wave}/${game.endless ? 'endless' : game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}  abilities ${abilityUse.flare}F/${abilityUse.ward}W${game.lastLight ? '' : '  LAST LIGHT used'}`);
   if (verbose) {
     console.log(log.join('\n'));
     const byType = {};

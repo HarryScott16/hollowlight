@@ -247,3 +247,4 @@ main { flex: 1; display: flex; min-height: 0; }
 .ab-btn.flare.ready { background: #8a3a12; }
 .ab-btn.locked { opacity: 0.4; }
 #last-light.spent { color: var(--red); text-decoration: line-through; }
+.overlay-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }

@@ -202,6 +202,7 @@ export class UI {
     $('btn-pause').addEventListener('click', () => this.togglePause());
     $('btn-restart').addEventListener('click', () => this.restart());
     $('overlay-restart').addEventListener('click', () => this.restart());
+    $('overlay-continue').addEventListener('click', () => this.continueEndless());
     $('chk-auto').addEventListener('change', (ev) => { this.auto = ev.target.checked; });
     this.speedButtons = [...document.querySelectorAll('[data-speed]')];
     for (const b of this.speedButtons) b.addEventListener('click', () => this.setSpeed(Number(b.dataset.speed)));
@@ -229,6 +230,23 @@ export class UI {
     this.cache = {};
     $('overlay').hidden = true;
     this.refreshPreview();
+  }
+
+  continueEndless() {
+    if (!this.game.continueEndless()) return;
+    this.cache.over = null;
+    $('overlay').hidden = true;
+    this.refreshPreview();
+  }
+
+  // Best endless wave reached, kept in this browser only.
+  get bestWave() {
+    try { return Number(localStorage.getItem('hollowlight.bestWave')) || 0; } catch { return 0; }
+  }
+
+  recordWave(n) {
+    if (n <= this.bestWave) return;
+    try { localStorage.setItem('hollowlight.bestWave', String(n)); } catch { /* storage unavailable */ }
   }
 
   // ---- canvas input --------------------------------------------------------------------------
@@ -478,11 +496,12 @@ export class UI {
 
     this.setText('hud-lives', String(g.lives));
     this.setText('hud-gold', String(Math.floor(g.gold)));
-    this.setText('hud-wave', `${g.wave} / ${g.totalWaves}`);
+    this.setText('hud-wave', g.endless ? `${g.wave}  (endless, best ${Math.max(this.bestWave, g.wave)})` : `${g.wave} / ${g.totalWaves}`);
+    if (g.endless && this.cache.recorded !== g.wave) { this.cache.recorded = g.wave; this.recordWave(g.wave); }
 
     let label;
     if (g.over) label = g.over === 'win' ? 'Victory' : 'Defeated';
-    else if (g.wave >= g.totalWaves) label = 'Final wave in progress';
+    else if (g.wave >= g.totalWaves && !g.endless) label = 'Final wave in progress';
     else if (!g.canStartWave) label = `Wave ${g.wave} incoming...`;
     else if (g.earlyBonus) label = `Call wave ${g.wave + 1} early (+${g.earlyBonus})`;
     else label = `Start wave ${g.wave + 1}  [Enter]`;
@@ -505,10 +524,14 @@ export class UI {
     if (g.over && this.cache.over !== g.over) {
       this.cache.over = g.over;
       const win = g.over === 'win';
+      const best = this.bestWave;
       $('overlay-title').textContent = win ? 'The Heartfire holds!' : 'The Heartfire is out';
-      $('overlay-text').textContent = win
-        ? `All ${g.totalWaves} waves beaten with ${g.lives} lives left.\n${g.kills} Gloom destroyed.`
-        : `The Gloom broke through on wave ${g.wave} of ${g.totalWaves}.\n${g.kills} Gloom destroyed.`;
+      let text;
+      if (win) text = `All ${g.totalWaves} waves beaten with ${g.lives} lives left.\n${fmt(g.pops)} layers broken.\nThe night isn't over: keep going for as long as you can hold.${best ? `\nYour best: wave ${best}.` : ''}`;
+      else if (g.endless) text = `The Gloom broke through on endless wave ${g.wave}.\n${fmt(g.pops)} layers broken.\nBest: wave ${Math.max(best, g.wave)}.`;
+      else text = `The Gloom broke through on wave ${g.wave} of ${g.totalWaves}.\n${fmt(g.pops)} layers broken.`;
+      $('overlay-text').textContent = text;
+      $('overlay-continue').hidden = !win;
       document.querySelector('.overlay-card').className = `overlay-card ${g.over}`;
       $('overlay').hidden = false;
       this.setPlacing(null);

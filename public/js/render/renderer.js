@@ -214,7 +214,7 @@ export class Renderer {
           this.callout = { text: 'LAST LIGHT!', sub: 'The Heartfire saved you, once', color: '#fff1b0', t: 2.6, max: 2.6 };
           break;
         case 'wave':
-          this.banner = { text: `Wave ${f.n}`, t: 2 };
+          this.banner = { text: `Wave ${f.n}`, sub: f.banner, boss: f.boss, t: f.banner ? 3 : 2, max: f.banner ? 3 : 2 };
           break;
         default:
       }
@@ -723,7 +723,7 @@ export class Renderer {
     if (!b) return;
     b.t -= dt;
     if (b.t <= 0) { this.banner = null; return; }
-    const a = Math.min(1, b.t * 2, (2 - b.t) * 5);
+    const a = Math.min(1, b.t * 2, (b.max - b.t) * 5);
     ctx.globalAlpha = a;
     ctx.font = `900 46px ${FONT}`;
     ctx.textAlign = 'center';
@@ -731,8 +731,15 @@ export class Renderer {
     ctx.lineJoin = 'round';
     ctx.strokeStyle = INK; ctx.lineWidth = 7;
     ctx.strokeText(b.text, W / 2, 150);
-    ctx.fillStyle = '#fff6d8';
+    ctx.fillStyle = b.boss ? '#ff7a95' : '#fff6d8';
     ctx.fillText(b.text, W / 2, 150);
+    if (b.sub) {
+      ctx.font = `800 20px ${FONT}`;
+      ctx.lineWidth = 5;
+      ctx.strokeText(b.sub, W / 2, 190);
+      ctx.fillStyle = b.boss ? '#ffd0da' : '#ffe45c';
+      ctx.fillText(b.sub, W / 2, 190);
+    }
     ctx.globalAlpha = 1;
   }
 
