@@ -35,14 +35,14 @@ const STRATEGIES = {
     paths: { bolt: [0, 2], mortar: [0, 1], rime: [1, 0], coil: [0, 2] },
     maxTowers: (w) => Math.min(6, 3 + Math.floor(w * 0.4)),
   },
-  boltOnly: {
-    order: ['bolt'], paths: { bolt: [1, 0] }, maxTowers: (w) => 3 + Math.floor(w * 0.8),
+  boltOnly: { // takes Keen Sight (sees Veiled) as its minor path
+    order: ['bolt'], paths: { bolt: [1, 2] }, maxTowers: (w) => 3 + Math.floor(w * 1.3),
   },
   mortarOnly: {
     order: ['mortar'], paths: { mortar: [0, 1] }, maxTowers: (w) => 2 + Math.floor(w * 0.6),
   },
   markOnly: { // Hunter's Mark path, to check it pulls its weight
-    order: ['bolt'], paths: { bolt: [2, 1] }, maxTowers: (w) => 3 + Math.floor(w * 0.8), strict: true,
+    order: ['bolt'], paths: { bolt: [2, 1] }, maxTowers: (w) => 3 + Math.floor(w * 1.3), strict: true,
   },
   cinderOnly: {
     order: ['mortar'], paths: { mortar: [2, 1] }, maxTowers: (w) => 2 + Math.floor(w * 0.6), strict: true,
@@ -147,7 +147,13 @@ function run(name, strat, seed = SEED) {
   let maxEnemies = 0;
   const boss = { result: 'none', cost: 0, time: 0 };
   const leak = game.leak.bind(game), kill = game.kill.bind(game);
-  game.leak = (e) => { if (e.def.boss) { boss.result = `leaked at ${Math.round(100 * e.hp / e.maxHp)}% hp`; boss.cost = game.leakCost(e); } leak(e); };
+  let leaks = {};
+  game.leak = (e) => {
+    if (e.def.boss) { boss.result = `leaked at ${Math.round(100 * e.hp / e.maxHp)}% hp`; boss.cost = game.leakCost(e); }
+    const k = (e.veiled ? 'veiled ' : '') + e.type;
+    leaks[k] = (leaks[k] || 0) + game.leakCost(e);
+    leak(e);
+  };
   game.kill = (e, src) => { if (e.def.boss) boss.result = `killed after ${game.time.toFixed(0) - boss.spawn}s`; kill(e, src); };
   let earlyCalls = 0;
   while (!game.over) {
@@ -171,7 +177,8 @@ function run(name, strat, seed = SEED) {
       if ((t += STEP) > 900) { log.push('  !! wave timed out'); game.over = 'lose'; break; }
     }
     state.safe = game.lives === livesBefore;
-    log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}`);
+    log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}${Object.keys(leaks).length ? `  leaks: ${Object.entries(leaks).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
+    leaks = {};
   }
   console.log(`${name.padEnd(16)} ${game.over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}`);
   if (verbose) {

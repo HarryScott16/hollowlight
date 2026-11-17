@@ -214,3 +214,5 @@ main { flex: 1; display: flex; min-height: 0; }
   #btn-wave { min-width: 0; }
   .hud-stats { gap: 12px; font-size: 15px; }
 }
+.pv-new { font-size: 10px; font-weight: 800; color: #1d1030; background: var(--gold); border-radius: 3px; padding: 0 3px; margin-right: 4px; }
+.pv canvas.veiled { opacity: 0.45; }

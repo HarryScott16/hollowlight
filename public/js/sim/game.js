@@ -3,7 +3,7 @@
 import { MAP } from '../data/map.js';
 import { RULES } from '../data/rules.js';
 import { TOWERS } from '../data/towers.js';
-import { WAVES, WAVE_HP } from '../data/waves.js';
+import { WAVES } from '../data/waves.js';
 import { ENEMIES, pops } from '../data/enemies.js';
 import { SHIELD_MULT } from '../data/damage.js';
 import { buildMap, mulberry32 } from './path.js';
@@ -61,6 +61,7 @@ export class Game {
 
   // ---- waves ---------------------------------------------------------------------------------
   get totalWaves() { return this.waves.length; }
+  waveAt(i) { return this.waves[i] || null; }
   get canStartWave() { return !this.over && this.wave < this.waves.length && this.spawners.length === 0; }
   get clear() { return this.spawners.length === 0 && this.enemies.length === 0; }
   get earlyBonus() { return this.enemies.length > 0 ? RULES.earlyBonus(this.wave + 1) : 0; }
@@ -75,7 +76,7 @@ export class Game {
     const wave = this.waves[this.wave];
     this.wave++;
     for (const g of wave.groups) {
-      const mods = { hpMul: (g.hp || 1) * (ENEMIES[g.type].boss ? 1 : WAVE_HP(this.wave)), speedMul: 1, veiled: !!g.veiled };
+      const mods = { hpMul: 1, speedMul: 1, veiled: !!g.veiled };
       this.spawners.push({ type: g.type, left: g.count, gap: g.gap, t: g.delay || 0, mods, wave: this.wave });
     }
     this.emit('wave', { n: this.wave });
@@ -102,6 +103,7 @@ export class Game {
     if (!def || this.over || this.gold < def.cost || !this.canPlace(type, x, y)) return null;
     this.gold -= def.cost;
     const t = createTower(this, type, x, y);
+    this.spend(t, def.cost);
     this.towers.push(t);
     this.refreshGlobals();
     this.emit('place', { x, y });
@@ -113,6 +115,7 @@ export class Game {
     if (!info.ok || this.over || this.gold < info.up.cost) return false;
     this.gold -= info.up.cost;
     tower.spent += info.up.cost;
+    this.spend(tower, info.up.cost);
     tower.tiers[pi]++;
     tower.stats = computeStats(tower.def, tower.tiers);
     this.refreshGlobals();
@@ -120,7 +123,16 @@ export class Game {
     return true;
   }
 
-  sellValue(tower) { return Math.floor(tower.spent * RULES.sellRefund); }
+  // Gold spent on a ward since the current wave started refunds in full; older gold at sellRefund.
+  spend(t, n) {
+    if (t.freshWave !== this.wave) { t.freshWave = this.wave; t.fresh = 0; }
+    t.fresh += n;
+  }
+  freshGold(t) { return t.freshWave === this.wave ? t.fresh : 0; }
+  sellValue(tower) {
+    const fresh = this.freshGold(tower);
+    return Math.floor(fresh + (tower.spent - fresh) * RULES.sellRefund);
+  }
 
   sell(tower) {
     const i = this.towers.indexOf(tower);

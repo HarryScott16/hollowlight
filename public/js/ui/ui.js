@@ -1,7 +1,7 @@
 // DOM user interface: HUD, ward shop, upgrade panel, wave preview and canvas input.
 import { MAP } from '../data/map.js';
 import { TOWERS, TOWER_ORDER } from '../data/towers.js';
-import { ENEMIES } from '../data/enemies.js';
+import { ENEMIES, pops } from '../data/enemies.js';
 import { DAMAGE_TYPES } from '../data/damage.js';
 import { RULES, TARGET_MODES } from '../data/rules.js';
 import { upgradeInfo, computeStats, estimateDps } from '../sim/towers.js';
@@ -348,7 +348,8 @@ export class UI {
     const sell = el('button', 'sell-btn');
     sell.type = 'button';
     const sellVal = el('b', null, String(this.game.sellValue(t)));
-    sell.append('Sell for ', sellVal, `  (${Math.round(RULES.sellRefund * 100)}% refund)`);
+    const full = this.game.freshGold(t) >= t.spent;
+    sell.append('Sell for ', sellVal, full ? '  (full refund this wave)' : `  (${Math.round(RULES.sellRefund * 100)}% refund)`);
     sell.addEventListener('click', () => this.sellSelected());
     panel.append(sell);
 
@@ -369,22 +370,38 @@ export class UI {
     const game = this.game;
     const list = $('preview-list');
     list.textContent = '';
-    const wave = game.waves[game.wave];
-    $('preview-title').textContent = wave ? `Next: wave ${game.wave + 1} of ${game.totalWaves}` : 'Final wave is out';
+    const wave = game.waveAt(game.wave);
     if (!wave) {
+      $('preview-title').textContent = 'Final wave is out';
       list.append(el('span', 'pv-done', 'Nothing more is coming. Hold the line.'));
       return;
     }
+    // Kinds of enemy (and Veiled) the player hasn't met yet in the campaign get a NEW tag.
+    const seen = new Set();
+    for (let i = 0; i < Math.min(game.wave, game.waves.length); i++) {
+      for (const g of game.waves[i].groups) { seen.add(g.type); if (g.veiled) seen.add('veiled'); }
+    }
     const counts = new Map();
-    for (const g of wave.groups) counts.set(g.type, (counts.get(g.type) || 0) + g.count);
-    for (const [type, n] of counts) {
+    let total = 0;
+    for (const g of wave.groups) {
+      const key = g.veiled ? `${g.type}:v` : g.type;
+      counts.set(key, (counts.get(key) || 0) + g.count);
+      total += pops(g.type) * g.count;
+    }
+    $('preview-title').textContent = `Next: wave ${game.wave + 1}${game.endless ? ' (endless)' : ` of ${game.totalWaves}`}  ·  ${fmt(total)} pops`;
+    for (const [key, n] of counts) {
+      const [type, v] = key.split(':');
       const def = ENEMIES[type];
       const item = el('div', def.boss ? 'pv boss' : 'pv');
-      item.title = `${def.name}: ${def.desc}`;
+      item.title = `${def.name}: ${def.desc}${v ? ' Veiled: only wards that see Veiled can target it, but area attacks hit it.' : ''}`;
       const c = iconCanvas(36);
       drawEnemyIcon(c, type);
+      if (v) c.classList.add('veiled');
       const txt = el('div');
-      txt.append(el('span', 'pv-n', `×${n} `), el('span', 'pv-tag', def.tags.join(' ')), el('span', 'pv-name', def.name));
+      const tags = v ? [...def.tags, 'Veiled'] : def.tags;
+      const isNew = !seen.has(type) || (v && !seen.has('veiled'));
+      if (isNew) txt.append(el('span', 'pv-new', 'NEW '));
+      txt.append(el('span', 'pv-n', `×${n} `), el('span', 'pv-tag', tags.join(' ')), el('span', 'pv-name', def.name));
       item.append(c, txt);
       list.append(item);
     }
