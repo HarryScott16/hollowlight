@@ -81,8 +81,10 @@ const LOCK_TEXT = {
 };
 
 export class UI {
-  constructor(game, renderer, canvas) {
+  constructor(game, renderer, canvas, sound) {
     this.game = game;
+    this.sound = sound || null;
+    this.popRate = { t: performance.now(), pops: 0, value: 0 };
     this.renderer = renderer;
     this.canvas = canvas;
     this.placing = null;
@@ -101,6 +103,8 @@ export class UI {
     this.bindCanvas();
     this.bindKeys();
     this.refreshPreview();
+    this.renderer.onCoin = () => this.bumpGold();
+    this.syncMute();
     window.addEventListener('resize', () => this.renderer.resize());
   }
 
@@ -203,9 +207,31 @@ export class UI {
     $('btn-restart').addEventListener('click', () => this.restart());
     $('overlay-restart').addEventListener('click', () => this.restart());
     $('overlay-continue').addEventListener('click', () => this.continueEndless());
+    $('btn-mute').addEventListener('click', () => this.toggleMute());
     $('chk-auto').addEventListener('change', (ev) => { this.auto = ev.target.checked; });
     this.speedButtons = [...document.querySelectorAll('[data-speed]')];
     for (const b of this.speedButtons) b.addEventListener('click', () => this.setSpeed(Number(b.dataset.speed)));
+  }
+
+  toggleMute() {
+    if (!this.sound) return;
+    this.sound.setMuted(!this.sound.muted);
+    this.syncMute();
+  }
+
+  syncMute() {
+    const b = $('btn-mute');
+    if (!this.sound) { b.hidden = true; return; }
+    b.textContent = this.sound.muted ? 'Sound off' : 'Sound on';
+    b.classList.toggle('active', !this.sound.muted);
+  }
+
+  // A small bump on the gold counter each time a coin lands.
+  bumpGold() {
+    const g = $('hud-gold').parentElement;
+    g.classList.remove('bump');
+    void g.offsetWidth;
+    g.classList.add('bump');
   }
 
   setSpeed(n) {
@@ -302,6 +328,8 @@ export class UI {
         if (this.placing) this.setPlacing(null); else this.select(null);
       } else if (k === 'f' || k === 'F') {
         this.renderer.showFps = !this.renderer.showFps;
+      } else if (k === 'm' || k === 'M') {
+        this.toggleMute();
       } else if (k === 'r' || k === 'R') {
         this.restart();
       } else if (this.selected && (k === 'Backspace' || k === 'Delete')) {
@@ -357,7 +385,7 @@ export class UI {
 
     const stats = el('div', 'tp-stats');
     const dmg = el('b', null, '0'), kills = el('b', null, '0');
-    const s1 = el('span', null, 'Damage dealt '), s2 = el('span', null, 'Kills ');
+    const s1 = el('span', null, 'Damage dealt '), s2 = el('span', null, 'Layers broken ');
     s1.append(dmg); s2.append(kills);
     stats.append(s1, s2);
 
@@ -496,6 +524,14 @@ export class UI {
 
     this.setText('hud-lives', String(g.lives));
     this.setText('hud-gold', String(Math.floor(g.gold)));
+    // Pops per second, sampled twice a second and smoothed.
+    const now = performance.now(), pr = this.popRate;
+    if (now - pr.t >= 500) {
+      const rate = ((g.pops - pr.pops) * 1000) / (now - pr.t);
+      pr.value = g.pops < pr.pops ? 0 : pr.value * 0.4 + rate * 0.6;
+      pr.t = now; pr.pops = g.pops;
+      this.setText('hud-pops', String(Math.round(pr.value)));
+    }
     this.setText('hud-wave', g.endless ? `${g.wave}  (endless, best ${Math.max(this.bestWave, g.wave)})` : `${g.wave} / ${g.totalWaves}`);
     if (g.endless && this.cache.recorded !== g.wave) { this.cache.recorded = g.wave; this.recordWave(g.wave); }
 

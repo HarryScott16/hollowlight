@@ -248,3 +248,8 @@ main { flex: 1; display: flex; min-height: 0; }
 .ab-btn.locked { opacity: 0.4; }
 #last-light.spent { color: var(--red); text-decoration: line-through; }
 .overlay-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.stat.pops { color: #ffe45c; }
+.stat.pops b { display: inline-block; min-width: 2.2em; text-align: right; }
+@keyframes gold-bump { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.stat.gold.bump { animation: gold-bump 0.14s ease-out; display: inline-block; }
+.stat.gold { display: inline-block; }

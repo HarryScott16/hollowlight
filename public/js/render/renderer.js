@@ -14,8 +14,10 @@ const INK = '#1d1030';
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 
 const NUM_COLORS = { kinetic: '#fff4c2', blast: '#ffb347', arcane: '#8ff0ff', frost: '#d6f7ff', blight: '#c8ff6a', true: '#ff7ae0' };
-const MULTI_WORDS = { 2: 'DOUBLE', 3: 'TRIPLE', 4: 'QUAD' };
 const POP_TIME = 0.45;
+const noop = () => {};
+// Stand-in when no Sound is attached (and for unknown events).
+const MUTE = { pop: noop, crack: noop, boom: noop, zap: noop, shot: noop, pulse: noop, coin: noop, flare: noop, frost: noop, ability: noop, upgrade: noop, place: noop, sell: noop, wave: noop, leak: noop, streak: noop, bossDown: noop, lastLight: noop };
 
 export class Renderer {
   constructor(canvas, game) {
@@ -37,6 +39,12 @@ export class Renderer {
     this.banner = null;
     this.callout = null;  // big centre text for streaks and capstones
     this.flash = null;    // full-screen colour flash for abilities
+    this.coins = [];      // gold coins flying to the HUD counter
+    this.coinTarget = { x: 60, y: -30 };
+    this.onCoin = null;   // called when a coin lands (the UI bumps the gold counter)
+    this.hitStop = 0;     // seconds the simulation pauses for a big moment (read by main.js)
+    this.sound = null;    // optional Sound (audio/sound.js)
+    this.popCount = 0;
     this.numBudget = 0;
     this.showFps = false;
     this.fps = { frames: 0, t: performance.now(), value: 0, worst: 0, last: performance.now() };
@@ -51,6 +59,8 @@ export class Renderer {
     this.multi.clear();
     this.shake = 0;
     this.banner = this.callout = this.flash = null;
+    this.coins.length = 0;
+    this.hitStop = 0;
     this.game.fx.length = 0;
   }
 
@@ -73,6 +83,17 @@ export class Renderer {
     b.setTransform(scale, 0, 0, scale, 0, 0);
     paintBackground(b, this.game.map);
     initSprites(() => document.createElement('canvas'), scale);
+    this.aimCoins();
+  }
+
+  // Coins fly towards the HUD gold counter, which sits outside the canvas.
+  aimCoins() {
+    const gold = document.getElementById('hud-gold');
+    if (!gold) return;
+    const r = gold.getBoundingClientRect(), c = this.canvas.getBoundingClientRect();
+    if (!c.width) return;
+    this.coinTarget.x = ((r.left + r.width / 2 - c.left) / c.width) * W;
+    this.coinTarget.y = ((r.top + r.height / 2 - c.top) / c.height) * H;
   }
 
   text(x, y, str, color, size = 12, life = 0.9, rise = 22) {
@@ -89,16 +110,17 @@ export class Renderer {
   consume() {
     const fx = this.game.fx;
     const P = this.parts;
+    const S = this.sound || MUTE;
     this.numBudget = 4;
     for (let i = 0; i < fx.length; i++) {
       const f = fx[i];
       switch (f.type) {
         case 'hit': {
           const col = f.resisted ? '#aab4c4' : (DAMAGE_TYPES[f.dtype] || DAMAGE_TYPES.kinetic).color;
-          P.burst(f.x, f.y, f.resisted ? 2 : 4, { color: col, speed: 120, life: 0.28, size: 2.6 });
-          // Damage numbers for hits that matter.
+          P.burst(f.x, f.y, f.resisted ? 2 : 3, { color: col, speed: 120, life: 0.25, size: 2.4 });
+          // Damage numbers only for big hits (most hits just break a layer, and the pop says so).
           const a = f.amt || 0;
-          if (this.numBudget > 0 && (a >= 30 || f.big || (a >= 12 && a >= f.maxHp * 0.35))) {
+          if (this.numBudget > 0 && (a >= 50 || f.big || (f.heavy && a >= 20))) {
             this.numBudget--;
             const size = Math.min(26, 11 + Math.log2(Math.max(1, a / 15)) * 3.2);
             this.text(f.x + (Math.random() - 0.5) * 10, f.y - 10, f.resisted ? `${Math.round(a)}` : `${Math.round(a)}${a >= 200 ? '!' : ''}`,
@@ -108,14 +130,35 @@ export class Renderer {
         }
         case 'death': {
           const color = ENEMY_COLORS[f.etype] || '#fff';
+          this.popCount++;
+          if (f.src) this.countMulti(f);
+          if (f.gold <= 1 && !f.heavy) {
+            // A layer breaking: a quick pop. Most of a wave is these, so they stay light.
+            P.burst(f.x, f.y, 7, { color, speed: 100 + f.r * 6, life: 0.45, size: 2.4 + f.r * 0.12 });
+            P.burst(f.x, f.y, 2, { color: '#ffffff', speed: 80, life: 0.25, size: 2.2 });
+            this.ring(f.x, f.y, f.r * 0.4, f.r * 1.9, 0.2, color, 2.5);
+            if (Math.random() < 0.2) this.stain(f.x, f.y, f.r, color);
+            if (f.gold > 0 && this.coins.length < 24 && this.popCount % 4 === 0) this.coins.push({ x: f.x, y: f.y, t: 0, dur: 0.5 + Math.random() * 0.2 });
+            S.pop(this.game.streak);
+            break;
+          }
+          // A shell, hulk or boss breaking open: a bigger burst, gold text and a crack or boom.
           P.burst(f.x, f.y, Math.min(46, 8 + f.r * 1.2), { color, speed: 110 + f.r * 6, life: 0.6, size: 2.6 + f.r * 0.14 });
           P.burst(f.x, f.y, 6, { color: '#ffffff', speed: 90, life: 0.3, size: 2.4 });
           this.ring(f.x, f.y, f.r * 0.5, f.r * 2.4, 0.28, color, 3);
-          if (this.stains.length > 90) this.stains.shift();
-          this.stains.push({ x: f.x, y: f.y, r: f.r * (0.9 + Math.random() * 0.4), color, life: 7, rot: Math.random() * 6 });
-          this.text(f.x, f.y - f.r - 4, `+${f.gold}`, '#ffd23a', f.boss ? 24 : 12, f.boss ? 1.8 : 0.8);
-          if (f.src) this.countMulti(f);
+          this.stain(f.x, f.y, f.r, color);
+          if (f.gold > 0) {
+            this.text(f.x, f.y - f.r - 4, `+${Math.round(f.gold * 10) / 10}`, '#ffd23a', f.boss ? 24 : f.heavy ? 16 : 12, f.boss ? 1.8 : 0.8);
+            for (let k = 0; k < (f.heavy ? 5 : 2) && this.coins.length < 30; k++) this.coins.push({ x: f.x + (Math.random() - 0.5) * 20, y: f.y, t: -k * 0.05, dur: 0.55 + Math.random() * 0.2 });
+          }
+          if (f.heavy && !f.boss) {
+            this.shake = Math.max(this.shake, 5);
+            for (let k = 0; k < 2; k++) this.ring(f.x, f.y, 6, 60 + k * 40, 0.4 + k * 0.15, '#fff1b0', 4, null, true);
+            S.boom(false);
+          } else if (!f.boss) S.crack();
           if (f.boss) {
+            S.bossDown();
+            this.hitStop = Math.max(this.hitStop, 0.2);
             this.shake = Math.max(this.shake, 16);
             P.burst(f.x, f.y, 120, { color: '#ffb36b', speed: 380, life: 1.2, size: 4.5 });
             P.burst(f.x, f.y, 60, { color: '#ff2d55', speed: 260, life: 1.0, size: 4 });
@@ -126,6 +169,7 @@ export class Renderer {
         }
         case 'explosion': {
           const big = f.r > 90;
+          if (!f.sub) S.boom(big);
           this.ring(f.x, f.y, f.r * 0.25, f.r, 0.32, '#ffd27a', big ? 5 : 3, 'rgba(255,150,50,0.55)', true);
           if (!f.sub) this.ring(f.x, f.y, 4, f.r * 0.55, 0.16, '#ffffff', 2, 'rgba(255,255,220,0.8)', true);
           P.burst(f.x, f.y, f.sub ? 8 : big ? 30 : 18, { color: '#ffb347', speed: f.r * 3.6, life: 0.5, size: 3.6 });
@@ -135,16 +179,19 @@ export class Renderer {
           break;
         }
         case 'arc':
+          S.zap();
           this.arcs.push({ pts: f.pts, life: f.smite ? 0.3 : 0.16, max: f.smite ? 0.3 : 0.16, smite: f.smite });
           for (let k = 2; k < f.pts.length; k += 2) P.burst(f.pts[k], f.pts[k + 1], 3, { color: '#b8f6ff', speed: 140, life: 0.25, size: 2.4 });
           break;
         case 'smite':
+          S.boom(false);
           this.bolts.push({ x: f.x, y: f.y, life: 0.35, max: 0.35 });
           this.ring(f.x, f.y, 6, f.r, 0.35, '#fff1a0', 5, 'rgba(255,230,120,0.5)', true);
           P.burst(f.x, f.y, 30, { color: '#ffe9a8', speed: 260, life: 0.5, size: 3.2 });
           this.shake = Math.max(this.shake, 6);
           break;
         case 'pulse':
+          S.pulse();
           this.ring(f.x, f.y, 12, f.r, 0.5, f.freeze ? '#ffffff' : '#3fd0ff', f.freeze ? 5 : 2.5, f.freeze ? 'rgba(200,245,255,0.35)' : 'rgba(120,215,255,0.16)');
           P.burst(f.x, f.y, f.freeze ? 22 : 8, { color: f.freeze ? '#ffffff' : '#bff3ff', speed: f.r * 2.4, life: 0.45, size: 2.6, drag: 3 });
           break;
@@ -160,17 +207,21 @@ export class Renderer {
           P.burst(f.x, f.y, 16, { color: '#ff7ae0', speed: 180, life: 0.5, size: 3 });
           break;
         case 'fire':
+          S.shot();
           if (f.kind === 'mortar') P.burst(f.x + Math.cos(f.ang) * 18, f.y + Math.sin(f.ang) * 18, 7, { color: '#e8e0d8', speed: 70, life: 0.5, size: 4.5, ang: f.ang, spread: 1 });
           else P.burst(f.x + Math.cos(f.ang) * 18, f.y + Math.sin(f.ang) * 18, 2, { color: '#fff4c2', speed: 90, life: 0.15, size: 2, ang: f.ang, spread: 0.6 });
           break;
         case 'place':
+          S.place();
           this.ring(f.x, f.y, 6, 40, 0.35, '#ffffff', 3);
           P.burst(f.x, f.y, 16, { color: '#ffffff', speed: 120, life: 0.45, size: 3 });
           break;
         case 'upgrade':
+          S.upgrade(f.tier >= 3);
           this.upgradeFx(f);
           break;
         case 'sell':
+          S.sell();
           this.text(f.x, f.y - 20, `+${f.amount}`, '#ffd23a', 15, 1);
           P.burst(f.x, f.y, 18, { color: '#ffd23a', speed: 140, life: 0.5, size: 3 });
           break;
@@ -178,15 +229,19 @@ export class Renderer {
           this.text(W / 2, 96, `${f.label}  +${f.amount}`, '#ffd23a', 20, 2.2, 18);
           break;
         case 'streak':
-          this.callout = { text: `${f.n} KILL STREAK!`, sub: `+${f.gold} gold`, color: f.n >= 100 ? '#ff7ae0' : f.n >= 50 ? '#ffae2b' : '#ffe45c', t: 1.6, max: 1.6 };
+          if (f.n % 250 === 0) S.streak();
+          if (f.n % 250 === 0 || f.n === 100) this.callout = { text: `${f.n} POP STREAK!`, sub: `+${f.gold} gold`, color: f.n >= 100 ? '#ff7ae0' : f.n >= 50 ? '#ffae2b' : '#ffe45c', t: 1.6, max: 1.6 };
           break;
         case 'leak':
+          S.leak(f.boss || f.amount >= 20);
           this.shake = Math.max(this.shake, f.boss ? 14 : 4);
           this.text(MAP.goal.x, MAP.goal.y - 50, `-${f.amount} ♥`, '#ff3d3d', f.boss ? 26 : 17, 1.2);
           P.burst(MAP.goal.x, MAP.goal.y, f.boss ? 40 : 14, { color: '#ff3d3d', speed: 180, life: 0.6, size: 3.5 });
           this.ring(MAP.goal.x, MAP.goal.y, 20, f.boss ? 140 : 70, 0.4, '#ff3d3d', 4);
           break;
         case 'flare': {
+          S.flare();
+          this.hitStop = Math.max(this.hitStop, 0.12);
           this.flash = { color: '255,214,120', t: 0.35, max: 0.35, a: 0.55 };
           this.shake = Math.max(this.shake, 12);
           for (let k = 0; k < 3; k++) this.ring(f.x, f.y, 20, 1300, 0.9 + k * 0.25, k ? '#ffae2b' : '#fff6c0', 14 - k * 4, null, true);
@@ -195,31 +250,80 @@ export class Renderer {
           break;
         }
         case 'hoarfrost':
+          S.frost();
+          this.hitStop = Math.max(this.hitStop, 0.1);
           this.flash = { color: '170,235,255', t: 0.5, max: 0.5, a: 0.5 };
           this.shake = Math.max(this.shake, 6);
           this.ring(f.x, f.y, 10, 1300, 1.0, '#e8fbff', 10, 'rgba(180,240,255,0.10)', true);
           this.callout = { text: 'HOARFROST', sub: null, color: '#aef0ff', t: 1.3, max: 1.3 };
           break;
         case 'ability':
+          if (f.ward !== 'rime') S.ability();
           if (f.ward !== 'rime') this.text(f.x, f.y - 34, f.name.toUpperCase(), '#ffe45c', 18, 1.3, 24);
           this.ring(f.x, f.y, 8, 90, 0.5, '#ffe45c', 5, null, true);
           P.burst(f.x, f.y, 30, { color: '#ffe45c', speed: 240, life: 0.6, size: 3.2 });
           if (f.ward === 'mortar') this.shake = Math.max(this.shake, 5);
           break;
         case 'lastlight':
+          S.lastLight();
+          this.hitStop = Math.max(this.hitStop, 0.15);
           this.flash = { color: '255,240,190', t: 0.6, max: 0.6, a: 0.7 };
           this.shake = Math.max(this.shake, 14);
           for (let k = 0; k < 4; k++) this.ring(f.x, f.y, 10, f.r + k * 30, 0.6 + k * 0.15, '#fff1b0', 8 - k, k ? null : 'rgba(255,230,150,0.35)', true);
           P.burst(f.x, f.y, 120, { color: '#fff1b0', speed: 420, life: 1.0, size: 4 });
           this.callout = { text: 'LAST LIGHT!', sub: 'The Heartfire saved you, once', color: '#fff1b0', t: 2.6, max: 2.6 };
           break;
+        case 'phase':
+          S.crack();
+          this.shake = Math.max(this.shake, 7);
+          for (let k = 0; k < 3; k++) this.ring(f.x, f.y, 10, f.r * 2 + k * 40, 0.4 + k * 0.12, '#ff7a95', 5, null, true);
+          P.burst(f.x, f.y, 50, { color: '#ff2d55', speed: 300, life: 0.8, size: 4 });
+          this.text(f.x, f.y - 50, 'IT BURSTS!', '#ff7a95', 22, 1.4, 26);
+          break;
+        case 'mend':
+          P.burst(f.x, f.y, 6, { color: '#7dff9a', speed: 60, life: 0.5, size: 2.4, grav: -40 });
+          break;
         case 'wave':
+          S.wave(f.boss);
           this.banner = { text: `Wave ${f.n}`, sub: f.banner, boss: f.boss, t: f.banner ? 3 : 2, max: f.banner ? 3 : 2 };
           break;
         default:
       }
     }
     fx.length = 0;
+  }
+
+  stain(x, y, r, color) {
+    if (this.stains.length > 90) this.stains.shift();
+    this.stains.push({ x, y, r: r * (0.9 + Math.random() * 0.4), color, life: 7, rot: Math.random() * 6 });
+  }
+
+  drawCoins(ctx, dt) {
+    const cs = this.coins, tg = this.coinTarget;
+    let w = 0;
+    for (let i = 0; i < cs.length; i++) {
+      const c = cs[i];
+      c.t += dt;
+      if (c.t >= c.dur) {
+        if (this.onCoin) this.onCoin();
+        if (this.sound) this.sound.coin();
+        continue;
+      }
+      cs[w++] = c;
+      if (c.t < 0) continue;
+      const u = c.t / c.dur, e = u * u;
+      // arc up first, then swoop to the counter
+      const x = c.x + (tg.x - c.x) * e;
+      const y = c.y + (tg.y - c.y) * e - Math.sin(u * Math.PI) * 60;
+      const r = 4.5 - u * 1.5;
+      ctx.fillStyle = INK;
+      ctx.beginPath(); ctx.arc(x, y, r + 1.4, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ffd23a';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#fff6c0';
+      ctx.fillRect(x - r * 0.45, y - r * 0.45, r * 0.5, r * 0.5);
+    }
+    cs.length = w;
   }
 
   countMulti(f) {
@@ -232,10 +336,10 @@ export class Renderer {
     for (const [id, m] of this.multi) {
       m.t -= dt;
       if (m.t > 0) continue;
-      if (m.n >= 3) {
-        const word = MULTI_WORDS[m.n] ? `${MULTI_WORDS[m.n]} KILL!` : `MULTI-KILL x${m.n}!`;
-        this.text(m.x, m.y - 24, word, m.n >= 8 ? '#ff7ae0' : m.n >= 5 ? '#ffae2b' : '#ffe45c', Math.min(30, 15 + m.n), 1.3, 30);
-        if (m.n >= 8) this.shake = Math.max(this.shake, 4);
+      // One attack breaking a pile of layers at once gets a shout-out.
+      if (m.n >= 12) {
+        this.text(m.x, m.y - 24, `${m.n} POPS!`, m.n >= 40 ? '#ff7ae0' : m.n >= 24 ? '#ffae2b' : '#ffe45c', Math.min(30, 12 + m.n * 0.35), 1.1, 30);
+        if (m.n >= 40) this.shake = Math.max(this.shake, 3);
       }
       this.multi.delete(id);
     }
@@ -300,7 +404,9 @@ export class Renderer {
     }
 
     const es = game.enemies;
-    for (let i = 0; i < es.length; i++) drawEnemy(ctx, es[i]);
+    // With huge crowds, skip the small status overlays to keep the frame rate up.
+    const lite = es.length > 450;
+    for (let i = 0; i < es.length; i++) drawEnemy(ctx, es[i], lite);
 
     const st = this._st;
     for (const t of game.towers) {
@@ -348,6 +454,7 @@ export class Renderer {
     this.drawArcs(ctx, dt);
     this.drawPillars(ctx, dt);
     this.parts.draw(ctx);
+    this.drawCoins(ctx, dt);
     this.drawTexts(ctx, dt);
     this.drawPlacement(ctx, ui);
 

@@ -229,7 +229,8 @@ function sprite(type, r, frame) {
 }
 
 // Draws an enemy at its world position, with status overlays and health bar.
-export function drawEnemy(ctx, e) {
+// lite: skip the small status overlays (used when hundreds of enemies are on screen).
+export function drawEnemy(ctx, e, lite) {
   ctx.save();
   ctx.translate(e.x, e.y);
   ctx.save();
@@ -270,12 +271,12 @@ export function drawEnemy(ctx, e) {
       ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
     }
     ctx.closePath(); ctx.fill(); ctx.stroke();
-  } else if (e.slowT > 0) {
+  } else if (e.slowT > 0 && !lite) {
     ctx.strokeStyle = '#3fd0ff';
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, r + 3, 0, TAU); ctx.stroke();
   }
-  if (e.burnT > 0) {
+  if (e.burnT > 0 && !lite) {
     ctx.fillStyle = 'rgba(255,120,30,0.85)';
     const f = e.wob * 4;
     for (let i = 0; i < 3; i++) {
@@ -290,7 +291,7 @@ export function drawEnemy(ctx, e) {
       ctx.fillRect(Math.cos(a) * (r + 3) - 2, Math.sin(a) * (r + 3) * 0.5 - r - 2, 4, 4);
     }
   }
-  if (e.markT > 0) {
+  if (e.markT > 0 && !lite) {
     ctx.strokeStyle = '#d36bff';
     ctx.lineWidth = 2.2;
     const m = r + 6;
@@ -302,7 +303,7 @@ export function drawEnemy(ctx, e) {
     }
     ctx.stroke();
   }
-  if (e.chargedT > 0) {
+  if (e.chargedT > 0 && !lite) {
     ctx.strokeStyle = '#7fe8ff';
     ctx.lineWidth = 1.5;
     ctx.beginPath();

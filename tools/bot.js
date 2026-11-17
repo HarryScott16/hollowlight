@@ -57,7 +57,7 @@ const STRATEGIES = {
     strict: true,
   },
   spamNoUpgrades: {
-    order: ['bolt', 'mortar', 'coil', 'rime'], paths: {}, maxTowers: () => 99,
+    order: ['bolt', 'mortar', 'coil', 'rime'], paths: {}, maxTowers: () => 60,
   },
   lazy: { // buys the opening towers and then never spends again (or uses abilities)
     order: ['bolt', 'bolt', 'rime'], paths: {}, maxTowers: () => 3, noAbilities: true,
