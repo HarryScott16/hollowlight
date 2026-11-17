@@ -1,0 +1,234 @@
+# Hollowlight redesign plan (proposal, awaiting approval)
+
+Sources: `docs/research-btd6.md`, `docs/research-other-td.md`. Mechanics and principles are borrowed;
+all names, enemies and upgrades stay Hollowlight's own.
+
+Goal: every ward feels strong from the first shot. Lots of enemies die fast. Difficulty comes from
+**more enemies and new kinds of enemies**, never from basic enemies turning into damage sponges.
+After wave 10 the game can continue in an endless mode.
+
+---
+
+## 1. Core change: layered enemies ("shedding")
+
+Today an enemy is one health bar that grows with every wave (wave 9's basic enemy takes ~20 Bolt hits).
+New model:
+
+- Most enemies are **stacks of thin layers**. Each layer has **10 HP**, so one base ward hit = one layer.
+- When a layer breaks, the enemy **sheds** into its inner form at the same spot (some shed into 2).
+  Every break pays **1 gold** and plays a pop. A hit that overkills **carries the leftover damage into
+  the inner form**: a 30-damage bolt strips 3 layers at once. This makes damage upgrades visible.
+- Inner forms are often **faster** than outer ones, so a wounded wave surges forward and rewards
+  layered defences: one ward cracks, the next one cleans up.
+- **The 10 HP per layer never scales**, not even in endless mode. Only the armoured shells, hulks
+  and the boss grow tougher. Basic enemies keep dying in one hit forever.
+- A **leak costs lives equal to the layers the enemy still has** (its remaining pop count). A leaked
+  Mote costs 1 life, a full Dreadhulk 120.
+
+### Enemy roster
+
+"Pops" = total layers you break to clear it = total gold it pays = lives it costs if it leaks untouched.
+
+| Enemy | Own HP | Speed | Sheds into | Pops | Notes |
+|---|---|---|---|---|---|
+| Mote | 10 | 80 | (nothing) | 1 | basic |
+| Skitter | 10 | 135 | Mote | 2 | fast |
+| Shambler | 10 | 70 | Skitter | 3 | slow outside, fast inside |
+| Brood | 10 | 90 | 2 Shamblers | 7 | the first split; fills the screen |
+| Husk (Plated) | 60 | 55 | 2 Broods | 20 | Kinetic x0.5, Blast x1.5; 1 gold per 10 HP of shell; cracks visibly as it takes damage |
+| Dreadhulk | 400 | 42 | 4 Husks | 120 | mini-boss; stun/freeze immune, slows 50% effective |
+| Gravemaw (boss) | 4,000 | 32 | 2 Dreadhulks | ~760 | phases: at 75 / 50 / 25% HP it bursts out 2 Husks |
+| Gloomcolossus (endless only, from wave 15) | 2,000 | 36 | 2 Dreadhulks + 4 Husks | ~520 | |
+
+**Veiled** is a modifier on any group, not a separate enemy. Veiled enemies can only be targeted by
+wards that see stealth (Hunter's Mark T1, Blizzard T2, and anything inside a Blizzard spire's reveal
+radius). Area damage (pulses, explosions, fire, the Flare) still hits them. Veiled is introduced at
+wave 6, a small group on its own first.
+
+The existing broodling/mite split chain is folded into Brood. Flyers stay out of the campaign; the
+code hooks remain for later.
+
+---
+
+## 2. Economy
+
+| | Now | Proposed |
+|---|---|---|
+| Start gold | 700 | **650** |
+| Lives | 100 | **150** |
+| Kill gold | 2-450 per enemy | **1 per layer broken** (~75% of all income) |
+| Wave clear reward | 100 + 30w | **100 + 25w** (125 … 350; the floor that keeps weak players progressing) |
+| Early call bonus | 40 + 16w | unchanged, and it also takes **10 s off the Flare cooldown** |
+| Sell refund | 75% | **100% until the next wave starts**, 75% after |
+| Streak gold | every 25 kills | unchanged, counts pops |
+
+Projected income from the waves in §4 (perfect play):
+
+| After wave | 1 | 3 | 5 | 7 | 9 | 10 |
+|---|---|---|---|---|---|---|
+| Cumulative gold | ~800 | ~1,400 | ~2,600 | ~4,900 | ~9,000 | ~11,700 |
+
+That pays for 2 wards at the start, the first tier-3 around wave 4-5, and one or two tier-4s for the
+boss.
+
+**Difficulty settings** change prices and lives only; the enemies stay the same.
+Easy: prices x0.85, 200 lives. Normal: x1.0, 150 lives. Hard: x1.1, 100 lives, no Last Light.
+
+---
+
+## 3. Wards
+
+Every ward now **breaks a layer per hit at base** and hits several enemies:
+
+| Ward | Cost | Damage | Rate | Range | Hits per attack | Base pops/s in a crowd |
+|---|---|---|---|---|---|---|
+| Bolt Ward | **150** (was 170) | 10 (was 12) | 1.5/s (was 1.2) | 155 | **pierce 2** (was 1) | ~3 |
+| Mortar Kiln | **300** | 10 | 0.8/s | 200 (min 50) | up to **14** in a 55 radius | ~5-6 |
+| Rime Spire | **225** (was 240) | **10** (was 3) | 0.8/s | 105 | **up to 30** in range, slow 35% | ~4 + slow |
+| Storm Coil | **350** (was 380) | 10 | 1.0/s | 135 | **chain 5, no falloff** | ~5 |
+
+Opening: 650 gold buys 2 Bolts + change, or Bolt + Mortar. That handles waves 1-2 with room to spare.
+
+### Upgrade pricing and power targets
+
+Three paths of four tiers, two paths per ward, only one above tier 2 (unchanged).
+
+| Tier | Cost (x base ward) | Crowd power vs base | Feel |
+|---|---|---|---|
+| T1 | ~0.6x | ~1.7x | cheap, buyable almost every wave |
+| T2 | ~1.3x | ~3x | fixes a problem (sees Veiled, cracks Plated, wider area) |
+| T3 | ~5x | **~8-12x** | the spike: new attack and a new look, reachable around wave 4-5 |
+| T4 | ~20x | **~40-70x** | screen-clearing, plus an **activated ability** |
+
+Power per gold **rises** with tier: the base ward scores 1.0 by definition, T3 ~1.2-1.5, T4 ~1.6-2.2.
+Today it is roughly flat or falling: Hunter's Mark and Static drop off.
+`tools/report.js` gets a pops/s column, and each path must hit these targets.
+
+### Path numbers (Normal prices)
+
+Existing path and tier names are kept. Only the numbers and some effects change.
+
+**Bolt Ward (150)**
+| Path | T1 | T2 | T3 | T4 + ability |
+|---|---|---|---|---|
+| Ballista | 90: dmg 20 | 200: pierce 5, ignores 50% armour | 800: dmg 40, pierce 12, all armour, knockback | 3,200 Siege Lance: dmg 100, infinite pierce across the map, rate x1.3. **Broadside** (40 s): 12 lances in a fan |
+| Twin-shot | 80: rate x1.5 | 200: 2 bolts | 750: 4 bolts, ricochet x2 | 3,000 Storm of Bolts: 8 bolts, rate x2, ricochet x3. **Overdraw** (35 s): rate x3 for 6 s |
+| Hunter's Mark | 100: sees Veiled, +30 range, dmg 20 | 220: marks +30% damage taken | 650: marks spread 70 px, +45%, rate x1.3 | 2,800 Death Sentence: +75%, marked non-boss under 25% HP are executed. **Verdict** (45 s): every marked enemy sheds 5 layers |
+
+**Mortar Kiln (300)**
+| Path | T1 | T2 | T3 | T4 + ability |
+|---|---|---|---|---|
+| Big Shells | 120: dmg 20 | 250: radius x1.3, up to 25 hits | 900: dmg 40, stun 0.6 s, up to 40 hits | 3,600 Cataclysm: dmg 100, radius x1.45, stun 1.2 s, up to 80 hits. **Quake** (45 s): stun all ground non-boss 3 s, 300 dmg to hulks |
+| Rapid Loader | 100: rate x1.5 | 220: +50 range, rate x1.3 | 850: 3 shells | 3,400 Barrage: 6 shells, rate x1.6. **Saturation** (40 s): 40 shells along the whole path |
+| Cinder | 120: burn 10/s 3 s | 280: fire pool 20/s 3 s | 800: 5 bomblets, pool 40/s | 3,500 Inferno: pool 120/s 6 s, +25% damage taken inside. **Firestorm** (50 s): path in range burns 150/s for 8 s |
+
+**Rime Spire (225)**
+| Path | T1 | T2 | T3 | T4 + ability |
+|---|---|---|---|---|
+| Deep Freeze | 90: slow 45% | 200: slow lasts 2.5 s, +15 range | 750: every 3rd pulse freezes 1.2 s, frozen take +30% | 3,000 Absolute Zero: every 2nd pulse, 2 s, +60%. **Hoarfrost** (50 s): freeze every non-boss on the map 4 s |
+| Shatter | 100: dmg 20 | 240: chilled take +25% Kinetic/Blast | 800: chilled deaths explode for 40 | 3,200 Winter's Verdict: pulse dmg 60, shatter 120 and chains. **Shardstorm** (40 s): every chilled enemy takes 100 |
+| Blizzard | 80: +25 range | 200: **reveals Veiled in its range for all wards** (replaces "hits flyers") | 750: range x1.5, rate x1.4 | 2,900 Endless Winter: whole map slowed 20%. **Whiteout** (45 s): whole map slowed 60% for 6 s |
+
+**Storm Coil (350)**
+| Path | T1 | T2 | T3 | T4 + ability |
+|---|---|---|---|---|
+| Overcharge | 120: dmg 20 | 300: dmg 30, chain 6 | 950: dmg 60, x2 vs hulks and the boss | 3,800 Smite: dmg 120, every 3rd strike is a thunderbolt x5 with area and stun. **Tempest** (45 s): 12 thunderbolts on the strongest enemies |
+| Forking | 110: chain 8 | 280: chain 12, +40 jump range | 900: 2 forks | 3,600 Maelstrom: 4 forks x 20 chain, rate x1.4. **Arc Storm** (45 s): for 8 s every strike hits everything in range |
+| Static | 100: rate x1.4 | 280: 15% stun chance (0.4 s) | 850: struck take +30% Arcane, 20% slower | 3,400 Ion Storm: rate x2.5, dmg 30, stun 30%. **Discharge** (35 s): stun everything in range 3 s + 50 dmg |
+
+Abilities appear as buttons in the HUD with hotkeys 1-9. They start **one-third charged** when bought,
+and cooldowns are roughly one wave long.
+
+### Player abilities (no ward needed)
+- **Heartfire Flare** (hotkey F, 60 s cooldown, ready at wave 1): 30 damage to every enemy on screen
+  (3 layers each, Veiled included) and 300 to hulks/boss, with a 0.5 s stun on non-boss enemies.
+  The panic button and the biggest moment of juice: screen flash, shake, and a wall of pops.
+- **Last Light** (once per run, automatic, not on Hard): the first time an enemy reaches the
+  Heartfire, a nova destroys every non-boss enemy within 220 px of it.
+
+---
+
+## 4. The 10 waves
+
+Fodder HP never scales (`WAVE_HP` is removed). Each new threat **appears alone first**, then gets
+mixed in. Targets: waves 1-2 are easy wins, wave 3 is the first check, and the T3 spike lands
+around waves 4-5.
+
+| Wave | Content (in spawn order) | Pops | New |
+|---|---|---|---|
+| 1 | 30 Mote | 30 | |
+| 2 | 20 Mote, 25 Skitter | 70 | Skitter |
+| 3 | 40 Shambler, 20 Skitter | 160 | Shambler |
+| 4 | 6 Brood (alone), 50 Shambler, 10 Brood | 262 | Brood |
+| 5 | 3 Husk (alone), 25 Brood, 60 Skitter stream, 5 Husk | 455 | Husk (Plated) |
+| 6 | 12 Veiled Shambler (alone), 10 Husk, 40 Brood, 60 Shambler, 30 Veiled Skitter | 756 | Veiled |
+| 7 | 20 Husk, 50 Brood, 120 Skitter rush, 10 Veiled Brood | 1,060 | (a quantity spike) |
+| 8 | 1 Dreadhulk (alone), 30 Husk, 60 Brood, 100 Shambler | 1,440 | Dreadhulk |
+| 9 | 3 Dreadhulk, 40 Husk, 80 Brood, 80 Veiled Shambler, 100 Skitter | 2,160 | everything at once |
+| 10 | **Gravemaw**, 2 Dreadhulk, 30 Husk, 60 Brood, 150 Skitter | ~2,320 | boss |
+
+For comparison, today's wave 10 is 69k HP spread over ~150 spawns that each take many hits. The new
+wave 10 is ~23k HP split into ~2,300 one-hit layers. The screen is full and every ward is popping
+something every shot.
+
+A **next-wave preview** under the wave button shows enemy icons and counts, with a "NEW" tag on
+first appearances. Wave 8 and wave 10 get a warning banner.
+
+---
+
+## 5. Endless mode (after wave 10)
+
+On victory, the screen offers **Continue into the endless night**. Waves are generated from a budget:
+
+- **Pop budget:** `2,400 x 1.13^(n-10)`, so wave 20 ≈ 8,100 pops, wave 30 ≈ 27,600, wave 40 ≈ 94k.
+  Groups are filled from the roster, favouring bigger enemies as the budget grows. Spawns are capped
+  at ~250 per wave; anything over that is promoted into hulks/colossi to keep the frame rate up.
+- **Toughness:** layer HP stays at 10 forever. Husk shells, hulks, colossi and the boss get
+  `x1.05^(n-15)` HP from wave 16 (about x2.1 at wave 30, x3.4 at 40). Speed rises 1.5% per wave
+  after wave 20, capped at +60%.
+- **Modifiers** stack every 5 waves: wave 15 Veiled hulks, 20 Mending (layers regrow after 3 s
+  untouched), 25 Swift (+25% speed), 30 Armoured shells (x2 shell HP), then the cycle repeats harder.
+- **A Gravemaw every 10th wave**, with HP x1.6 per appearance.
+- **Gold:** 1 per pop to wave 20, 0.5 to wave 30, 0.25 after. Wave reward continues at 100 + 25n.
+  This stops endless money from trivialising T4 prices.
+- **Records:** the best wave reached is shown on the start screen (stored in `localStorage`).
+
+---
+
+## 6. Feedback ("juice")
+
+- **Every layer break:** a burst in that layer's colour, a small coin that flies to the gold counter,
+  and a pop sound. Sound will be WebAudio-synthesised, since the game has no audio today: at most
+  ~25 pops/s, randomised pitch, and the pitch rises with the kill streak.
+- **Damage numbers** only for hits of 50+, hulk/boss damage and abilities. Today every hit shows a
+  number, which would be noise at 2,000 pops a wave.
+- **Husks and hulks visibly crack** as their shell HP drops, and burst on death.
+- **Abilities and the Flare** get screen flash, shake and a short hit-stop. Ordinary hits never do.
+- **HUD:** live pops/s next to gold, the best streak, and per-ward pops on the stats panel.
+
+---
+
+## 7. Implementation order and checks
+
+1. **Layer system:** shed and carry-over damage, the new roster, leak cost = remaining pops,
+   and enemy art for the new layer colours.
+2. **Ward retune** (`data/towers.js`), max-hit caps for Mortar and Rime, Blizzard reveal,
+   and pops/s in `tools/report.js`.
+3. **Waves and economy:** remove `WAVE_HP`, add the new wave table, rules, sell-before-wave refund,
+   and difficulty settings.
+4. **Abilities:** T4 abilities, Heartfire Flare, Last Light, and the HUD buttons.
+5. **Endless mode** generator, scaling, modifiers and the record.
+6. **Feedback:** pops, sound, coins, cracks, wave preview and banners.
+7. **Rebalance with the bot.** Update `tools/bot.js` (abilities, endless). Targets:
+   - `mixed` and `focused` clear all 10 waves with **≥140/150 lives**.
+   - `spamNoUpgrades` reaches **wave 8+**; `lazy` falls around waves 4-5.
+   - Every single-path bot (`markOnly`, `cinderOnly`, …) clears the campaign.
+   - A good build reaches endless **wave 25-35**.
+   - Peak enemy counts stay where the browser holds 60 fps (check with the FPS overlay).
+
+Each step gets a commit and a bot run, so balance can be checked as it goes.
+
+**Risks:** entity count roughly doubles at peak (sheds create children), so the renderer and spatial
+grid need checking at wave 9/10 and in endless. The cap and promotion in §5 are the safety valve.
+The whole change touches most sim files and every data file. It's a big diff, but the structure
+(data-driven stats, headless sim, bot) stays the same.
