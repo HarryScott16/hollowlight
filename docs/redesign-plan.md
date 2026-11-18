@@ -749,3 +749,98 @@ Caveats:
   than the old 8-target gouts did. It still falls before every reasonable build.
 - **Longeye targeting is now the player's job.** Strong ignores a flock while a hulk is alive
   anywhere; the bot's switching stands in for a player who notices.
+
+---
+
+## 13. Medium difficulty retune (2026-11-18)
+
+The campaign is the Medium difficulty, so it shouldn't be brutal. Only waves and scaling changed; the
+bot strategies and their groups are untouched.
+
+Targets: strong builds win wave 40 comfortably with no lives lost; medium builds (`mixed`,
+`mixedAlt`, `focused`, `plateau`, `plateauAlt`) struggle late and about half win narrowly; lazy
+builds still lose around 8-12.
+
+### Changes
+
+| Knob | Before | Now |
+|---|---|---|
+| TOUGH (waves 21+) | 6.5%/wave, +7.5% more after 30 (x1.88 at 30, x7.26 at 40) | 5%/wave (x1.63 at 30, x2.65 at 40) |
+| BUDGET after wave 30 | +12%/wave (~27k pops at 39) | +4.5%/wave (~14k at 39) |
+| Wave-clear reward | 100 + 25w | 100 + 25w + 40 per wave past 15 (2,100 at 40); ~61k gold by 40 (was ~49k) |
+| Wave 17 / 20 flocks | 40 + 80 / 40 Gloomwings | 26 + 52 / 30 |
+| Waves 31-39 Gloomwing share | 10% / 13% | 22% / 25%, plus a "Black sky" flock spike on 33 (240) and 37 (300) |
+| Wave 38 "Veiled giants" | every hulk Veiled | half of them |
+| Wave 40 escort | 16 colossi, 40 Dreadhulks, 150 Husks, ... (~30k pops) | 8 colossi, 18 Dreadhulks, 90 Husks, ... (~15k pops, plus the King) |
+| The Hollow King | 85,000 HP, bursts into 30 Wisps + 30 Gloomwings | 28,000 HP, bursts into 18 + 18 |
+
+Why each:
+- **Income** is the lever that separates the groups. Medium builds hit their own caps (tier 3, or
+  three tier 4s) and bank the rest: `mixed` sat on 13-26k unspent by wave 39. Strong builds spend
+  everything. More late gold lifts only the builds that keep investing.
+- **Late scaling** was a wall for everyone. With 6.5% + 7.5% toughness, `newA` (a strong build)
+  died on 39 alongside the medium ones.
+- **Wave 40** was a cliff: ~60% more than wave 39 plus an 85k King. Builds that held 39 at
+  60-85% of the path collapsed there.
+- **The King's death swarm** could take 210 lives on its own (more than a full 150) when he died
+  late. Now a late kill costs at most ~126.
+- **Wave 17's flock** made `strong` spend its Last Light while it was saving for its first tier 4.
+
+### Results (full suite, seeds 1, 2 and 3)
+
+`+LL` means the Last Light was spent (an enemy reached the Heartfire, but no lives were lost).
+
+| Build | Seed 1 | Seed 2 | Seed 3 | First leak (1/2/3) |
+|---|---|---|---|---|
+| **Strong (target: win, no lives lost)** | | | | |
+| strong | won, 150/150+LL | won, 150/150+LL | won, 150/150 | never / never / never |
+| strongAlt | won, 150/150 | won, 150/150 | won, 150/150 | never / never / never |
+| strongThird | won, 150/150 | won, 150/150 | won, 150/150 | never / never / never |
+| strongTithe | won, 150/150 | won, 150/150 | won, 150/150 | never / never / never |
+| newA | won, 150/150 | won, 150/150 | won, 150/150 | never / never / never |
+| newB | won, 150/150 | won, 150/150 | won, 150/150 | never / never / never |
+| newC | won, 150/150 | won, 150/150 | won, 150/150 | never / never / never |
+| original4 | won, 150/150 | won, 150/150+LL | won, 150/150 | never / never / never |
+| **Medium (target: about half win narrowly, the rest lose on 35-40)** | | | | |
+| mixed | won, 150/150+LL | won, 150/150+LL | won, 150/150+LL | never / never / never |
+| mixedAlt | lost on wave 39 | lost on wave 39 | lost on wave 38 | 38 / 39 / 37 |
+| focused | lost on wave 39 | lost on wave 39 | lost on wave 39 | 38 / 39 / 39 |
+| plateau | lost on wave 40 | lost on wave 40 | lost on wave 40 | 40 / 40 / 19 |
+| plateauAlt | won, 150/150 | won, 150/150 | won, 150/150+LL | never / never / never |
+| **Lazy (target: lose on 8-12)** | | | | |
+| lazy | lost on wave 9 | lost on wave 9 | lost on wave 9 | 6 / 5 / 6 |
+| minimal | lost on wave 9 | lost on wave 9 | lost on wave 9 | 5 / 5 / 5 |
+| lazyTier1 | lost on wave 10 | lost on wave 10 | lost on wave 10 | 9 / 8 / 9 |
+| **Other probes (no target)** | | | | |
+| lazyNew | lost on wave 5 | lost on wave 5 | lost on wave 5 | 3 / 3 / 3 |
+| spamNoUpgrades | lost on wave 31 | lost on wave 31 | lost on wave 31 | 30 / 30 / 30 |
+| noDetection | lost on wave 20 | lost on wave 20 | lost on wave 20 | 20 / 20 / 20 |
+| groundOnly | lost on wave 12 | lost on wave 12 | lost on wave 12 | 9 / 9 / 9 |
+| prismOnly | lost on wave 4 | lost on wave 4 | lost on wave 4 | 3 / 3 / 3 |
+| noMortarCrowd | won, 150/150+LL | won, 148/150+LL | won, 147/150+LL | never / 15 / 17 |
+| no-bolt | won, 99/150+LL | won, 92/150+LL | won, 110/150+LL | 10 / 10 / 10 |
+| no-mortar | won, 146/150+LL | won, 150/150+LL | won, 150/150+LL | 13 / never / never |
+| no-rime | won, 124/150+LL | won, 146/150+LL | won, 149/150+LL | 5 / 5 / 5 |
+| no-coil | won, 150/150 | won, 150/150 | won, 150/150 | never / never / never |
+| no-longeye | won, 150/150+LL | won, 150/150+LL | won, 150/150+LL | never / never / never |
+| no-censer | won, 150/150 | won, 150/150 | won, 150/150 | never / never / never |
+| no-prism | won, 150/150 | won, 150/150 | won, 150/150 | never / never / never |
+| no-beacon | won, 150/150 | won, 150/150 | won, 150/150 | never / never / never |
+
+The outcome is the same on all three seeds for every build:
+- **Strong:** 24 of 24 runs win with 150 lives. `strong` and `original4` spend the Last Light in
+  3 runs.
+- **Medium:** `mixed` and `plateauAlt` win every time, `mixed` always on the Last Light. `focused`
+  and `mixedAlt` lose on 38-39 (`focused` bleeds 17 and 52 lives over 38-39 first); `plateau` loses
+  on 40 because it lacks the single-target damage for the King.
+- **Lazy:** unchanged, losing on 9-10.
+- **Ban-one:** all 8 now win, and `noMortarCrowd` too.
+
+Caveats:
+- **Medium builds don't bleed in the 20s.** They reach 60-85% of the path through waves 20-36 with
+  no leaks, then hit their limit in the late 30s. Bots go from holding to lost within a wave or two,
+  because a Dreadhulk that cracks near the Heartfire spills everything inside it. The narrow margin
+  shows as the Last Light rather than lost lives. Spikes of cheap, fast enemies (the flocks) were
+  tried to make them bleed; their defences handle flyers too well for that to show.
+- **Endless** carries on from wave 40's toughness (x2.65, was x7.26), so endless starts easier than
+  before. Pinning it to the old value would make wave 41 a x2.7 jump; it's left for its own pass.

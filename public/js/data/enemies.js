@@ -121,7 +121,7 @@ export const ENEMIES = {
     tags: ['Boss', 'Plated', 'Shielded'], desc: 'Plated (Kinetic half damage) behind a huge shield that recharges fast if it stops being hit. Storm Coils break the shield, Mortars crack the plate.',
   },
   hollowking: {
-    name: 'The Hollow King', hp: 85000, speed: 24, gold: 7000, r: 34, tough: true, heavy: true, boss: true, slowRes: 1,
+    name: 'The Hollow King', hp: 28000, speed: 24, gold: 7000, r: 34, tough: true, heavy: true, boss: true, slowRes: 1,
     mult: { frost: 0 },
     phases: [
       { at: 0.8, type: 'gloomwing', count: 24 }, { at: 0.8, type: 'herald', count: 4 },
@@ -129,7 +129,7 @@ export const ENEMIES = {
       { at: 0.4, type: 'aegis', count: 12 }, { at: 0.4, type: 'wisp', count: 24 },
       { at: 0.2, type: 'gloomwing', count: 40 }, { at: 0.2, type: 'herald', count: 6 },
     ],
-    shed: [{ type: 'wisp', count: 30 }, { type: 'gloomwing', count: 30 }],
+    shed: [{ type: 'wisp', count: 18 }, { type: 'gloomwing', count: 18 }],
     tags: ['Boss', 'Frost-immune'], desc: 'The last boss. Frost can\'t hurt or slow it. At every fifth of its health it calls a new host (flyers, hulks, shields, Wisps), and when it falls it bursts into a swarm of Wisps and Gloomwings. Kill it early.',
   },
 };
