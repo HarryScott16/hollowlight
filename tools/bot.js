@@ -134,6 +134,9 @@ function bestSpot(game, spots, type) {
       score = 0;
       for (const t of game.towers) if (t.def.kind !== 'aura' && Math.hypot(t.x - s.x, t.y - s.y) < base.range - 10) score += t.spent;
       score += coverage(game, s.x, s.y, base.range) * 2;
+    } else if (base.global) {
+      // A map-wide ward works from anywhere: put it where it takes the least path coverage from others.
+      score = 1000 - coverage(game, s.x, s.y, 160);
     } else score = coverage(game, s.x, s.y, base.range, base.minRange || 0);
     // Slow towers are worth more next to damage dealers.
     if (type === 'rime') for (const t of game.towers) if (Math.hypot(t.x - s.x, t.y - s.y) < 130) score += 12;
@@ -252,6 +255,16 @@ function useAbilities(game) {
   }
 }
 
+// A map-wide Longeye on "Strong" shoots the toughest enemy anywhere, which can leave a stream of
+// flyers alone. A player watching the field switches it to "First" while flyers close in on the
+// Heartfire, and back to "Strong" for the hulks once they're dealt with. During a boss fight they
+// stay on the boss.
+function aimLongeyes(game) {
+  const len = game.map.path.length;
+  const threat = !game.enemies.some((e) => e.def.boss) && game.enemies.some((e) => e.def.flying && e.dist * e.prog > len * 0.55);
+  for (const t of game.towers) if (t.type === 'longeye') t.targetMode = threat ? 'first' : 'strong';
+}
+
 function run(name, strat, seed = SEED) {
   abilityUse.flare = abilityUse.ward = 0;
   const game = new Game({ fx: false, seed });
@@ -290,7 +303,7 @@ function run(name, strat, seed = SEED) {
       if (boss.spawn === undefined && game.enemies.some((e) => e.def.boss)) boss.spawn = Math.round(game.time);
       if (game.enemies.length > maxEnemies) maxEnemies = game.enemies.length;
       if (++steps % 120 === 0) spend(game, strat, spots, state);
-      if (steps % 30 === 0 && !strat.noAbilities) useAbilities(game);
+      if (steps % 30 === 0 && !strat.noAbilities) { useAbilities(game); aimLongeyes(game); }
       if (steps % 15 === 0) for (const e of game.enemies) { const p = e.dist / e.path.length; if (p > deepest) deepest = p; }
       // Early caller: once a wave has finished spawning, call the next one (keeps one wave of overlap).
       if (strat.early && state.safe && game.canStartWave && game.enemies.length && !state.calledEarly) {

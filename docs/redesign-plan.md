@@ -624,3 +624,128 @@ Caveats:
 - **The new wards aren't openers.** `lazyNew` (a tier-1 Longeye, Censer and Prism) loses on wave 4,
   and `prismOnly` on wave 4. The slow sniper and the single beam can't keep up with wave 1-3
   swarms; start with Bolts, Mortars or Rime.
+
+---
+
+## 12. A map-wide Longeye and a real flamethrower (2026-11-18)
+
+Feedback from a first look at the new wards: the Longeye should reach the whole map, and the Ember
+Censer should look and play like a flamethrower rather than a ward firing shots.
+
+### Longeye: map-wide
+
+- **No range stat.** `global: true` replaces `range`: it targets any enemy anywhere, wherever it
+  stands. No range circle; while placing or selected, a faint dashed frame runs round the whole map
+  instead, and the stat grid says "Range: whole map". (Its paths never had range upgrades, so
+  nothing needed replacing; a Lighthouse's range boost does nothing for it.)
+- **Eye in the Dark** (Spotter tier 4) now reveals every Veiled enemy on the map to every ward.
+- **Balance: its strength is reach, not damage.** 30 damage a shot (was 40), cost 350 (was 400),
+  Deadeye x2.3 (was x2.5), Headhunter x2.8 (was x3), Flak Curtain x1.9 (was x2).
+- **Targeting:** still "Strong" by default, which suits Deadeye and Killshot. Map-wide, though, Strong
+  means the toughest enemy anywhere, so a Veiled flock it alone can see may fly past while it shoots
+  a hulk. Switching to First (whatever is closest to the Heartfire) is now a real choice. A default
+  of First was tried and rejected: it spends Deadeye shots on 10-HP motes (0.54-0.8x the old power).
+
+### Ember Censer: a continuous flamethrower
+
+- **Sim:** no attack rate. `damage` is Fire damage per second to *everything* in the cone (a safety
+  cap of the 80 nearest), ticked every 0.1s. The nozzle sweeps towards its target at 5 rad/s and the
+  cone follows the nozzle, so fast or scattered targets can slip out of it. Every tick sets what it
+  touches burning and Scorched. `maxHits` is gone, and the old rate multipliers are folded into damage
+  (Firehose x2.1, Dragon's Breath x2.6, Choking Ash x1.5, Ashen Brand x2.2). A Beacon's attack-speed
+  boost goes into its damage, as for the Prism. Dragon's Breath's ring spins its three heads.
+- **Numbers:** 8 damage/s and 3 burn/s base (was 10 per gout at 1/s, burn 4). Re-aiming every tick
+  sets far more of a crowd burning than one gout a second did, so the per-second numbers came down.
+  Wildfire burns x2.4 (was x2), flames x1.9; Pyre flames x1.4.
+- **Look** (`render/flames.js`):
+  - **Flame:** pooled flame particles leave the nozzle white-hot and cool through orange to red as
+    they billow and rise. They're drawn as a solid body plus an additive glowing core, stretched
+    along their heading into flame tongues.
+  - **Around it:** smoke (thick and dark on the Ash path), embers, scorch marks that smoulder and
+    fade, a ground glow, a nozzle flare, and a cheap heat haze (shifted strips of a cached background
+    patch, at most two Censers, off above 300 enemies).
+  - **Growth:** Dragon's Breath makes the flame longer and wider. Every upgrade makes it hotter:
+    orange, then white-hot (Pyre 3, Dragon's Breath 4), blue for Wildfire, crimson for Ash, magenta
+    for Ashen Brand.
+  - **Dragon's Breath tier 4:** a pinwheel of three curling jets with a burning crest round the
+    ring's edge, rolling out a wave of fire every 0.9s.
+- **Sound:** one looping, fluttering roar whose volume follows how many Censers are firing.
+- **Cost:** at most 1,500 flame particles. Past 5 firing Censers each pours thinner, and huge crowds
+  halve it. In a 14-Censer stress scene on a software canvas (`@napi-rs/canvas`), the flame effects
+  took about as long as everything else in the frame put together (69 of 150 ms); the old cones were
+  nearly free. GPU canvases should do much better, but this wasn't measured in a real browser.
+
+### Calibration
+
+The bots' damage-per-gold swings with placement and with when a ward is bought, so both wards were
+calibrated alone. One ward stands at a fixed spot with infinite lives, sampled waves 8-36 are played,
+and old code (commit 4e20124) is compared with new, tier by tier:
+
+| Censer | base | 2-0-0 | 3-2-0 | Wildfire 4-2-0 | 0-2-0 | 0-3-0 | Dragon's Breath 0-4-2 | 2-0-3 | Ashen Brand 0-2-4 |
+|---|---|---|---|---|---|---|---|---|---|
+| new / old | 1.02 | 1.10 | 0.94 | 1.03 | 0.91 | 0.88 | 0.99 | 0.93 | 0.99 |
+
+| Longeye | base | 2-0-0 | Deadeye 3-2-0 | Headhunter 4-2-0 | Flak 0-3-0 | Flak Curtain 0-4-2 | Eye 2-0-4 |
+|---|---|---|---|---|---|---|---|
+| best spot | 0.93 | 0.96 | 1.01 | 0.98 | 0.95 | 0.99 | 0.98 |
+| far corner | 1.14 | 1.32 | 1.29 | 1.22 | 1.34 | 1.15 | 1.34 |
+
+So the Longeye matches its old power from the best spot and is no longer weak away from the path.
+
+### Bot changes
+
+- A map-wide ward is placed where it takes the least path coverage from others (the spot doesn't
+  matter to it).
+- `aimLongeyes`: while flyers are more than 55% of the way to the Heartfire, Longeyes switch to
+  First, then back to Strong; during a boss fight they stay on Strong. Without this, `noMortarCrowd`
+  lost 115 lives at once to Veiled Gloomwings on wave 25.
+
+### Bot results
+
+| Build | Group | Result | First leak | Lives @25 | @30 | @35 | First / 3rd T4 | T4s @20 / @30 / end | Wards (T3/T4) | Peak enemies |
+|---|---|---|---|---|---|---|---|---|---|---|
+| lazy | lazy | lost on wave 9 | 6 | - | - | - | - | - / - / 0 | 3 (0/0) | 131 |
+| minimal | lazy | lost on wave 9 | 5 | - | - | - | - | - / - / 0 | 2 (0/0) | 152 |
+| lazyTier1 | lazy | lost on wave 10 | 9 | - | - | - | - | - / - / 0 | 3 (0/0) | 151 |
+| lazyNew | probe | lost on wave 5 | 3 | - | - | - | - | - / - / 0 | 3 (0/0) | 99 |
+| mixed | reasonable | lost on wave 35 | 35 | 150 | 150 | - | - | 0 / 0 / 0 | 16 (16/0) | 424 |
+| mixedAlt | reasonable | lost on wave 32 | 32 | 150 | 150 | - | - | 0 / 0 / 0 | 16 (16/0) | 395 |
+| focused | reasonable | lost on wave 33 | 32 | 150 | 150 | - | - | 0 / 0 / 0 | 9 (9/0) | 409 |
+| plateau | plateau | lost on wave 35 | 20 | 146 | 146 | - | 16 / 24 | 2 / 3 / 3 | 8 (1/3) | 377 |
+| plateauAlt | plateau | lost on wave 35 | 35 | 150 | 150 | - | 16 / 23 | 2 / 3 / 3 | 8 (0/3) | 460 |
+| strong | strong | lost on wave 38 | 20 | 140 | 140 | 140 | 17 / 30 | 1 / 3 / 5 | 18 (3/5) | 403 |
+| strongAlt | strong | lost on wave 40 | 40 | 150 | 150 | 150 | 17 / 25 | 1 / 4 / 6 | 18 (3/6) | 527 |
+| strongThird | strong | **won**, 150/150 | never | 150 | 150 | 150 | 15 / 25 | 1 / 4 / 7 | 18 (2/7) | 600 |
+| strongTithe | strong | **won**, 114/150 (Last Light used) | 40 | 150 | 150 | 150 | 15 / 22 | 2 / 5 / 9 | 18 (1/9) | 574 |
+| newA | strong | lost on wave 36 | 36 | 150 | 150 | 150 | 16 / 26 | 2 / 3 / 5 | 18 (1/5) | 366 |
+| newB | strong | **won**, 150/150 | never | 150 | 150 | 150 | 16 / 27 | 1 / 3 / 6 | 18 (2/6) | 544 |
+| newC | strong | **won**, 150/150 | never | 150 | 150 | 150 | 17 / 26 | 1 / 4 / 7 | 18 (1/7) | 749 |
+| original4 | probe | **won**, 150/150 (Last Light used) | never | 150 | 150 | 150 | 15 / 23 | 2 / 4 / 8 | 18 (0/8) | 497 |
+| spamNoUpgrades | probe | lost on wave 31 | 30 | 150 | 7 | - | - | 0 / 0 / 0 | 60 (0/0) | 347 |
+| noDetection | probe | lost on wave 20 | 20 | - | - | - | 15 / - | 1 / - / 1 | 13 (2/1) | 413 |
+| groundOnly | probe | lost on wave 12 | 9 | - | - | - | - | - / - / 0 | 8 (1/0) | 221 |
+| prismOnly | probe | lost on wave 4 | 3 | - | - | - | - | - / - / 0 | 2 (0/0) | 67 |
+| noMortarCrowd | ban | **won**, 150/150 (Last Light used) | never | 150 | 150 | 150 | 16 / 26 | 2 / 4 / 7 | 18 (1/7) | 542 |
+| no-bolt | ban | lost on wave 40 | 10 | 49 | 49 | 49 | 18 / 30 | 1 / 3 / 5 | 18 (4/5) | 481 |
+| no-mortar | ban | lost on wave 36 | 13 | 146 | 146 | 146 | 16 / 26 | 2 / 4 / 5 | 18 (3/5) | 462 |
+| no-rime | ban | **won**, 124/150 (Last Light used) | 5 | 124 | 124 | 124 | 14 / 25 | 2 / 4 / 7 | 18 (2/7) | 358 |
+| no-coil | ban | **won**, 150/150 | never | 150 | 150 | 150 | 15 / 26 | 1 / 4 / 7 | 18 (2/7) | 439 |
+| no-longeye | ban | **won**, 150/150 (Last Light used) | never | 150 | 150 | 150 | 15 / 27 | 1 / 4 / 7 | 18 (2/7) | 376 |
+| no-censer | ban | **won**, 150/150 | never | 150 | 150 | 150 | 15 / 27 | 1 / 4 / 7 | 18 (2/7) | 431 |
+| no-prism | ban | **won**, 150/150 | never | 150 | 150 | 150 | 15 / 26 | 1 / 4 / 7 | 18 (3/7) | 359 |
+| no-beacon | ban | **won**, 150/150 | never | 150 | 150 | 150 | 16 / 25 | 1 / 4 / 7 | 18 (1/7) | 472 |
+
+Against the targets from section 11:
+- **Lazy** (9-10), **reasonable** (32-35) and **plateau** (35) builds land where they did.
+- **Strong group:** the same 4-win / 3-loss split. Which builds fall on the edge moved:
+  `strongAlt` now loses wave 40 narrowly and `newC` wins. These builds win or lose wave 40 by a few
+  percent of the path, and small changes flip them either way between runs.
+- **Ban-one:** 6 of 8 win (was 7). `no-bolt` loses the Hollow King fight on wave 40;
+  `noMortarCrowd` now wins with 150 lives (was 119).
+
+Caveats:
+- **`spamNoUpgrades` reaches wave 31** (was 26), carried by 8 unupgraded Censers at ~190 damage per
+  gold. A flame that hits everything in its cone rewards stacking Censers on a dense stretch more
+  than the old 8-target gouts did. It still falls before every reasonable build.
+- **Longeye targeting is now the player's job.** Strong ignores a flock while a hulk is alive
+  anywhere; the bot's switching stands in for a player who notices.

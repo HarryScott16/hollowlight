@@ -11,7 +11,8 @@
 // activated ability, and power per gold rising with tier. `node tools/report.js` prints the curve.
 //
 // Stat glossary
-//   common  damage, rate (attacks/s), range, type (damage type), hitsAir, detect (sees stealth)
+//   common  damage, rate (attacks/s), range, type (damage type), hitsAir, detect (sees stealth),
+//           global (no range: reaches anywhere on the map)
 //   bolt    projSpeed, pierce, shots, armorPierce (0-1 of resistance ignored), bounces (ricochets),
 //           knockback (px, non-boss), lance (bolt flies straight across the map), boltSize,
 //           markPct/markDur (target takes +% damage from everything), markRadius, execute (hp fraction)
@@ -25,7 +26,8 @@
 //   snipe   instant shots: shots (targets per volley), airMul (x damage to flyers), heavyMul, armorPierce,
 //           flakRadius/flakHits (burst around the target at half damage), spotRadius/spotDur (reveals Veiled
 //           around the target), shieldMul (x damage to shields, any type), shieldStall (s shields can't recharge)
-//   flame   arc (cone width in radians, TAU = all round), maxHits, burnDps/burnDur (Fire), searDur (Scorched:
+//   flame   a continuous stream: damage = Fire damage/s to everything in the cone (no rate).
+//           arc (cone width in radians, TAU = all round), burnDps/burnDur (Fire), searDur (Scorched:
 //           can't heal, regrow or recharge shields), burnHeavy (x burn on hulks/bosses), spread/spreadRadius/
 //           spreadRate (Wildfire), searAmp (+% damage taken while Scorched), shieldMul, brand (Scorched lose resistances)
 //   beam    damage = damage/s at x1 charge; maxCharge, ramp (s to full charge), beams, keep (charge kept on a new
@@ -144,53 +146,53 @@ export const TOWERS = {
   },
 
   longeye: {
-    name: 'Longeye', role: 'Sniper', cost: 400, kind: 'snipe', target: 'strong',
-    desc: 'A slow, huge-range rifle. Each shot strips 4 layers. Sees Veiled enemies and hits flyers twice as hard.',
-    base: { damage: 40, rate: 0.5, range: 400, type: 'kinetic', shots: 1, airMul: 2, hitsAir: true, detect: true },
+    name: 'Longeye', role: 'Sniper', cost: 350, kind: 'snipe', target: 'strong',
+    desc: 'A slow rifle that reaches anywhere on the map, wherever it stands. Each shot strips 3 layers. Sees Veiled enemies and hits flyers twice as hard.',
+    base: { damage: 30, rate: 0.5, global: true, type: 'kinetic', shots: 1, airMul: 2, hitsAir: true, detect: true },
     paths: [
       { name: 'Deadeye', blurb: "One perfect shot at a time: huge hits that ignore armour and crack hulk shells.", tiers: [
-        { name: 'Heavy Rounds', blurb: "Every shot hits twice as hard.", cost: 150, desc: 'x2 damage: shots strip 8 layers.', mul: { damage: 2 } },
+        { name: 'Heavy Rounds', blurb: "Every shot hits twice as hard.", cost: 150, desc: 'x2 damage: shots strip 6 layers.', mul: { damage: 2 } },
         { name: 'Hollow Points', blurb: "Rounds punch through plate and bite deep into hulks.", cost: 350, desc: 'Ignores all armour. x1.3 damage, x1.5 to hulks and bosses.', set: { armorPierce: 1, heavyMul: 1.5 }, mul: { damage: 1.3 } },
-        { name: 'Deadeye', blurb: "A marksman's rifle that breaks hulks open in a few shots.", cost: 1100, desc: 'x2.5 damage, x1.3 rate, x3 to hulks and bosses.', set: { heavyMul: 3 }, mul: { damage: 2.5, rate: 1.3 } },
-        { name: 'Headhunter', blurb: "Every shot can fell a hulk; bosses feel each one.", cost: 4600, desc: 'x3 damage, x1.5 rate, x4 to hulks and bosses.', set: { heavyMul: 4 }, mul: { damage: 3, rate: 1.5 } },
+        { name: 'Deadeye', blurb: "A marksman's rifle that breaks hulks open in a few shots.", cost: 1100, desc: 'x2.3 damage, x1.3 rate, x3 to hulks and bosses.', set: { heavyMul: 3 }, mul: { damage: 2.3, rate: 1.3 } },
+        { name: 'Headhunter', blurb: "Every shot can fell a hulk; bosses feel each one.", cost: 4600, desc: 'x2.8 damage, x1.5 rate, x4 to hulks and bosses.', set: { heavyMul: 4 }, mul: { damage: 2.8, rate: 1.5 } },
       ] },
       { name: 'Flak', blurb: "Shells burst in the air and shred whole flocks.", tiers: [
         { name: 'Quick Bolt', blurb: "Fires noticeably faster.", cost: 120, desc: 'x1.5 fire rate.', mul: { rate: 1.5 } },
         { name: 'Flak Rounds', blurb: "Shots burst, peppering everything around the target.", cost: 300, desc: 'Shots burst for half damage on up to 8 enemies within 45.', set: { flakRadius: 45, flakHits: 8 } },
         { name: 'Flak Battery', blurb: "Wide bursts that tear flocks out of the sky.", cost: 1000, desc: 'Bursts reach 70 and hit up to 20. Flyers take x3 damage. x1.5 rate.', set: { flakRadius: 70, flakHits: 20, airMul: 3 }, mul: { rate: 1.5 } },
-        { name: 'Flak Curtain', blurb: "A wall of bursting shells across the sky.", cost: 4300, desc: '3 shots per volley at separate targets, bursts reach 90 and hit up to 40. x2 damage, x1.3 rate.', set: { shots: 3, flakRadius: 90, flakHits: 40 }, mul: { damage: 2, rate: 1.3 } },
+        { name: 'Flak Curtain', blurb: "A wall of bursting shells across the sky.", cost: 4300, desc: '3 shots per volley at separate targets, bursts reach 90 and hit up to 40. x1.9 damage, x1.3 rate.', set: { shots: 3, flakRadius: 90, flakHits: 40 }, mul: { damage: 1.9, rate: 1.3 } },
       ] },
       { name: 'Spotter', blurb: "Tracer rounds reveal the Veiled and break shields for every ward.", tiers: [
         { name: 'Tracers', blurb: "Shots light up hidden Gloom around the target for every ward.", cost: 130, desc: 'Hits reveal Veiled enemies within 60 of the target for 5s.', set: { spotRadius: 60, spotDur: 5 } },
         { name: 'Shieldbreaker', blurb: "Rounds shatter shields and stop them recharging.", cost: 300, desc: 'x4 damage to shields; shields hit can\'t recharge for 4s. x1.3 rate.', set: { shieldMul: 4, shieldStall: 4 }, mul: { rate: 1.3 } },
         { name: 'Flare Rounds', blurb: "Each shot lights up a wide patch of the path.", cost: 950, desc: 'Reveals within 140 for 6s. x1.5 damage, x1.4 rate.', set: { spotRadius: 140, spotDur: 6 }, mul: { damage: 1.5, rate: 1.4 } },
-        { name: 'Eye in the Dark', blurb: "Nothing hides anywhere it can see.", cost: 4000, desc: 'Reveals every Veiled enemy in its range, all the time. x6 damage to shields, x2 damage, x1.5 rate.', set: { reveal: true, shieldMul: 6 }, mul: { damage: 2, rate: 1.5 } },
+        { name: 'Eye in the Dark', blurb: "It sees the whole map, so nothing hides anywhere.", cost: 4000, desc: 'Reveals every Veiled enemy on the map to every ward, all the time. x6 damage to shields, x2 damage, x1.5 rate.', set: { reveal: true, shieldMul: 6 }, mul: { damage: 2, rate: 1.5 } },
       ] },
     ],
   },
 
   censer: {
-    name: 'Ember Censer', role: 'Fire / anti-heal', cost: 275, kind: 'flame', target: 'first',
-    desc: 'Sprays a short cone of Fire that hits up to 8 enemies, flyers and Veiled included. Burning enemies are Scorched: no healing, regrowing or shield recharge.',
-    base: { damage: 10, rate: 1.0, range: 95, type: 'fire', arc: 0.8, maxHits: 8, burnDps: 4, burnDur: 2, searDur: 2.5, hitsAir: true },
+    name: 'Ember Censer', role: 'Flamethrower / anti-heal', cost: 275, kind: 'flame', target: 'first',
+    desc: 'A flamethrower: pours a constant cone of Fire over everything in front of it, flyers and Veiled included, sweeping to follow its target. Burning enemies are Scorched: no healing, regrowing or shield recharge.',
+    base: { damage: 8, range: 95, type: 'fire', arc: 0.8, burnDps: 3, burnDur: 2, searDur: 2.5, hitsAir: true },
     paths: [
-      { name: 'Pyre', blurb: "Hotter, longer burns that grind through hulks and armour.", tiers: [
-        { name: 'Hotter Coals', blurb: "Burns hurt twice as much.", cost: 110, desc: 'Burns deal x2 (8/s).', mul: { burnDps: 2 } },
-        { name: 'Clinging Flame', blurb: "Fire sticks for longer and the jet hits harder.", cost: 260, desc: 'Burns last 3s. x1.3 flame damage.', set: { burnDur: 3, searDur: 3.5 }, mul: { damage: 1.3 } },
-        { name: 'Pyre', blurb: "Hulks and bosses burn like dry wood.", cost: 900, desc: 'Burns x2; hulks and bosses burn x3. x1.3 flame damage.', set: { burnHeavy: 3 }, mul: { burnDps: 2, damage: 1.3 } },
-        { name: 'Wildfire', blurb: "Fire leaps from every burning death to the Gloom around it.", cost: 4200, desc: 'Burns x2, flames x1.5. A burning enemy that dies spreads its fire to up to 3 enemies within 70 (up to 15 a second).', set: { spread: 3, spreadRadius: 70, spreadRate: 15 }, mul: { burnDps: 2, damage: 1.5 } },
+      { name: 'Pyre', blurb: "A hotter flame, white then blue, that grinds through hulks and armour.", tiers: [
+        { name: 'Hotter Coals', blurb: "Burns hurt twice as much.", cost: 110, desc: 'Burns deal x2 (6/s).', mul: { burnDps: 2 } },
+        { name: 'Clinging Flame', blurb: "Fire sticks for longer and the flame bites harder.", cost: 260, desc: 'Burns last 3s. x1.3 flame damage.', set: { burnDur: 3, searDur: 3.5 }, mul: { damage: 1.3 } },
+        { name: 'Pyre', blurb: "A white-hot flame: hulks and bosses burn like dry wood.", cost: 900, desc: 'Burns x2; hulks and bosses burn x3. x1.4 flame damage.', set: { burnHeavy: 3 }, mul: { burnDps: 2, damage: 1.4 } },
+        { name: 'Wildfire', blurb: "Blue fire that leaps from every burning death to the Gloom around it.", cost: 4200, desc: 'Burns x2.4, flames x1.9. A burning enemy that dies spreads its fire to up to 3 enemies within 70 (up to 15 a second).', set: { spread: 3, spreadRadius: 70, spreadRate: 15 }, mul: { burnDps: 2.4, damage: 1.9 } },
       ] },
       { name: "Dragon's Breath", blurb: "A longer, wider jet that hoses down whole crowds.", tiers: [
         { name: 'Bellows', blurb: "The jet reaches further.", cost: 100, desc: '+20 range.', add: { range: 20 } },
-        { name: 'Wide Jet', blurb: "A broad fan of flame that catches far more.", cost: 250, desc: 'x1.6 cone width, hits up to 14.', mul: { arc: 1.6 }, set: { maxHits: 14 } },
-        { name: 'Firehose', blurb: "A roaring, relentless torrent of fire.", cost: 950, desc: 'x1.4 rate, x1.3 damage, +20 range, hits up to 24.', mul: { rate: 1.4, damage: 1.3 }, add: { range: 20 }, set: { maxHits: 24 } },
-        { name: "Dragon's Breath", blurb: "A full ring of fire: nothing near it escapes.", cost: 4400, desc: 'Breathes fire all the way round, hitting up to 60. x2 damage, x1.2 rate, +15 range, burns x1.5.', set: { arc: TAU, maxHits: 60 }, mul: { damage: 2, rate: 1.2, burnDps: 1.5 }, add: { range: 15 } },
+        { name: 'Wide Jet', blurb: "A broad fan of flame that catches far more.", cost: 250, desc: 'x1.6 cone width.', mul: { arc: 1.6 } },
+        { name: 'Firehose', blurb: "A roaring, relentless torrent of fire.", cost: 950, desc: 'x2.1 flame damage, +20 range.', mul: { damage: 2.1 }, add: { range: 20 } },
+        { name: "Dragon's Breath", blurb: "A full ring of fire: nothing near it escapes.", cost: 4400, desc: 'Breathes fire all the way round. x2.6 flame damage, +15 range, burns x1.5.', set: { arc: TAU }, mul: { damage: 2.6, burnDps: 1.5 }, add: { range: 15 } },
       ] },
       { name: 'Ash', blurb: "Choking smoke: Scorched enemies take more damage from every ward.", tiers: [
         { name: 'Soot', blurb: "Scorched enemies take a little more from everything.", cost: 110, desc: 'Scorched enemies take +10% damage from every ward.', set: { searAmp: 0.1 } },
         { name: 'Melt', blurb: "Fire eats through shields.", cost: 260, desc: 'x3 damage to shields. Scorched take +15%.', set: { shieldMul: 3, searAmp: 0.15 } },
-        { name: 'Choking Ash', blurb: "Lingering ash leaves the Gloom soft for every ward.", cost: 900, desc: 'Scorched take +25% and stay Scorched 4s after the fire. x1.4 rate.', set: { searAmp: 0.25, searDur: 4 }, mul: { rate: 1.4 } },
-        { name: 'Ashen Brand', blurb: "Branded Gloom lose every resistance they had.", cost: 4000, desc: 'Scorched take +40% and lose their damage resistances (immunities stay). x2 damage.', set: { searAmp: 0.4, brand: true }, mul: { damage: 2 } },
+        { name: 'Choking Ash', blurb: "Lingering ash leaves the Gloom soft for every ward.", cost: 900, desc: 'Scorched take +25% and stay Scorched 4s after the fire. x1.5 flame damage.', set: { searAmp: 0.25, searDur: 4 }, mul: { damage: 1.5 } },
+        { name: 'Ashen Brand', blurb: "Branded Gloom lose every resistance they had.", cost: 4000, desc: 'Scorched take +40% and lose their damage resistances (immunities stay). x2.2 flame damage.', set: { searAmp: 0.4, brand: true }, mul: { damage: 2.2 } },
       ] },
     ],
   },

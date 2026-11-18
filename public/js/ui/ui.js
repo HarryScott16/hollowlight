@@ -47,10 +47,12 @@ function statRows(def, s) {
   const rows = [
     ['Layers/s, crowd', fmt(estimateDps(k, s, true) / 10)],
     ['Damage/s, one target', fmt(estimateDps(k, s, false))],
-    [k === 'beam' ? 'Damage/s at x1' : 'Damage', num(s.damage)],
-    k === 'beam' ? ['Max charge', `x${s.maxCharge} in ${num(s.ramp)}s`] : [k === 'pulse' ? 'Pulses/s' : 'Attacks/s', num(s.rate)],
-    ['Range', String(Math.round(s.range))],
+    [k === 'beam' ? 'Damage/s at x1' : k === 'flame' ? 'Flame damage/s' : 'Damage', num(s.damage)],
   ];
+  // A beam ramps and a flame pours: neither has an attack rate.
+  if (k === 'beam') rows.push(['Max charge', `x${s.maxCharge} in ${num(s.ramp)}s`]);
+  else if (k !== 'flame') rows.push([k === 'pulse' ? 'Pulses/s' : 'Attacks/s', num(s.rate)]);
+  rows.push(['Range', s.global ? 'whole map' : String(Math.round(s.range))]);
   if (k === 'bolt') {
     rows.push(['Bolts per shot', String(s.shots)], ['Pierce', s.pierce >= 999 ? 'all' : String(s.pierce)]);
     if (s.bounces) rows.push(['Ricochets', String(s.bounces)]);
@@ -93,7 +95,7 @@ function statRows(def, s) {
     if (s.shieldMul) rows.push(['vs shields', `x${s.shieldMul}`]);
     if (s.reveal) rows.push(['Reveals Veiled in range', 'yes']);
   } else if (k === 'flame') {
-    rows.push(['Cone', s.arc >= 6.28 ? 'all round' : `${Math.round((s.arc * 180) / Math.PI)}°`], ['Enemies per gout', String(s.maxHits)],
+    rows.push(['Cone', s.arc >= 6.28 ? 'all round' : `${Math.round((s.arc * 180) / Math.PI)}°`],
       ['Burn', `${num(s.burnDps)}/s for ${s.burnDur}s`], ['Scorched for', `${s.searDur}s`]);
     if (s.burnHeavy) rows.push(['Hulks burn', `x${s.burnHeavy}`]);
     if (s.spread) rows.push(['Wildfire', `${s.spread} enemies, ${s.spreadRate}/s`]);
@@ -487,7 +489,7 @@ export class UI {
           detail.append(diff);
           b.append(detail);
           b.addEventListener('click', () => this.buyUpgrade(pi));
-          b.addEventListener('pointerenter', () => { this.previewRange = next.range; });
+          b.addEventListener('pointerenter', () => { this.previewRange = next.range || 0; });
           b.addEventListener('pointerleave', () => { this.previewRange = 0; });
           upButtons.push({ b, cost: info.up.cost });
         } else {

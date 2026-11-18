@@ -44,9 +44,11 @@ export function estimateDps(kind, s, crowd = true) {
     return s.damage * s.rate * s.shots * burst * (crowd ? 1 : s.heavyMul || 1);
   }
   if (kind === 'flame') {
-    const hits = crowd ? Math.min(s.maxHits, 2 + 3 * Math.min(4, s.arc / 0.8) * (s.range / 95)) : 1;
-    const burn = s.burnDps * s.burnDur * 0.5 * (crowd ? 1 : s.burnHeavy || 1);
-    return (s.damage + burn) * s.rate * hits * (1 + (s.searAmp || 0) * 0.5) * (crowd && s.spread ? 1.4 : 1);
+    // A continuous stream: damage/s to everything in the cone, plus the burn, which runs while an
+    // enemy is in the flame and for burnDur after it leaves.
+    const hits = crowd ? 2 + 3 * Math.min(4, s.arc / 0.8) * (s.range / 95) : 1;
+    const burn = s.burnDps * (1 + s.burnDur * 0.25) * (crowd ? 1 : s.burnHeavy || 1);
+    return (s.damage + burn) * hits * (1 + (s.searAmp || 0) * 0.5) * (crowd && s.spread ? 1.4 : 1);
   }
   if (kind === 'beam') {
     if (!crowd) return s.damage * s.maxCharge * 0.85;
@@ -73,7 +75,7 @@ export function createTower(game, type, x, y) {
     dmg: 0, kills: 0, spent: def.cost, shatterTokens: 0,
     abilityCd: null, buffT: 0, buffRate: 1,   // abilityCd stays null until the ward reaches tier 4
     recoil: 0, shotN: 0, pulseN: 0, pulseAnim: 0,
-    beams: [], sunT: 0, spreadTokens: 0, burstTokens: 0, aura: null,
+    beams: [], sunT: 0, spreadTokens: 0, burstTokens: 0, aura: null, firing: false,
   };
 }
 
@@ -91,10 +93,10 @@ export function upgradeInfo(tower, pi) {
   return { ok: true, up, reason: null };
 }
 
-function turnTo(t, tx, ty, dt) {
+function turnTo(t, tx, ty, dt, speed = 9) {
   const want = Math.atan2(ty - t.y, tx - t.x);
   let d = ((want - t.ang + Math.PI) % TAU + TAU) % TAU - Math.PI;
-  const max = 9 * dt;
+  const max = speed * dt;
   t.ang += Math.abs(d) < max ? d : Math.sign(d) * max;
 }
 
@@ -299,12 +301,24 @@ export function snipeHit(game, t, s, e, dmg, big) {
   }
 }
 
-// --- flame: a cone (or ring) of fire that sets everything in it burning and Scorched ---------
+// --- flame: a continuous cone (or ring) of fire -----------------------------------------------
+// The nozzle sweeps towards its target at FLAME_TURN rad/s, and everything inside the cone where it
+// points now takes damage/s, ticked FLAME_TICK at a time (cheaper than every step, and smooth
+// enough). Everything in the cone burns (the nearest FLAME_CAP, a safety cap for huge crowds).
+// t.firing tells the renderer to pour out flame.
+const FLAME_TICK = 0.1;
+const FLAME_TURN = 5;
+const FLAME_CAP = 80;
+const FLAME_SPIN = 2.4;
 const flameHits = [];
 function flame(game, t, dt) {
   const s = t.stats;
-  track(t, dt);
+  const e0 = t.target;
+  // A full ring needs no aim: its three dragon heads spin while it breathes (purely for show).
+  if (s.arc >= TAU - 0.01) { if (t.firing) t.ang = (t.ang + FLAME_SPIN * dt) % TAU; }
+  else if (e0 && e0.alive) turnTo(t, e0.x, e0.y, dt, FLAME_TURN);
   if (t.cd > 0) return;
+  t.cd += FLAME_TICK;
   // Fire is an area attack: it aims at anything in reach, Veiled included.
   game.grid.query(t.x, t.y, s.range + 12, buf);
   let best = null, bestS = -Infinity;
@@ -317,12 +331,11 @@ function flame(game, t, dt) {
     const sc = mode === 'first' ? e.dist * e.prog : mode === 'last' ? -e.dist * e.prog : mode === 'strong' ? (e.hp + e.shield) * 10000 + e.dist : -d2;
     if (sc > bestS) { bestS = sc; best = e; }
   }
-  if (!best) return;
-  t.cd += 1 / s.rate;
   t.target = best;
-  const ang = Math.atan2(best.y - t.y, best.x - t.x);
-  t.ang = ang;
+  t.firing = !!best;
+  if (!best) return;
   t.recoil = 1;
+  const ang = t.ang;
   const all = s.arc >= TAU - 0.01, half = s.arc / 2;
   flameHits.length = 0;
   for (const e of buf) {
@@ -336,14 +349,14 @@ function flame(game, t, dt) {
     e._d2 = d2;
     flameHits.push(e);
   }
-  if (flameHits.length > s.maxHits) { flameHits.sort((a, b) => a._d2 - b._d2); flameHits.length = s.maxHits; }
-  const opts = s.shieldMul ? { quiet: true, shieldMul: s.shieldMul } : QUIET;
+  if (flameHits.length > FLAME_CAP) { flameHits.sort((a, b) => a._d2 - b._d2); flameHits.length = FLAME_CAP; }
+  const opts = s.shieldMul ? { dot: true, shieldMul: s.shieldMul } : DOT;
+  const dmg = s.damage * FLAME_TICK;
   for (const e of flameHits) {
     if (!e.alive) continue;
     ignite(e, s, t);   // before the hit, so the hit itself counts the Scorched bonus and the burn carries into what it sheds
-    game.damage(e, s.damage, s.type, t, opts);
+    game.damage(e, dmg, s.type, t, opts);
   }
-  game.emit('flame', { x: t.x, y: t.y, ang, r: s.range, arc: s.arc });
 }
 
 // Sets an enemy burning with Fire and Scorched (no healing, regrowing or shield recharge).

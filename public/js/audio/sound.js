@@ -127,6 +127,32 @@ export class Sound {
     this.hiss(0.28, 0.3, 700, 0.5, 0, 'lowpass');
   }
 
+  // The flamethrowers' continuous roar: one looping noise source whose volume follows `level`
+  // (0 = silent, ~1 = one Censer at full blast, more for several). Call every frame.
+  roar(level) {
+    if (!this.ctx) return;
+    const c = this.ctx;
+    if (!this.roarGain) {
+      if (level <= 0) return;
+      const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+      s.buffer = this.noise;
+      s.loop = true;
+      f.type = 'lowpass';
+      f.frequency.value = 420;
+      f.Q.value = 0.9;
+      g.gain.value = 0;
+      s.connect(f).connect(g).connect(this.master);
+      s.start();
+      this.roarGain = g;
+      this.roarFilter = f;
+    }
+    const k = Math.min(1.6, level);
+    // A little flutter so it sounds like a living flame rather than static.
+    const flutter = 1 + Math.sin(c.currentTime * 23) * 0.12 + Math.sin(c.currentTime * 7.3) * 0.08;
+    this.roarGain.gain.setTargetAtTime(k > 0.01 ? 0.11 * Math.sqrt(k) * flutter : 0, c.currentTime, 0.06);
+    this.roarFilter.frequency.setTargetAtTime(360 + 260 * Math.min(1, k), c.currentTime, 0.1);
+  }
+
   burst() { // a light burst
     if (!this.ok('burst')) return;
     this.tone('sine', 1600, 2400, 0.12, 0.06);

@@ -16,6 +16,7 @@ import { endlessWave } from './endless.js';
 
 const scratch = [];
 const buf = [];
+const gridBuf = [];
 
 export class Game {
   constructor(opts = {}) {
@@ -200,7 +201,7 @@ export class Game {
         // A Prism has no attack rate: its share of the boost goes into damage.
         if (s.rate) s.rate *= 1 + rate; else dmg = (1 + dmg) * (1 + rate) - 1;
         s.damage *= 1 + dmg;
-        s.range *= 1 + range;
+        if (s.range) s.range *= 1 + range;   // a map-wide ward has no range to extend
         if (detect) s.detect = true;
         if (air) s.hitsAir = true;
         t.aura = { rate, dmg, range, detect, air };
@@ -233,10 +234,11 @@ export class Game {
   }
 
   // Fills `out` with up to n targets for the tower, best first, by its targeting mode.
+  // A `global` ward (the Longeye) picks from every enemy on the map.
   pickTargets(t, n, out, minRange = 0) {
     out.length = 0;
     const s = t.stats;
-    this.grid.query(t.x, t.y, s.range, buf);
+    const buf = s.global ? this.enemies : this.grid.query(t.x, t.y, s.range, gridBuf);
     scratch.length = 0;
     const mode = t.targetMode;
     const min2 = minRange * minRange;
@@ -612,12 +614,13 @@ export class Game {
     this.grid.clear();
     for (let i = 0; i < es.length; i++) if (es[i].alive) this.grid.insert(es[i]);
 
-    // Frost Sight spires reveal Veiled enemies in range to every ward.
+    // Frost Sight spires reveal Veiled enemies in range to every ward (an Eye in the Dark: the
+    // whole map).
     for (let i = 0; i < this.towers.length; i++) {
       const t = this.towers[i];
       if (!t.stats.reveal) continue;
-      this.grid.query(t.x, t.y, t.stats.range, buf);
-      for (const e of buf) if (e.veiled) e.revealT = 0.25;
+      const list = t.stats.global ? es : this.grid.query(t.x, t.y, t.stats.range, buf);
+      for (const e of list) if (e.veiled && e.alive) e.revealT = 0.25;
     }
     // Heralds, Menders and summoning bosses act on the Gloom around them.
     for (let i = 0, n = es.length; i < n; i++) if (es[i].def.special && es[i].alive) this.updateSpecial(es[i], dt);

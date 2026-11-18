@@ -4,6 +4,7 @@ import { TOWERS, PATH_COLORS } from '../data/towers.js';
 import { DAMAGE_TYPES } from '../data/damage.js';
 import { RULES } from '../data/rules.js';
 import { Particles } from './particles.js';
+import { FlameFx } from './flames.js';
 import { paintBackground } from './background.js';
 import { drawTower, towerScale } from './towerArt.js';
 import { drawEnemy, initSprites, ENEMY_COLORS } from './enemyArt.js';
@@ -17,7 +18,7 @@ const NUM_COLORS = { kinetic: '#fff4c2', blast: '#ffb347', arcane: '#8ff0ff', fr
 const POP_TIME = 0.45;
 const noop = () => {};
 // Stand-in when no Sound is attached (and for unknown events).
-const MUTE = { pop: noop, crack: noop, boom: noop, zap: noop, shot: noop, pulse: noop, coin: noop, flare: noop, frost: noop, ability: noop, upgrade: noop, place: noop, sell: noop, wave: noop, leak: noop, streak: noop, bossDown: noop, lastLight: noop, snipe: noop, flame: noop, burst: noop };
+const MUTE = { pop: noop, crack: noop, boom: noop, zap: noop, shot: noop, pulse: noop, coin: noop, flare: noop, frost: noop, ability: noop, upgrade: noop, place: noop, sell: noop, wave: noop, leak: noop, streak: noop, bossDown: noop, lastLight: noop, snipe: noop, flame: noop, burst: noop, roar: noop };
 
 export class Renderer {
   constructor(canvas, game) {
@@ -34,7 +35,7 @@ export class Renderer {
     this.stains = [];
     this.bolts = [];      // smite pillars
     this.tracers = [];    // Longeye shots
-    this.flames = [];     // Ember Censer cones
+    this.flameFx = new FlameFx(this);   // Ember Censer flamethrowers
     this.pops = new Map(); // tower id -> remaining pop time
     this.multi = new Map(); // tower id -> { n, t, x, y } for multi-kill callouts
     this.shake = 0;
@@ -57,7 +58,8 @@ export class Renderer {
   clearFx() {
     this.parts.clear();
     this.arcs.length = this.rings.length = this.texts.length = this.stains.length = this.bolts.length = 0;
-    this.tracers.length = this.flames.length = 0;
+    this.tracers.length = 0;
+    this.flameFx.clear();
     this.pops.clear();
     this.multi.clear();
     this.shake = 0;
@@ -227,15 +229,6 @@ export class Renderer {
           if (f.spot) this.ring(f.tx, f.ty, 6, f.spot, 0.45, '#ecc8ff', 1.8, 'rgba(236,200,255,0.10)');
           break;
         }
-        case 'flame':
-          S.flame();
-          if (this.flames.length < 40) this.flames.push({ x: f.x, y: f.y, ang: f.ang, r: f.r, arc: f.arc, life: 0.28, max: 0.28 });
-          for (let k = 0; k < 5; k++) {
-            const a = f.arc >= TAU - 0.01 ? Math.random() * TAU : f.ang + (Math.random() - 0.5) * f.arc;
-            const d = f.r * (0.3 + Math.random() * 0.7);
-            P.burst(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d, 1, { color: Math.random() < 0.5 ? '#ffd23a' : '#ff5a1a', speed: 40, life: 0.5, size: 3.4, grav: -80, ang: -Math.PI / 2, spread: 1 });
-          }
-          break;
         case 'burst':
           S.burst();
           this.ring(f.x, f.y, 4, f.r, 0.3, '#fff3b0', 3, 'rgba(255,243,176,0.3)', true);
@@ -427,6 +420,10 @@ export class Renderer {
 
     const { ctx, game } = this;
     const s = this.scale;
+    // With huge crowds, skip the small status overlays to keep the frame rate up.
+    const lite = game.enemies.length > 450;
+    const roar = this.flameFx.update(dt, game.towers, lite);
+    if (this.sound) this.sound.roar(roar);
     const sx = this.shake ? (Math.random() - 0.5) * 2 * this.shake : 0;
     const sy = this.shake ? (Math.random() - 0.5) * 2 * this.shake : 0;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -434,13 +431,18 @@ export class Renderer {
     ctx.drawImage(this.bg, Math.round(sx * s), Math.round(sy * s));
     ctx.setTransform(s, 0, 0, s, sx * s, sy * s);
 
+    this.flameFx.drawHaze(ctx, this.bg, s, game.enemies.length);
     this.drawStains(ctx, dt);
+    this.flameFx.drawScorch(ctx);
     this.drawLandmarks(ctx);
     this.drawZones(ctx, dt);
     this.drawAuras(ctx);
 
+    this.flameFx.drawGlow(ctx);
+
     const sel = ui.selected;
-    if (sel) {
+    if (sel && sel.stats.global) this.mapWide(ctx);
+    else if (sel) {
       this.rangeCircle(ctx, sel.x, sel.y, sel.stats.range, true, sel.stats.minRange);
       if (ui.previewRange && Math.abs(ui.previewRange - sel.stats.range) > 1) {
         ctx.strokeStyle = '#ffe45c';
@@ -452,8 +454,6 @@ export class Renderer {
     }
 
     const es = game.enemies;
-    // With huge crowds, skip the small status overlays to keep the frame rate up.
-    const lite = es.length > 450;
     // Walkers first, then flyers above them.
     let flyers = 0;
     for (let i = 0; i < es.length; i++) { if (es[i].def.flying) flyers++; else drawEnemy(ctx, es[i], lite); }
@@ -510,7 +510,7 @@ export class Renderer {
     }
 
     this.drawProjectiles(ctx);
-    this.drawFlames(ctx, dt);
+    this.flameFx.draw(ctx, { s, e: sx * s, f: sy * s });
     this.drawTracers(ctx, dt);
     this.drawRings(ctx, dt);
     this.drawArcs(ctx, dt);
@@ -711,28 +711,14 @@ export class Renderer {
     ctx.lineCap = 'butt';
   }
 
-  drawFlames(ctx, dt) {
-    const list = this.flames;
-    let w = 0;
-    ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < list.length; i++) {
-      const f = list[i];
-      f.life -= dt;
-      if (f.life <= 0) continue;
-      list[w++] = f;
-      const u = 1 - f.life / f.max, a = f.life / f.max;
-      const r = f.r * (0.5 + u * 0.5);
-      const all = f.arc >= TAU - 0.01;
-      for (const [k, col] of [[1, `rgba(255,90,20,${0.35 * a})`], [0.65, `rgba(255,180,50,${0.4 * a})`], [0.35, `rgba(255,240,170,${0.45 * a})`]]) {
-        ctx.fillStyle = col;
-        ctx.beginPath();
-        if (all) ctx.arc(f.x, f.y, r * k, 0, TAU);
-        else { ctx.moveTo(f.x, f.y); ctx.arc(f.x, f.y, r * k, f.ang - f.arc / 2, f.ang + f.arc / 2); ctx.closePath(); }
-        ctx.fill();
-      }
-    }
-    ctx.globalCompositeOperation = 'source-over';
-    list.length = w;
+  // A map-wide ward (the Longeye) has no range circle: a faint frame around the whole map instead.
+  mapWide(ctx) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([16, 12]);
+    ctx.lineDashOffset = -this.time * 24;
+    ctx.strokeRect(5, 5, W - 10, H - 10);
+    ctx.setLineDash([]);
   }
 
   rangeCircle(ctx, x, y, r, ok, minRange) {
@@ -913,7 +899,10 @@ export class Renderer {
     const def = TOWERS[ui.placing];
     const { x, y } = ui.mouse;
     const ok = this.game.canPlace(ui.placing, x, y) && this.game.gold >= def.cost;
-    this.rangeCircle(ctx, x, y, def.base.range, ok, def.base.minRange);
+    if (def.base.global) {
+      this.mapWide(ctx);
+      this.rangeCircle(ctx, x, y, 26, ok);   // just the footprint
+    } else this.rangeCircle(ctx, x, y, def.base.range, ok, def.base.minRange);
     ctx.save();
     ctx.translate(x, y);
     ctx.globalAlpha = ok ? 0.9 : 0.5;
