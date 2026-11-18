@@ -19,6 +19,9 @@ export const RULES = {
   // pay no gold; they drive the pop pitch, the corner counter and a chime every streakChime pops.
   streakWindow: 1.6,
   streakChime: 250,
+  // A leaked enemy costs a life per layer it still holds, but never more than this (bosses excepted:
+  // a leaked boss costs everything it holds).
+  maxLeak: 25,
 };
 
 export const TARGET_MODES = [

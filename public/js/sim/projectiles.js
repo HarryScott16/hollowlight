@@ -81,7 +81,7 @@ export function explode(game, x, y, s, src, sub) {
   game.grid.query(x, y, r + 34, buf);
   inBlast.length = 0;
   for (const e of buf) {
-    if (!e.alive || e.def.flying) continue;
+    if (!e.alive || (e.def.flying && !s.hitsAir)) continue;
     const reach = r + e.r * 0.6;
     const d2 = (e.x - x) ** 2 + (e.y - y) ** 2;
     if (d2 > reach * reach) continue;
@@ -95,7 +95,10 @@ export function explode(game, x, y, s, src, sub) {
     game.damage(e, dmg, s.type, src);
     if (!e.alive) continue;
     if (s.stun && !e.def.heavy) e.stunT = Math.max(e.stunT, s.stun * (sub ? 0.5 : 1));
-    if (s.burnDps) { e.burnT = s.burnDur; e.burnDps = Math.max(e.burnDps, s.burnDps); e.burnSrc = src; }
+    if (s.burnDps) {
+      if (e.burnT <= 0 || s.burnDps >= e.burnDps) { e.burnDps = s.burnDps; e.burnType = 'blast'; e.burnSrc = src; }
+      e.burnT = Math.max(e.burnT, s.burnDur);
+    }
   }
   game.emit('explosion', { x, y, r, sub });
   if (sub) return;

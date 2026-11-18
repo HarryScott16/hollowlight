@@ -10,7 +10,7 @@ import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { buildMap, mulberry32 } from './path.js';
 import { Grid } from './grid.js';
 import { createEnemy, updateEnemy, inherit, applySlow, regrow } from './enemies.js';
-import { createTower, computeStats, upgradeInfo, updateTower } from './towers.js';
+import { createTower, computeStats, upgradeInfo, updateTower, snipeHit, ignite } from './towers.js';
 import { updateProjectiles, updateZones, launchShell } from './projectiles.js';
 import { endlessWave } from './endless.js';
 
@@ -59,6 +59,7 @@ export class Game {
     this.lastLight = true;    // the one free save per run
     this.barrages = [];       // queued Saturation shells
     this.strikes = [];        // queued Tempest thunderbolts
+    this.rally = null;        // { src, t }: a Beacon's Rally, boosting every ward on the map
   }
 
   emit(type, data) {
@@ -175,7 +176,39 @@ export class Game {
     return true;
   }
 
+  // Recomputes every ward's stats with the Beacon boosts it sits in (called whenever wards are
+  // placed, upgraded or sold, and when a Rally starts or ends). Beacons don't stack: each kind of
+  // boost comes from the best Beacon covering the ward.
   refreshGlobals() {
+    const beacons = [];
+    for (const t of this.towers) if (t.def.kind === 'aura') { t.stats = computeStats(t.def, t.tiers); beacons.push(t); }
+    const rally = this.rally && this.towers.includes(this.rally.src) ? this.rally.src : null;
+    for (const t of this.towers) {
+      if (t.def.kind === 'aura') continue;
+      const s = computeStats(t.def, t.tiers);
+      let rate = 0, dmg = 0, range = 0, detect = false, air = false;
+      for (const b of beacons) {
+        const bs = b.stats;
+        if (b !== rally && (b.x - t.x) ** 2 + (b.y - t.y) ** 2 > bs.range * bs.range) continue;
+        rate = Math.max(rate, bs.auraRate || 0);
+        dmg = Math.max(dmg, bs.auraDmg || 0);
+        range = Math.max(range, bs.auraRange || 0);
+        detect = detect || !!bs.auraDetect;
+        air = air || !!bs.auraAir;
+      }
+      if (rate || dmg || range || detect || air) {
+        // A Prism has no attack rate: its share of the boost goes into damage.
+        if (s.rate) s.rate *= 1 + rate; else dmg = (1 + dmg) * (1 + rate) - 1;
+        s.damage *= 1 + dmg;
+        s.range *= 1 + range;
+        if (detect) s.detect = true;
+        if (air) s.hitsAir = true;
+        t.aura = { rate, dmg, range, detect, air };
+      } else {
+        t.aura = null;
+      }
+      t.stats = s;
+    }
     let slow = 0;
     for (const t of this.towers) if (t.stats.globalSlow > slow) slow = t.stats.globalSlow;
     this.globalSlow = slow;
@@ -237,12 +270,16 @@ export class Game {
   damage(e, amount, type, src, opts) {
     if (!e.alive) return 0;
     let mult = e.def.mult && e.def.mult[type] !== undefined ? e.def.mult[type] : 1;
+    const seared = e.searT > 0;
+    // Ashen Brand: Scorched enemies lose their resistances (immunities stay).
+    if (mult < 1 && mult > 0 && seared && e.brand) mult = 1;
     if (mult < 1 && opts && opts.armorPierce) mult += (1 - mult) * opts.armorPierce;
     let amp = 1;
     if (e.markT > 0) amp += e.markPct;
     if (e.brittleT > 0 && (type === 'kinetic' || type === 'blast')) amp += e.brittlePct;
     if (e.chargedT > 0 && type === 'arcane') amp += e.chargedPct;
     if (e.scorchT > 0) amp += e.scorchPct;
+    if (seared) amp += e.searAmp;
     if (e.freezeT > 0) amp += e.frozenAmp || 0;
     const k = mult * amp;
     let dmg = amount * k;
@@ -251,7 +288,7 @@ export class Game {
 
     if (e.maxShield > 0) e.shieldCd = e.def.shieldDelay;
     if (e.shield > 0) {
-      const sm = (opts && opts.shieldMul && type === 'arcane') ? opts.shieldMul
+      const sm = (opts && opts.shieldMul) ? opts.shieldMul
         : SHIELD_MULT[type] !== undefined ? SHIELD_MULT[type] : 1;
       if (sm <= 0) return 0;
       const soak = Math.min(e.shield, dmg * sm);
@@ -330,6 +367,19 @@ export class Game {
       e.shatterSrc.shatterTokens--;
       this.pending.push({ x: e.x, y: e.y, r: e.shatterRadius, dmg: e.shatterDmg, src: e.shatterSrc });
     }
+    // Wildfire: a burning enemy's fire leaps to the Gloom around it.
+    const fs = e.burnT > 0 && e.burnType === 'fire' && e.burnSrc ? e.burnSrc : null;
+    if (fs && fs.stats.spread && fs.spreadTokens >= 1 && this.towers.includes(fs)) {
+      fs.spreadTokens--;
+      this.grid.query(e.x, e.y, fs.stats.spreadRadius, buf);
+      let n = 0;
+      for (const o of buf) {
+        if (o === e || !o.alive || o.root === e.root || o.burnT > 0.5 || (o.def.flying && !fs.stats.hitsAir)) continue;
+        ignite(o, fs.stats, fs);
+        if (++n >= fs.stats.spread) break;
+      }
+      if (n) this.emit('wildfire', { x: e.x, y: e.y, r: fs.stats.spreadRadius });
+    }
     // Bosses that die before every phase has burst still release the rest.
     const ph = e.def.phases;
     if (ph) while (e.phase < ph.length) { const p = ph[e.phase++]; this.spawnShed(e, p.type, p.count, 0); }
@@ -347,9 +397,15 @@ export class Game {
     return Math.max(1, n);
   }
 
+  // Lives a leak actually costs: capped at RULES.maxLeak, except for bosses.
+  leakLives(e) {
+    const n = this.leakCost(e);
+    return e.def.boss ? n : Math.min(RULES.maxLeak, n);
+  }
+
   leak(e) {
     if (this.lastLight && !e.def.boss) { this.triggerLastLight(e); return; }
-    const cost = this.leakCost(e);
+    const cost = this.leakLives(e);
     this.lives -= cost;
     this.leaked++;
     this.streak = 0;
@@ -413,6 +469,28 @@ export class Game {
       // The strongest enemies by what they still hold, each struck once.
       const list = this.enemies.filter((e) => e.alive).sort((a, b) => this.leakCost(b) - this.leakCost(a)).slice(0, ab.strikes);
       list.forEach((e, i) => this.strikes.push({ e, t: (i * ab.over) / ab.strikes, src: t }));
+    } else if (type === 'longeye') {
+      // Killshot: the toughest enemies on the map, Veiled or not, armour ignored.
+      const list = this.enemies.filter((e) => e.alive).sort((a, b) => this.leakCost(b) - this.leakCost(a)).slice(0, ab.targets);
+      const ks = { ...s, armorPierce: 1, flakRadius: 0 };
+      for (const e of list) {
+        const x = e.x, y = e.y;
+        snipeHit(this, t, ks, e, Math.max(ab.minDmg, s.damage * ab.mul), true);
+        this.emit('snipe', { x: t.x, y: t.y, tx: x, ty: y, flak: 0, spot: 0, big: true });
+      }
+    } else if (type === 'censer') {
+      const fs = { ...s, burnDps: Math.max(ab.minBurn, s.burnDps * 2), burnDur: ab.dur, searDur: ab.dur };
+      for (const e of this.enemies) if (e.alive) ignite(e, fs, t);
+      this.emit('firestorm', { x: t.x, y: t.y });
+    } else if (type === 'prism') {
+      for (const p of this.towers) {
+        if (p.type !== 'prism') continue;
+        p.sunT = ab.dur;
+        for (const b of p.beams) b.charge = p.stats.maxCharge;
+      }
+    } else if (type === 'beacon') {
+      this.rally = { src: t, t: ab.dur };
+      this.refreshGlobals();
     }
     this.emit('ability', { ward: type, name: ab.name, x: t.x, y: t.y });
     return true;
@@ -456,6 +534,12 @@ export class Game {
       this.emit('smite', { x, y, r: ab.radius });
     }
     if (this.strikes.length) this.strikes = this.strikes.filter((st) => !st.done);
+
+    // Rally ends (or its Beacon was sold).
+    if (this.rally && ((this.rally.t -= dt) <= 0 || !this.towers.includes(this.rally.src))) {
+      this.rally = null;
+      this.refreshGlobals();
+    }
   }
 
   // The one free save: a nova at the Heartfire destroys every non-boss enemy near it, including
@@ -480,12 +564,13 @@ export class Game {
       this.grid.query(e.x, e.y, d.haste.radius, buf);
       for (const o of buf) if (o !== e) { o.hasteT = 0.25; o.hasteF = d.haste.pct; }
     }
-    if (d.heal && (e.healCd -= dt) <= 0) {
+    // A Scorched Mender can't heal, and Scorched Gloom can't be healed.
+    if (d.heal && (e.healCd -= dt) <= 0 && e.searT <= 0) {
       e.healCd = d.heal.every;
       this.grid.query(e.x, e.y, d.heal.radius, buf);
       let n = 0;
       for (const o of buf) {
-        if (o === e || o.def.boss || !o.alive) continue;
+        if (o === e || o.def.boss || !o.alive || o.searT > 0) continue;
         if (regrow(this, o)) n++;
         else if (o.def.hp > 10 && o.hp < o.maxHp) { o.hp = Math.min(o.maxHp, o.hp + o.maxHp * d.heal.pct); n++; }
         if (n >= d.heal.max) break;
@@ -558,10 +643,23 @@ export class Game {
 
     // wave clear rewards and victory
     if (this.rewarded < this.wave && this.clear) {
+      // Tithe Beacons: the best per-wave bonus and the best interest (they don't stack).
+      let tithe = 0, interest = 0, payer = null;
+      for (const t of this.towers) {
+        const s = t.stats;
+        if (!s.tithe) continue;
+        const i = s.interest ? Math.min(s.interestCap, Math.floor(this.gold * s.interest)) : 0;
+        if (s.tithe + i > tithe + interest) { tithe = s.tithe; interest = i; payer = t; }
+      }
+      if (payer) payer.goldEarned = (payer.goldEarned || 0) + tithe + interest;
       let total = 0;
       while (this.rewarded < this.wave) total += RULES.waveReward(++this.rewarded);
       this.addGold(total);
       this.emit('bonus', { amount: total, label: `Wave ${this.wave} cleared` });
+      if (tithe + interest > 0) {
+        this.addGold(tithe + interest);
+        this.emit('tithe', { amount: tithe + interest });
+      }
       if (this.wave >= this.waves.length && !this.endless) {
         this.over = 'win';
         this.emit('over', { result: 'win' });

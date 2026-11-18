@@ -28,7 +28,8 @@ export function createEnemy(game, type, dist, wave, mods, root) {
     slowT: 0, slowF: 0, freezeT: 0, freezeImm: 0, stunT: 0,
     markT: 0, markPct: 0, brittleT: 0, brittlePct: 0,
     chargedT: 0, chargedPct: 0, chargedSlow: 0, scorchT: 0, scorchPct: 0,
-    burnT: 0, burnDps: 0, burnSrc: null, revealT: 0, zoneT: -1,
+    burnT: 0, burnDps: 0, burnSrc: null, burnType: 'blast', revealT: 0, zoneT: -1,
+    searT: 0, searAmp: 0, brand: false,   // Scorched (Ember Censer): no healing, regrowing or shield recharge
     shatterT: 0, shatterDmg: 0, shatterRadius: 0, shatterSrc: null,
   };
   path.posAt(dist, e, e.off);
@@ -38,7 +39,8 @@ export function createEnemy(game, type, dist, wave, mods, root) {
 // Inner layers keep the outer layer's lingering effects (slows, marks, burns), like shrapnel
 // still on fire. Freezes, stuns and shatter charges do not carry over.
 const INHERIT = ['slowT', 'slowF', 'markT', 'markPct', 'brittleT', 'brittlePct', 'chargedT', 'chargedPct',
-  'chargedSlow', 'burnT', 'burnDps', 'burnSrc', 'scorchT', 'scorchPct', 'revealT', 'mendTop', 'mends'];
+  'chargedSlow', 'burnT', 'burnDps', 'burnSrc', 'burnType', 'scorchT', 'scorchPct', 'revealT', 'mendTop', 'mends',
+  'searT', 'searAmp', 'brand'];
 export function inherit(child, parent) {
   for (const k of INHERIT) child[k] = parent[k];
 }
@@ -65,21 +67,24 @@ export function updateEnemy(game, e, dt) {
   if (e.shatterT > 0) e.shatterT -= dt;
   if (e.revealT > 0) e.revealT -= dt;
   if (e.hasteT > 0) e.hasteT -= dt;
+  // Scorched enemies can't recharge shields, regenerate or regrow layers.
+  const seared = e.searT > 0;
+  if (seared) e.searT -= dt;
   if (e.maxShield > 0) {
     // Shields recharge once they've gone shieldDelay seconds without a hit.
     if (e.shieldCd > 0) e.shieldCd -= dt;
-    else if (e.shield < e.maxShield) e.shield = Math.min(e.maxShield, e.shield + e.def.shieldRegen * e.mods.hpMul * dt);
+    else if (e.shield < e.maxShield && !seared) e.shield = Math.min(e.maxShield, e.shield + e.def.shieldRegen * e.mods.hpMul * dt);
   }
-  if (e.def.heal && e.hp < e.maxHp) e.hp = Math.min(e.maxHp, e.hp + e.def.heal.regen * dt);
+  if (e.def.heal && e.hp < e.maxHp && !seared) e.hp = Math.min(e.maxHp, e.hp + e.def.heal.regen * dt);
 
   if (e.burnT > 0) {
     e.burnT -= dt;
-    game.damage(e, e.burnDps * dt, 'blast', e.burnSrc, DOT);
+    game.damage(e, e.burnDps * dt, e.burnType, e.burnSrc, DOT);
     if (!e.alive) return;
   }
 
   // Mending (endless modifier): a layer left alone for a while grows back its outer layer.
-  if (e.mendTop && e.type !== e.mendTop && e.mends < MAX_MENDS && game.time - e.lastHit > MEND_DELAY && !regrow(game, e)) e.mendTop = null;
+  if (e.mendTop && !seared && e.type !== e.mendTop && e.mends < MAX_MENDS && game.time - e.lastHit > MEND_DELAY && !regrow(game, e)) e.mendTop = null;
 
   let mul = 1;
   if (e.freezeT > 0 || e.stunT > 0) {

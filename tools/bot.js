@@ -21,6 +21,13 @@ const ENDLESS_CAP = Number((process.argv.find((a) => a.startsWith("--cap=")) || 
 //   plateau     three tier 4s as fast as possible, then stops -> loses lives late 20s, lost by ~30-35
 //   strong      a full composition with tier 4s             -> wins wave 40, but not with full lives
 //   probe       one-trick builds, to see what each counter-check punishes
+// The full mix the investing builds draw from. Each strategy is { order, paths } plus options.
+const ALL8 = ['bolt', 'rime', 'mortar', 'coil', 'censer', 'longeye', 'prism', 'beacon', 'mortar', 'coil', 'bolt', 'censer', 'prism', 'longeye', 'mortar', 'coil', 'beacon', 'prism'];
+const PATHS_A = { bolt: [0, 2], mortar: [0, 1], rime: [1, 2], coil: [1, 0], longeye: [1, 2], censer: [1, 2], prism: [0, 2], beacon: [0, 1] };
+const PATHS_B = { bolt: [2, 0], mortar: [2, 1], rime: [0, 2], coil: [0, 2], longeye: [0, 1], censer: [0, 1], prism: [2, 1], beacon: [1, 0] };
+const PATHS_C = { bolt: [1, 2], mortar: [1, 0], rime: [2, 1], coil: [2, 1], longeye: [2, 0], censer: [2, 0], prism: [1, 0], beacon: [0, 2] };
+const STRONG = { reveal: true, group: 'strong', save: 4, maxTowers: (w) => Math.min(18, 3 + Math.floor(w * 0.5)) };
+
 const STRATEGIES = {
   lazy: { // buys the opening wards and then never spends again (or uses abilities)
     group: 'lazy', order: ['bolt', 'bolt', 'rime'], paths: {}, maxTowers: () => 3, noAbilities: true,
@@ -31,83 +38,70 @@ const STRATEGIES = {
   lazyTier1: { // three wards, tier 1 on each
     group: 'lazy', order: ['bolt', 'mortar', 'rime'], paths: { bolt: [0], mortar: [0], rime: [1] }, maxTowers: () => 3, tierCap: 1,
   },
+  lazyNew: { // three of the new wards, tier 1 on each: none of them is an opener (a probe, not a lazy build)
+    group: 'probe', order: ['longeye', 'censer', 'prism'], paths: { longeye: [0], censer: [1], prism: [0] }, maxTowers: () => 3, tierCap: 1,
+  },
 
-  // Reasonable: decent mixes that cover armour, flyers and stealth, upgraded to tier 3.
-  mixed: {
-    reveal: true, group: 'reasonable',
-    order: ['bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'bolt', 'mortar', 'coil', 'bolt'],
-    paths: { bolt: [0, 2], mortar: [0, 1], rime: [1, 2], coil: [1, 0] },
-    maxTowers: (w) => Math.min(14, 3 + Math.floor(w * 0.45)), tierCap: 3,
-  },
-  mixedAlt: {
-    reveal: true, group: 'reasonable',
-    order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'rime', 'mortar', 'coil', 'bolt'],
-    paths: { bolt: [2, 0], mortar: [2, 1], rime: [0, 2], coil: [0, 2] },
-    maxTowers: (w) => Math.min(14, 3 + Math.floor(w * 0.45)), tierCap: 3, strict: true,
-  },
+  // Reasonable: decent mixes of all eight wards, upgraded to tier 3 but never tier 4.
+  mixed: { reveal: true, group: 'reasonable', order: ALL8, paths: PATHS_A, maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.45)), tierCap: 3 },
+  mixedAlt: { reveal: true, group: 'reasonable', order: ALL8, paths: PATHS_B, maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.45)), tierCap: 3, strict: true },
   focused: { // fewer wards, every one taken to tier 3
-    reveal: true, group: 'reasonable',
-    order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'mortar'],
-    paths: { bolt: [2, 0], mortar: [0, 1], rime: [2, 1], coil: [0, 2] },
-    maxTowers: (w) => Math.min(9, 3 + Math.floor(w * 0.3)), tierCap: 3,
+    reveal: true, group: 'reasonable', order: ['bolt', 'rime', 'mortar', 'censer', 'longeye', 'prism', 'coil', 'mortar', 'beacon'],
+    paths: PATHS_C, maxTowers: (w) => Math.min(9, 3 + Math.floor(w * 0.3)), tierCap: 3,
   },
 
   // Plateau: rushes three wards to tier 4, then never spends again. The late waves should catch
   // it: losing lives in the late 20s, lost by about 30-35.
-  plateau: { // up to eight wards; after the Gravemaw it saves hard for tier 4s, and stops at three
-    reveal: true, group: 'plateau', order: ['bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil'],
-    paths: { bolt: [0, 2], mortar: [0, 1], rime: [1, 2], coil: [1, 0] },
-    maxTowers: (w) => Math.min(8, 3 + Math.floor(w * 0.5)), save: 6, saveFrom: 11, stopAtT4: 3,
-  },
+  plateau: { reveal: true, group: 'plateau', order: ['bolt', 'rime', 'mortar', 'coil', 'censer', 'longeye', 'prism', 'mortar'],
+    paths: PATHS_A, maxTowers: (w) => Math.min(8, 3 + Math.floor(w * 0.5)), save: 6, saveFrom: 11, stopAtT4: 3 },
+  plateauAlt: { reveal: true, group: 'plateau', order: ['bolt', 'rime', 'mortar', 'prism', 'coil', 'longeye', 'censer', 'mortar'],
+    paths: PATHS_B, maxTowers: (w) => Math.min(8, 3 + Math.floor(w * 0.5)), save: 6, saveFrom: 11, stopAtT4: 3, strict: true },
 
-  // Strong: the same kind of mix, taken to tier 4, spending everything.
-  strong: {
-    reveal: true, group: 'strong', save: 4,
-    order: ['bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'bolt', 'mortar', 'coil', 'bolt', 'mortar', 'coil'],
-    paths: { bolt: [0, 2], mortar: [0, 1], rime: [1, 2], coil: [1, 0] },
-    maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.5)),
-  },
-  strongAlt: {
-    reveal: true, group: 'strong', save: 4,
-    order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'rime', 'mortar', 'coil', 'bolt', 'coil', 'mortar'],
-    paths: { bolt: [2, 0], mortar: [2, 1], rime: [0, 2], coil: [0, 2] },
-    maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.5)), strict: true,
-  },
-
-  strongFreeze: { // Hunter's Mark bolts, Big Shells, Deep Freeze spires, Forking coils
-    reveal: true, group: 'strong', save: 4,
-    order: ['bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'mortar', 'coil', 'bolt', 'coil', 'mortar'],
-    paths: { bolt: [2, 0], mortar: [0, 1], rime: [0, 2], coil: [1, 0] },
-    maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.5)), strict: true,
-  },
-  strongCinder: { // tier 4s, but Twin-shot bolts are its only real anti-air: the flyer check
-    reveal: true, group: 'probe', save: 4,
-    order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'rime', 'mortar', 'coil', 'bolt', 'coil', 'mortar'],
-    paths: { bolt: [1, 2], mortar: [2, 0], rime: [1, 2], coil: [0, 1] },
-    maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.5)), strict: true,
-  },
+  // Strong: all eight wards, taken to tier 4, spending everything.
+  strong: { ...STRONG, order: ALL8, paths: PATHS_A },
+  strongAlt: { ...STRONG, order: ALL8, paths: PATHS_B, strict: true },
+  strongThird: { ...STRONG, order: ALL8, paths: PATHS_C, strict: true },
+  strongTithe: { ...STRONG, order: ['bolt', 'rime', 'beacon', 'mortar', 'coil', 'censer', 'longeye', 'prism', 'mortar', 'coil', 'bolt', 'censer', 'prism', 'longeye', 'mortar', 'coil', 'beacon', 'prism'],
+    paths: { ...PATHS_A, beacon: [2, 0] }, tithe: true },
+  // Builds that commit to the new wards (they get first call on upgrades), one per path family,
+  // to measure the new tier 4s against the old ones.
+  newA: { ...STRONG, order: ['bolt', 'rime', 'censer', 'mortar', 'longeye', 'prism', 'coil', 'beacon', 'censer', 'longeye', 'prism', 'mortar', 'bolt', 'prism', 'longeye', 'censer', 'beacon', 'coil'],
+    paths: { ...PATHS_A, longeye: [1, 2], censer: [0, 1], prism: [0, 2], beacon: [0, 1] }, favour: 4, strict: true },
+  newB: { ...STRONG, order: ['bolt', 'rime', 'censer', 'mortar', 'longeye', 'prism', 'coil', 'beacon', 'censer', 'longeye', 'prism', 'mortar', 'bolt', 'prism', 'longeye', 'censer', 'beacon', 'coil'],
+    paths: { ...PATHS_B, longeye: [0, 1], censer: [1, 2], prism: [2, 1], beacon: [1, 0] }, favour: 4, strict: true },
+  newC: { ...STRONG, order: ['bolt', 'rime', 'censer', 'mortar', 'longeye', 'prism', 'coil', 'beacon', 'censer', 'longeye', 'prism', 'mortar', 'bolt', 'prism', 'longeye', 'censer', 'beacon', 'coil'],
+    paths: { ...PATHS_C, longeye: [2, 0], censer: [2, 0], prism: [1, 0], beacon: [0, 2] }, favour: 4, strict: true },
+  // The pre-expansion strong build: only the original four wards.
+  original4: { ...STRONG, group: 'probe', order: ['bolt', 'rime', 'mortar', 'coil', 'mortar', 'bolt', 'coil', 'rime', 'mortar', 'coil', 'bolt', 'coil', 'mortar'],
+    paths: { bolt: [2, 0], mortar: [2, 1], rime: [0, 2], coil: [0, 2] }, strict: true },
 
   // Probes: lopsided builds the themed waves are meant to punish.
   spamNoUpgrades: {
-    group: 'probe', order: ['bolt', 'mortar', 'coil', 'rime'], paths: {}, maxTowers: () => 60,
+    group: 'probe', order: ['bolt', 'mortar', 'coil', 'rime', 'censer', 'longeye', 'prism'], paths: {}, maxTowers: () => 60,
   },
-  noDetection: { // the strong mix with no way to see Veiled
-    group: 'probe',
-    order: ['bolt', 'rime', 'mortar', 'coil', 'bolt', 'mortar', 'coil', 'rime', 'bolt', 'mortar', 'coil', 'bolt', 'mortar', 'coil'],
-    paths: { bolt: [0, 1], mortar: [0, 1], rime: [1, 0], coil: [1, 0] },
-    maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.5)),
+  noDetection: { // a strong mix with no way to see Veiled: no Longeye, no Frost Sight, no Mark, no Lighthouse
+    group: 'probe', order: ['bolt', 'rime', 'mortar', 'coil', 'censer', 'prism', 'mortar', 'coil', 'bolt', 'censer', 'prism', 'mortar', 'coil', 'beacon'],
+    paths: { bolt: [0, 1], mortar: [0, 1], rime: [1, 0], coil: [1, 0], censer: [1, 0], prism: [0, 1], beacon: [0, 2] },
+    maxTowers: (w) => Math.min(18, 3 + Math.floor(w * 0.5)), save: 4,
   },
-  groundOnly: { // Mortars and Rime: nothing that hits flyers
-    group: 'probe', order: ['mortar', 'rime', 'mortar', 'mortar', 'rime'], paths: { mortar: [0, 1], rime: [2, 1] },
+  groundOnly: { // Mortars, Rime and Censers without a Lighthouse: almost nothing for flyers
+    group: 'probe', order: ['mortar', 'rime', 'mortar', 'censer', 'mortar', 'rime'], paths: { mortar: [0, 1], rime: [2, 1], censer: [1, 0] },
     maxTowers: (w) => Math.min(16, 2 + Math.floor(w * 0.5)),
   },
-  boltOnly: { // Twin-shot bolts with Keen Sight: fast, sees Veiled, but no answer to plate
-    group: 'probe', order: ['bolt'], paths: { bolt: [1, 2] }, maxTowers: (w) => Math.min(24, 3 + w), strict: true,
-  },
-  coilOnly: { // all Arcane: shields melt, Nullbacks don't
-    group: 'probe', order: ['coil'], paths: { coil: [1, 0] }, maxTowers: (w) => Math.min(18, 2 + Math.floor(w * 0.6)),
+  prismOnly: { // the boss killer alone
+    group: 'probe', order: ['prism'], paths: { prism: [1, 2] }, maxTowers: (w) => Math.min(16, 2 + Math.floor(w * 0.5)), save: 4,
   },
 };
+
+// Without Mortars, crowd damage has to come from elsewhere: the no-Mortar build a player would make.
+STRATEGIES.noMortarCrowd = { ...STRONG, group: 'ban', order: ALL8.filter((t) => t !== 'mortar'), strict: true,
+  paths: { bolt: [1, 2], rime: [1, 2], coil: [1, 0], censer: [1, 2], longeye: [1, 2], prism: [0, 2], beacon: [0, 1] } };
+
+// Ban-one probes: strongAlt (a winning build) with one ward type taken out (its slots go to the
+// others). Every one of these should still be able to win: no wave needs one specific ward.
+for (const ban of ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon']) {
+  STRATEGIES[`no-${ban}`] = { ...STRONG, group: 'ban', order: ALL8.filter((t) => t !== ban), paths: PATHS_B, strict: true, ban };
+}
 
 function candidateSpots(game) {
   const spots = [];
@@ -134,7 +128,13 @@ function bestSpot(game, spots, type) {
   let best = null, bestScore = -1;
   for (const s of spots) {
     if (!game.canPlace(type, s.x, s.y)) continue;
-    let score = coverage(game, s.x, s.y, base.range, base.minRange || 0);
+    let score;
+    if (base.auraRate !== undefined) {
+      // Beacons go where they light up the most invested wards (and room for more).
+      score = 0;
+      for (const t of game.towers) if (t.def.kind !== 'aura' && Math.hypot(t.x - s.x, t.y - s.y) < base.range - 10) score += t.spent;
+      score += coverage(game, s.x, s.y, base.range) * 2;
+    } else score = coverage(game, s.x, s.y, base.range, base.minRange || 0);
     // Slow towers are worth more next to damage dealers.
     if (type === 'rime') for (const t of game.towers) if (Math.hypot(t.x - s.x, t.y - s.y) < 130) score += 12;
     if (score > bestScore) { bestScore = score; best = s; }
@@ -144,15 +144,41 @@ function bestSpot(game, spots, type) {
 
 // Builds up to the strategy's tower count, then buys the upgrade with the best estimated power
 // gained per gold, saving up for it when it can't afford it yet (like a player chasing a tier 3/4).
-function upgradeValue(t, pi) {
+// A Beacon's worth: the extra damage of the wards in its light (it never attacks itself).
+const boostMul = (s) => (1 + (s.auraRate || 0)) * (1 + (s.auraDmg || 0)) * (1 + (s.auraRange || 0) * 0.5) * (s.auraDetect ? 1.1 : 1) * (s.auraAir ? 1.15 : 1);
+function beaconGain(game, b, before, after) {
+  let base = 0;
+  for (const t of game.towers) {
+    if (t.def.kind === 'aura' || Math.hypot(t.x - b.x, t.y - b.y) > after.range) continue;
+    base += estimateDps(t.def.kind, computeStats(t.def, t.tiers));
+  }
+  return base * (boostMul(after) - boostMul(before));
+}
+
+const NEW_WARDS = new Set(['longeye', 'censer', 'prism', 'beacon']);
+function upgradeValue(game, t, pi, strat) {
   const info = upgradeInfo(t, pi);
   if (!info.ok) return null;
   const tiers = t.tiers.slice();
   tiers[pi]++;
-  const gain = estimateDps(t.def.kind, computeStats(t.def, tiers)) - estimateDps(t.def.kind, t.stats);
-  // Frost spires are worth more than their own damage: they multiply everyone else's.
-  const util = t.def.kind === 'pulse' ? 3 : 1;
-  return { t, pi, cost: info.up.cost, value: (gain * util) / info.up.cost };
+  const next = computeStats(t.def, tiers), now = computeStats(t.def, t.tiers);
+  let gain;
+  if (t.def.kind === 'aura') {
+    gain = beaconGain(game, t, now, next);
+    // Tithe: gold now for gold later, worth it with enough waves left to pay back.
+    if (next.tithe) gain += ((next.tithe - (now.tithe || 0)) + ((next.interestCap || 0) - (now.interestCap || 0)) * 0.5) * Math.max(0, 32 - game.wave) * (strat.tithe ? 0.6 : 0.15);
+  } else {
+    // Crowd power, plus a share of single-target power (hulks and bosses need it).
+    gain = estimateDps(t.def.kind, next) - estimateDps(t.def.kind, now)
+      + 0.25 * (estimateDps(t.def.kind, next, false) - estimateDps(t.def.kind, now, false));
+    // After flyers got through, the next upgrades go to wards that can hit them.
+    if (game.botNeedAir && !now.hitsAir) gain *= 0.1;
+  }
+  // Frost spires are worth more than their own damage: they multiply everyone else's. Fire
+  // shuts down Menders and shields, which the damage estimate doesn't see.
+  const util = t.def.kind === 'pulse' ? 3 : t.def.kind === 'flame' ? 1.5 : 1;
+  const fav = strat.favour && NEW_WARDS.has(t.type) ? strat.favour : 1;
+  return { t, pi, cost: info.up.cost, value: (gain * util * fav) / info.up.cost };
 }
 
 // Builds that read the banners get one Frost Sight spire (Blizzard tier 2) once Veiled waves
@@ -183,7 +209,7 @@ function spend(game, strat, spots, state) {
     }
     // Save for the best-value upgrade only if `save` waves of income (default 1) will cover it;
     // otherwise buy the best one affordable now. Strong builds save up for tier 4s after wave 10.
-    const lastIncome = (game.income[game.wave - 2] || 300) * (game.wave >= (strat.saveFrom || 11) ? strat.save || 1 : 1);
+    const lastIncome = game.botLeaked ? 0 : (game.income[game.wave - 2] || 300) * (game.wave >= (strat.saveFrom || 11) ? strat.save || 1 : 1);
     let pick = null, now = null;
     if (!canUpgrade) return;
     for (const t of game.towers) {
@@ -193,7 +219,7 @@ function spend(game, strat, spots, state) {
       const order = strat.strict ? [upgradeInfo(t, plan[0]).ok ? plan[0] : plan[1]] : plan;
       for (const pi of order) {
         if (pi === undefined || (strat.tierCap !== undefined && t.tiers[pi] >= strat.tierCap)) continue;
-        const v = upgradeValue(t, pi);
+        const v = upgradeValue(game, t, pi, strat);
         if (!v) continue;
         if (v.cost <= game.gold + lastIncome && (!pick || v.value > pick.value)) pick = v;
         if (v.cost <= game.gold && (!now || v.value > now.value)) now = v;
@@ -276,6 +302,9 @@ function run(name, strat, seed = SEED) {
       if ((t += STEP) > 900) { log.push('  !! wave timed out'); game.over = 'lose'; break; }
     }
     state.safe = game.lives === livesBefore;
+    game.botNeedAir = Object.keys(leaks).some((k) => k.endsWith('gloomwing'));
+    // A player who just leaked spends now rather than saving for a tier 4.
+    game.botLeaked = Object.values(leaks).reduce((a, b) => a + b, 0) >= 5;
     if (!state.safe && !state.firstLeak) state.firstLeak = game.wave;
     if (game.wave % 5 === 0 && !game.over) state.livesAt[game.wave] = game.lives;
     const t4now = game.towers.filter((tw) => tw.tiers.includes(4)).length;
@@ -310,6 +339,7 @@ function run(name, strat, seed = SEED) {
 
 const results = [];
 function table() {
+  console.log('\n(ban-one probes: the `strongAlt` build with that ward never bought)');
   const at = (r, w) => (r.livesAt[w] !== undefined ? r.livesAt[w] : r.wave <= w ? '-' : '?');
   const t4 = (r, w) => (r.t4At[w] !== undefined ? r.t4At[w] : '-');
   console.log('\n| Build | Group | Result | First leak | Lives @25 | @30 | @35 | First / 3rd T4 | T4s @20 / @30 / end | Wards (T3/T4) | Peak enemies |');

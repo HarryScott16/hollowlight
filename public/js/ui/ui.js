@@ -32,11 +32,23 @@ const yes = (b) => (b ? 'yes' : 'no');
 // Rows shown in the tower panel and in upgrade before/after comparisons: [label, value text].
 function statRows(def, s) {
   const k = def.kind;
+  if (k === 'aura') {
+    const rows = [['Light radius', String(Math.round(s.range))]];
+    if (s.auraRate) rows.push(['Attack speed inside', `+${pct(s.auraRate)}`]);
+    if (s.auraDmg) rows.push(['Damage inside', `+${pct(s.auraDmg)}`]);
+    if (s.auraRange) rows.push(['Range inside', `+${pct(s.auraRange)}`]);
+    if (s.auraDetect) rows.push(['Wards inside see Veiled', 'yes']);
+    if (s.auraAir) rows.push(['Wards inside hit flyers', 'yes']);
+    if (s.reveal) rows.push(['Reveals Veiled', 'yes']);
+    if (s.tithe) rows.push(['Gold per wave', `+${s.tithe}`]);
+    if (s.interest) rows.push(['Interest', `${pct(s.interest)} (max ${s.interestCap})`]);
+    return rows;
+  }
   const rows = [
     ['Layers/s, crowd', fmt(estimateDps(k, s, true) / 10)],
     ['Damage/s, one target', fmt(estimateDps(k, s, false))],
-    ['Damage', num(s.damage)],
-    [k === 'pulse' ? 'Pulses/s' : 'Attacks/s', num(s.rate)],
+    [k === 'beam' ? 'Damage/s at x1' : 'Damage', num(s.damage)],
+    k === 'beam' ? ['Max charge', `x${s.maxCharge} in ${num(s.ramp)}s`] : [k === 'pulse' ? 'Pulses/s' : 'Attacks/s', num(s.rate)],
     ['Range', String(Math.round(s.range))],
   ];
   if (k === 'bolt') {
@@ -71,6 +83,27 @@ function statRows(def, s) {
     if (s.stunChance) rows.push(['Stun chance', pct(s.stunChance)]);
     if (s.chargedPct) rows.push(['Charged', `+${pct(s.chargedPct)} arcane`]);
     if (s.smiteEvery) rows.push(['Thunderbolt', `every ${s.smiteEvery}, x${s.smiteMul}`]);
+  } else if (k === 'snipe') {
+    if (s.shots > 1) rows.push(['Shots per volley', String(s.shots)]);
+    rows.push(['vs flyers', `x${s.airMul}`]);
+    if (s.heavyMul) rows.push(['vs hulks and bosses', `x${s.heavyMul}`]);
+    if (s.armorPierce) rows.push(['Armour ignored', pct(s.armorPierce)]);
+    if (s.flakRadius) rows.push(['Flak burst', `${s.flakRadius} wide, ${s.flakHits} enemies`]);
+    if (s.spotRadius) rows.push(['Reveals around target', `${s.spotRadius} for ${s.spotDur}s`]);
+    if (s.shieldMul) rows.push(['vs shields', `x${s.shieldMul}`]);
+    if (s.reveal) rows.push(['Reveals Veiled in range', 'yes']);
+  } else if (k === 'flame') {
+    rows.push(['Cone', s.arc >= 6.28 ? 'all round' : `${Math.round((s.arc * 180) / Math.PI)}°`], ['Enemies per gout', String(s.maxHits)],
+      ['Burn', `${num(s.burnDps)}/s for ${s.burnDur}s`], ['Scorched for', `${s.searDur}s`]);
+    if (s.burnHeavy) rows.push(['Hulks burn', `x${s.burnHeavy}`]);
+    if (s.spread) rows.push(['Wildfire', `${s.spread} enemies, ${s.spreadRate}/s`]);
+    if (s.searAmp) rows.push(['Scorched take', `+${pct(s.searAmp)}`]);
+    if (s.shieldMul) rows.push(['vs shields', `x${s.shieldMul}`]);
+    if (s.brand) rows.push(['Scorched lose resistances', 'yes']);
+  } else if (k === 'beam') {
+    rows.push(['Beams', String(s.beams)]);
+    if (s.keep) rows.push(['Charge kept on new target', pct(s.keep)]);
+    if (s.burstMul) rows.push(['Kill bursts', `${pct(s.burstMul)} of beam, ${s.burstRadius} wide`]);
   }
   rows.push(['Sees Veiled', yes(s.detect)]);
   return rows;
@@ -133,12 +166,12 @@ export class UI {
     const info = $('shop-info');
     info.textContent = '';
     if (!type) {
-      info.textContent = 'Hover a ward to see what it does. Keys 1-4 pick a ward, Esc cancels, X fires the Flare, 5-8 ward abilities, F shows FPS.';
+      info.textContent = 'Hover a ward to see what it does. Keys: 1-8 pick a ward, Q W E upgrade the selected one, A S D F G H J K fire ward abilities, X the Flare, Esc cancels, Shift shows numbers, ` shows FPS.';
       return;
     }
     const def = TOWERS[type];
     const dt = DAMAGE_TYPES[def.base.type];
-    info.append(el('b', null, `${def.name} - ${def.role}`), ` (${dt ? dt.name : 'no'} damage). ${def.desc}`);
+    info.append(el('b', null, `${def.name} - ${def.role}`), dt ? ` (${dt.name} damage). ${def.desc}` : `. ${def.desc}`);
   }
 
   setPlacing(type) {
@@ -315,8 +348,12 @@ export class UI {
     window.addEventListener('keydown', (ev) => {
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
       const k = ev.key;
-      const abType = TOWER_ORDER.find((t) => ABILITIES[t].key === k);
-      if (abType) {
+      const low = k.length === 1 ? k.toLowerCase() : k;
+      const abType = TOWER_ORDER.find((t) => ABILITIES[t].key.toLowerCase() === low);
+      if (k === 'R' && ev.shiftKey) {
+        // Restart sits behind Shift and a confirmation, well away from the upgrade keys.
+        if (window.confirm ? window.confirm('Restart the run?') : true) this.restart();
+      } else if (abType) {
         this.game.useAbility(abType);
       } else if (k === 'x' || k === 'X') {
         this.game.useFlare();
@@ -331,12 +368,10 @@ export class UI {
         this.game.startWave();
       } else if (k === 'Escape') {
         if (this.placing) this.setPlacing(null); else this.select(null);
-      } else if (k === 'f' || k === 'F') {
+      } else if (k === '`') {
         this.renderer.showFps = !this.renderer.showFps;
       } else if (k === 'm' || k === 'M') {
         this.toggleMute();
-      } else if (k === 'r' || k === 'R') {
-        this.restart();
       } else if (this.selected && (k === 'Backspace' || k === 'Delete')) {
         this.sellSelected();
       } else if (this.selected && 'qwe'.includes(k.toLowerCase()) && k.length === 1) {
@@ -381,7 +416,7 @@ export class UI {
     const icon = iconCanvas(48);
     drawTowerIcon(icon, t.type, t.tiers);
     const titles = el('div');
-    titles.append(el('h3', null, def.name), el('div', 'tp-role', `${def.role}  ·  tiers ${t.tiers.join(' / ')}`));
+    titles.append(el('h3', null, def.name), el('div', 'tp-role', `${def.role}  ·  tiers ${t.tiers.join(' / ')}${t.aura ? '  ·  boosted by a Beacon' : ''}`));
     const close = el('button', 'tp-close', '×');
     close.type = 'button';
     close.title = 'Deselect (Esc)';
@@ -390,7 +425,8 @@ export class UI {
 
     const stats = el('div', 'tp-stats');
     const dmg = el('b', null, '0'), kills = el('b', null, '0');
-    const s1 = el('span', null, 'Damage dealt '), s2 = el('span', null, 'Layers broken ');
+    const aura = def.kind === 'aura';
+    const s1 = el('span', null, aura ? 'Wards boosted ' : 'Damage dealt '), s2 = el('span', null, aura ? 'Gold earned ' : 'Layers broken ');
     s1.append(dmg); s2.append(kills);
     stats.append(s1, s2);
 
@@ -401,7 +437,7 @@ export class UI {
     numbers.append(el('span', 'tp-hint', 'Numbers: hover here or hold Shift'), grid);
     panel.append(head, stats, numbers);
 
-    if (def.kind !== 'pulse') {
+    if (def.kind !== 'pulse' && def.kind !== 'aura') {
       const row = el('div', 'tp-target', 'Target');
       for (const m of TARGET_MODES) {
         const b = el('button', t.targetMode === m.id ? 'active' : '', m.label);
@@ -477,8 +513,14 @@ export class UI {
   updatePanel() {
     const refs = this.panelRefs, t = this.selected;
     if (!refs || !t) return;
-    refs.dmg.textContent = fmt(t.dmg);
-    refs.kills.textContent = String(t.kills);
+    if (t.def.kind === 'aura') {
+      const r2 = t.stats.range ** 2;
+      refs.dmg.textContent = String(this.game.towers.filter((o) => o !== t && o.aura && (o.x - t.x) ** 2 + (o.y - t.y) ** 2 <= r2).length);
+      refs.kills.textContent = fmt(t.goldEarned || 0);
+    } else {
+      refs.dmg.textContent = fmt(t.dmg);
+      refs.kills.textContent = String(t.kills);
+    }
     for (const u of refs.upButtons) u.b.classList.toggle('poor', this.game.gold < u.cost);
   }
 

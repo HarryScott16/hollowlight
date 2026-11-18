@@ -543,7 +543,344 @@ function coil(ctx, tiers, st) {
   circle(ctx, 0, 0, r * 0.45); ctx.fillStyle = '#fff'; ctx.fill();
 }
 
-const ART = { bolt, mortar, rime, coil };
+// ---- Longeye --------------------------------------------------------------------------------
+function longeye(ctx, tiers, st) {
+  const [a, b, c] = tiers;
+  const { main, mt } = mainPath(tiers);
+  platform(ctx, 5, -Math.PI / 2, '#3f8a5c', tiers, st);
+  const back = st.recoil * 6;
+  const big = mt >= 4;
+
+  if (main === 2 && mt >= 3) {
+    // Flare Rounds / Eye in the Dark: a great lens on a swivel, sweeping a searchlight
+    if (st.tx != null) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = big ? 'rgba(236,200,255,0.16)' : 'rgba(236,200,255,0.10)';
+      const ang = Math.atan2(st.ty, st.tx), len = Math.min(240, Math.hypot(st.tx, st.ty));
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      ctx.arc(0, 0, len, ang - 0.12, ang + 0.12); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.rotate(st.ang);
+    rect(ctx, -10 - back, -5, 30, 10, '#2c4a3a', 2);
+    circle(ctx, 4 - back, 0, big ? 11 : 9);
+    fillInk(ctx, big ? '#5a1c8c' : '#3c2a5c', 2.2);
+    circle(ctx, 6 - back, 0, big ? 7 : 5.5);
+    fillInk(ctx, '#ecc8ff', 1.5);
+    circle(ctx, 7 - back, 0, big ? 3.5 : 2.6); ctx.fillStyle = big ? '#ff3d7f' : '#c86bff'; ctx.fill();
+    if (big) {
+      ctx.rotate(-st.ang);
+      ctx.save(); ctx.rotate(st.time * 1.2);
+      for (let i = 0; i < 4; i++) {
+        ctx.save(); ctx.rotate((i / 4) * TAU); ctx.translate(20, 0);
+        poly(ctx, 3.5, 4, st.time); fillInk(ctx, '#ecc8ff', 1);
+        ctx.restore();
+      }
+      ctx.restore();
+      glow(ctx, 18, '#c86bff', 0.55);
+    }
+    return;
+  }
+
+  ctx.rotate(st.ang);
+
+  if (main === 1 && mt >= 3) {
+    // Flak Battery / Flak Curtain: stubby multi-barrel flak gun with an ammo drum
+    const n = big ? 4 : 2, gap = big ? 4.6 : 6;
+    circle(ctx, -6, 0, big ? 10 : 8.5); fillInk(ctx, '#5b6b4a', 2);
+    for (let i = 0; i < n; i++) {
+      const y = (i - (n - 1) / 2) * gap;
+      const kick = st.recoil * 5 * (i % 2 ? 1 : 0.5);
+      rect(ctx, -2 - kick, y - 1.9, big ? 25 : 22, 3.8, '#9aa6b4', 1.3);
+      rect(ctx, (big ? 19 : 16) - kick, y - 2.6, 4, 5.2, '#2fe0ff', 1.1);
+    }
+    circle(ctx, -6, 0, 4); fillInk(ctx, '#2fe0ff', 1.5);
+    if (big) { ctx.save(); ctx.translate(14, 0); glow(ctx, 16 + st.recoil * 8, '#2fe0ff', 0.45); ctx.restore(); }
+    return;
+  }
+
+  if (main === 0 && mt >= 3) {
+    // Deadeye / Headhunter: a very long rifle with a bipod; the capstone is a rail rifle
+    const len = big ? 44 : 38;
+    ctx.strokeStyle = INK; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(20, -10); ctx.moveTo(14, 0); ctx.lineTo(20, 10); ctx.stroke();
+    rect(ctx, -12 - back, -4.5, 16, 9, '#6b4a2a', 1.8);
+    rect(ctx, -2 - back, -2.4, len - 8, 4.8, big ? '#ffd166' : '#9aa6b4', 1.6);
+    if (big) for (let x = 6; x < len - 14; x += 7) rect(ctx, x - back, -4, 3, 8, '#2fe0ff', 1);
+    rect(ctx, len - 12 - back, -3.2, 4, 6.4, '#ffae2b', 1.2);
+    rect(ctx, -4 - back, -9, 14, 4.5, '#2c3a48', 1.4);
+    circle(ctx, 10 - back, -6.8, 2.6); ctx.fillStyle = '#ffe0a0'; ctx.fill();
+    if (big) { ctx.save(); ctx.translate(len - 8 - back, 0); glow(ctx, 10 + st.recoil * 12, '#ffcf5a', 0.8); ctx.restore(); }
+    return;
+  }
+
+  // Default rifle: the barrel lengthens with Deadeye, gets a muzzle brake with Flak, and the
+  // scope grows with Spotter.
+  const len = 22 + a * 3;
+  rect(ctx, -10 - back, -4, 14, 8, '#6b4a2a', 1.8);
+  rect(ctx, 0 - back, -2, len - 4, 4, '#9aa6b4', 1.5);
+  if (b >= 1) rect(ctx, len - 6 - back, -3.5, 5 + b, 7, '#2fe0ff', 1.2);
+  else rect(ctx, len - 6 - back, -2.8, 3, 5.6, '#c9d4e2', 1.2);
+  const sc = 3 + c * 1.2;
+  rect(ctx, -4 - back, -5 - sc, 12, sc + 1, '#2c3a48', 1.4);
+  circle(ctx, 8 - back, -4.5 - sc / 2, sc * 0.55);
+  ctx.fillStyle = c >= 1 ? '#ecc8ff' : '#b8f6ff'; ctx.fill();
+  if (a >= 2) rect(ctx, 4 - back, -2.8, 4, 5.6, '#ffae2b', 1);
+}
+
+// ---- Ember Censer ---------------------------------------------------------------------------
+function flameTongues(ctx, n, h, spread, t, hot) {
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < n; i++) {
+    const x = (i - (n - 1) / 2) * spread;
+    const hh = h * (0.7 + Math.sin(t * 11 + i * 1.9) * 0.3);
+    ctx.fillStyle = i % 2 ? 'rgba(255,170,40,0.8)' : hot ? 'rgba(255,240,150,0.8)' : 'rgba(255,90,20,0.8)';
+    ctx.beginPath(); ctx.ellipse(x, -hh * 0.55, 3 + spread * 0.25, hh * 0.6, 0, 0, TAU); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function censer(ctx, tiers, st) {
+  const [a, b, c] = tiers;
+  const { main, mt } = mainPath(tiers);
+  platform(ctx, 8, 0, '#7a3c1a', tiers, st);
+  const big = mt >= 4;
+  const flick = 0.85 + Math.sin(st.time * 13) * 0.15;
+  const fire = st.recoil;
+
+  if (main === 0 && mt >= 3) {
+    // Pyre / Wildfire: a roaring brazier; the capstone throws a ring of embers
+    glow(ctx, (big ? 30 : 22) * flick, '#ff6a1a', big ? 0.75 : 0.55);
+    if (big) {
+      ctx.save(); ctx.rotate(st.time * 2);
+      for (let i = 0; i < 6; i++) {
+        const an = (i / 6) * TAU;
+        circle(ctx, Math.cos(an) * 22, Math.sin(an) * 22, 2.6 + Math.sin(st.time * 9 + i) * 0.8);
+        ctx.fillStyle = i % 2 ? '#ffd23a' : '#ff6a1a'; ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.beginPath(); ctx.moveTo(-14, -2); ctx.lineTo(14, -2); ctx.lineTo(9, 10); ctx.lineTo(-9, 10); ctx.closePath();
+    fillInk(ctx, '#4a2414', 2.2);
+    ctx.strokeStyle = '#ffae2b'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-11, 3); ctx.lineTo(11, 3); ctx.stroke();
+    ctx.save(); ctx.translate(0, -1);
+    flameTongues(ctx, big ? 5 : 4, big ? 22 : 16, 5, st.time, big);
+    ctx.restore();
+    return;
+  }
+
+  if (main === 1 && mt >= 3) {
+    // Firehose / Dragon's Breath: a dragon-head nozzle; the capstone has three heads all round
+    const heads = big ? 3 : 1;
+    if (big) glow(ctx, 26 * flick, '#ffae2b', 0.5);
+    for (let h = 0; h < heads; h++) {
+      ctx.save();
+      ctx.rotate(st.ang + (h / heads) * TAU);
+      ctx.beginPath(); ctx.moveTo(-6, -8); ctx.lineTo(18, -5); ctx.lineTo(22, 0); ctx.lineTo(18, 5); ctx.lineTo(-6, 8); ctx.closePath();
+      fillInk(ctx, '#8a3a14', 2);
+      ctx.beginPath(); ctx.moveTo(4, -7); ctx.lineTo(0, -13); ctx.lineTo(9, -6); ctx.closePath(); fillInk(ctx, '#ffae2b', 1.2);
+      ctx.beginPath(); ctx.moveTo(4, 7); ctx.lineTo(0, 13); ctx.lineTo(9, 6); ctx.closePath(); fillInk(ctx, '#ffae2b', 1.2);
+      circle(ctx, 10, -2.5, 1.8); ctx.fillStyle = '#fff1a0'; ctx.fill();
+      if (fire > 0.2) {
+        ctx.save(); ctx.translate(24, 0); ctx.rotate(Math.PI / 2);
+        flameTongues(ctx, 3, 10 * fire, 3, st.time, true);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+    circle(ctx, 0, 0, 6); fillInk(ctx, '#ffd23a', 1.8);
+    return;
+  }
+
+  if (main === 2 && mt >= 3) {
+    // Choking Ash / Ashen Brand: a dark chimney censer wreathed in smoke, with a glowing brand rune
+    ctx.save(); ctx.rotate(st.time * 0.6);
+    for (let i = 0; i < (big ? 6 : 4); i++) {
+      const an = (i / (big ? 6 : 4)) * TAU;
+      circle(ctx, Math.cos(an) * 16, Math.sin(an) * 16, 6 + Math.sin(st.time * 3 + i) * 1.5);
+      ctx.fillStyle = 'rgba(70,60,70,0.55)'; ctx.fill();
+    }
+    ctx.restore();
+    poly(ctx, 12, 6, Math.PI / 6); fillInk(ctx, '#3a2a2e', 2.2);
+    poly(ctx, 7, 6, Math.PI / 6); fillInk(ctx, '#5a3a3a', 1.5);
+    ctx.strokeStyle = big ? '#ff3d7f' : '#c86bff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(4, 3); ctx.lineTo(-4, 3); ctx.closePath(); ctx.stroke();
+    if (big) glow(ctx, 18 * flick, '#c86bff', 0.5);
+    return;
+  }
+
+  // Default: a hanging censer pot with a nozzle; hotter, longer and smokier with each path.
+  ctx.save(); ctx.rotate(st.ang);
+  const len = 12 + b * 3;
+  rect(ctx, 4, -3 - b * 0.4, len, 6 + b * 0.8, '#5a3a24', 1.6);
+  rect(ctx, len + 1, -4 - b * 0.4, 4, 8 + b * 0.8, '#ffae2b', 1.2);
+  if (fire > 0.2) {
+    ctx.save(); ctx.translate(len + 7, 0); ctx.rotate(Math.PI / 2);
+    flameTongues(ctx, 2 + b, 8 * fire + b * 2, 3, st.time, a >= 2);
+    ctx.restore();
+  }
+  ctx.restore();
+  circle(ctx, 0, 0, 10); fillInk(ctx, '#8a4a1c', 2);
+  for (let i = 0; i < 6; i++) {
+    const an = (i / 6) * TAU;
+    circle(ctx, Math.cos(an) * 6, Math.sin(an) * 6, 1.6);
+    ctx.fillStyle = a >= 1 ? '#ffd23a' : '#ff7a2a'; ctx.fill();
+  }
+  if (a >= 1) glow(ctx, 12 * flick, '#ff6a1a', 0.3 + a * 0.12);
+  if (c >= 1) {
+    for (let i = 0; i < c + 1; i++) {
+      const y = -10 - ((st.time * 14 + i * 9) % 18);
+      circle(ctx, Math.sin(st.time * 2 + i) * 3, y, 3 + i * 0.6);
+      ctx.fillStyle = 'rgba(80,70,80,0.45)'; ctx.fill();
+    }
+  }
+  circle(ctx, 0, 0, 4); ctx.fillStyle = '#fff1a0'; ctx.fill();
+}
+
+// ---- Prism ----------------------------------------------------------------------------------
+function crystal(ctx, r, fill, rot = 0) {
+  ctx.save(); ctx.rotate(rot);
+  ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.62, 0); ctx.lineTo(0, r); ctx.lineTo(-r * 0.62, 0); ctx.closePath();
+  fillInk(ctx, fill, 1.6);
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(0, r); ctx.moveTo(-r * 0.62, 0); ctx.lineTo(r * 0.62, 0); ctx.stroke();
+  ctx.restore();
+}
+
+function prism(ctx, tiers, st) {
+  const [a, b, c] = tiers;
+  const { main, mt } = mainPath(tiers);
+  platform(ctx, 6, 0, '#5a4a8a', tiers, st);
+  const big = mt >= 4;
+  const hum = 0.9 + Math.sin(st.time * 6) * 0.1;
+
+  if (main === 0 && mt >= 3) {
+    // Focus / Sunspear: a great lens in a ring; the capstone is a blazing sun disc
+    glow(ctx, (big ? 30 : 20) * hum, '#ffd23a', big ? 0.75 : 0.5);
+    if (big) {
+      ctx.save(); ctx.rotate(st.time * 0.5);
+      star(ctx, 24, 14, 12, 0); fillInk(ctx, '#ffae2b', 1.8);
+      ctx.restore();
+    }
+    circle(ctx, 0, 0, 13); fillInk(ctx, '#3a2c5c', 2.2);
+    circle(ctx, 0, 0, 9 * hum); fillInk(ctx, '#fff3b0', 1.6);
+    circle(ctx, 0, 0, 4); ctx.fillStyle = '#ffffff'; ctx.fill();
+    return;
+  }
+
+  if (main === 1 && mt >= 3) {
+    // Refraction / Kaleidoscope: a ring of shards orbiting a core
+    const n = big ? 6 : 4;
+    ctx.save(); ctx.rotate(st.time * (big ? 1.4 : 0.9));
+    for (let i = 0; i < n; i++) {
+      const an = (i / n) * TAU;
+      ctx.save(); ctx.translate(Math.cos(an) * 15, Math.sin(an) * 15);
+      crystal(ctx, big ? 7 : 6, i % 2 ? '#b8f6ff' : '#ecc8ff', an);
+      ctx.restore();
+    }
+    ctx.restore();
+    if (big) glow(ctx, 24 * hum, '#2fe0ff', 0.5);
+    crystal(ctx, 9, '#ffffff', st.time * 0.3);
+    return;
+  }
+
+  if (main === 2 && mt >= 3) {
+    // Burst of Light / Supernova: a crystal inside a glowing halo; the capstone is a star
+    glow(ctx, (big ? 28 : 20) * hum, '#c86bff', 0.55);
+    ctx.strokeStyle = '#ecc8ff'; ctx.lineWidth = 2.5;
+    circle(ctx, 0, 0, 16 + Math.sin(st.time * 3) * 1.5); ctx.stroke();
+    if (big) { star(ctx, 15, 6, 8, st.time * 0.8); fillInk(ctx, '#ffe9ff', 1.6); }
+    crystal(ctx, 11, '#c86bff', st.time * 0.4);
+    return;
+  }
+
+  // Default: a single tall crystal that grows facets and an inner light with each tier.
+  if (b >= 1) {
+    for (let i = 0; i < b; i++) {
+      const an = st.time * 0.8 + (i / b) * TAU;
+      ctx.save(); ctx.translate(Math.cos(an) * 13, Math.sin(an) * 13);
+      crystal(ctx, 4.5, '#b8f6ff', an);
+      ctx.restore();
+    }
+  }
+  if (c >= 1) { ctx.strokeStyle = 'rgba(236,200,255,0.9)'; ctx.lineWidth = 1.8; circle(ctx, 0, 0, 10 + c * 2); ctx.stroke(); }
+  if (a >= 1) glow(ctx, (12 + a * 3) * hum, '#ffd23a', 0.35);
+  crystal(ctx, 11 + a * 1.5, a >= 1 ? '#fff3b0' : '#d8d2f0', Math.sin(st.time) * 0.15);
+}
+
+// ---- Beacon ---------------------------------------------------------------------------------
+function beacon(ctx, tiers, st) {
+  const [a, b, c] = tiers;
+  const { main, mt } = mainPath(tiers);
+  platform(ctx, 4, Math.PI / 4, '#8a7a3a', tiers, st);
+  const big = mt >= 4;
+  const beat = Math.max(0, Math.sin(st.time * 6)) ** 4;
+
+  if (main === 0 && mt >= 3) {
+    // War Drum / Warhorn: a big war drum flanked by banners; the capstone adds a horn
+    for (const sx of [-1, 1]) {
+      ctx.strokeStyle = INK; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(sx * 13, 10); ctx.lineTo(sx * 13, -18); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx * 13, -18); ctx.lineTo(sx * (13 + 9 + Math.sin(st.time * 4) * 2), -14); ctx.lineTo(sx * 13, -9); ctx.closePath();
+      fillInk(ctx, '#ffae2b', 1.4);
+    }
+    circle(ctx, 0, 0, 10 + beat * 1.5); fillInk(ctx, '#8a3a14', 2.2);
+    circle(ctx, 0, 0, 7 + beat * 1.5); fillInk(ctx, '#f0dcb0', 1.5);
+    if (big) {
+      ctx.save(); ctx.rotate(-0.5);
+      ctx.beginPath(); ctx.moveTo(-4, -12); ctx.quadraticCurveTo(10, -22, 20, -14); ctx.lineTo(18, -9); ctx.quadraticCurveTo(10, -15, -2, -9); ctx.closePath();
+      fillInk(ctx, '#ffd166', 1.6);
+      ctx.restore();
+      glow(ctx, 22 + beat * 8, '#ffae2b', 0.5);
+    }
+    return;
+  }
+
+  if (main === 1 && mt >= 3) {
+    // Skyward Beam / Pharos: a lighthouse lamp with sweeping beams
+    const beams = big ? 2 : 1;
+    ctx.save(); ctx.rotate(st.time * 1.2);
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < beams; i++) {
+      ctx.save(); ctx.rotate((i / beams) * TAU);
+      ctx.fillStyle = 'rgba(184,246,255,0.22)';
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(big ? 60 : 44, -9); ctx.lineTo(big ? 60 : 44, 9); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+    poly(ctx, 10, 8, 0); fillInk(ctx, '#e8eef5', 2);
+    poly(ctx, 6.5, 8, 0); fillInk(ctx, '#2fe0ff', 1.5);
+    circle(ctx, 0, 0, 3.5); ctx.fillStyle = '#ffffff'; ctx.fill();
+    if (big) glow(ctx, 24, '#2fe0ff', 0.6);
+    return;
+  }
+
+  if (main === 2 && mt >= 3) {
+    // Coffers / Golden Hearth: a chest of coins; the capstone glows like a hearth
+    if (big) glow(ctx, 24 + beat * 4, '#ffd23a', 0.6);
+    rect(ctx, -12, -5, 24, 14, '#7a4a1a', 2);
+    rect(ctx, -12, -10, 24, 6, '#9a5a1c', 2);
+    rect(ctx, -2.5, -6, 5, 6, '#ffd23a', 1.2);
+    for (let i = 0; i < (big ? 5 : 3); i++) {
+      circle(ctx, -8 + i * 4, -12 - (i % 2) * 2, 2.8); fillInk(ctx, '#ffd23a', 1);
+    }
+    return;
+  }
+
+  // Default: a stone post with a lamp; drums, a brighter lamp or coins appear with each path.
+  rect(ctx, -4, -4, 8, 12, '#6c7686', 1.6);
+  const lamp = 6 + b * 1.2;
+  glow(ctx, (14 + b * 3) * (0.85 + beat * 0.3), '#ffe45c', 0.45 + b * 0.08);
+  circle(ctx, 0, -6, lamp); fillInk(ctx, '#ffe9a8', 1.8);
+  circle(ctx, 0, -6, lamp * 0.45); ctx.fillStyle = '#ffffff'; ctx.fill();
+  if (a >= 1) for (const sx of [-1, 1]) { circle(ctx, sx * 11, 6, 4 + a * 0.6 + beat); fillInk(ctx, '#c25a3c', 1.4); }
+  if (c >= 1) for (let i = 0; i < c + 1; i++) { circle(ctx, -6 + i * 4, 10, 2.4); fillInk(ctx, '#ffd23a', 1); }
+}
+
+const ART = { bolt, mortar, rime, coil, longeye, censer, prism, beacon };
 
 // Visual scale: each tier makes the tower a little bigger, capstones a lot.
 export function towerScale(tiers) {

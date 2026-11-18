@@ -13,11 +13,11 @@ const W = MAP.width, H = MAP.height;
 const INK = '#1d1030';
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 
-const NUM_COLORS = { kinetic: '#fff4c2', blast: '#ffb347', arcane: '#8ff0ff', frost: '#d6f7ff', blight: '#c8ff6a', true: '#ff7ae0' };
+const NUM_COLORS = { kinetic: '#fff4c2', blast: '#ffb347', arcane: '#8ff0ff', frost: '#d6f7ff', fire: '#ff9a4a', radiant: '#fff3b0', true: '#ff7ae0' };
 const POP_TIME = 0.45;
 const noop = () => {};
 // Stand-in when no Sound is attached (and for unknown events).
-const MUTE = { pop: noop, crack: noop, boom: noop, zap: noop, shot: noop, pulse: noop, coin: noop, flare: noop, frost: noop, ability: noop, upgrade: noop, place: noop, sell: noop, wave: noop, leak: noop, streak: noop, bossDown: noop, lastLight: noop };
+const MUTE = { pop: noop, crack: noop, boom: noop, zap: noop, shot: noop, pulse: noop, coin: noop, flare: noop, frost: noop, ability: noop, upgrade: noop, place: noop, sell: noop, wave: noop, leak: noop, streak: noop, bossDown: noop, lastLight: noop, snipe: noop, flame: noop, burst: noop };
 
 export class Renderer {
   constructor(canvas, game) {
@@ -33,6 +33,8 @@ export class Renderer {
     this.texts = [];
     this.stains = [];
     this.bolts = [];      // smite pillars
+    this.tracers = [];    // Longeye shots
+    this.flames = [];     // Ember Censer cones
     this.pops = new Map(); // tower id -> remaining pop time
     this.multi = new Map(); // tower id -> { n, t, x, y } for multi-kill callouts
     this.shake = 0;
@@ -55,6 +57,7 @@ export class Renderer {
   clearFx() {
     this.parts.clear();
     this.arcs.length = this.rings.length = this.texts.length = this.stains.length = this.bolts.length = 0;
+    this.tracers.length = this.flames.length = 0;
     this.pops.clear();
     this.multi.clear();
     this.shake = 0;
@@ -213,6 +216,44 @@ export class Renderer {
           if (f.kind === 'mortar') P.burst(f.x + Math.cos(f.ang) * 18, f.y + Math.sin(f.ang) * 18, 7, { color: '#e8e0d8', speed: 70, life: 0.5, size: 4.5, ang: f.ang, spread: 1 });
           else P.burst(f.x + Math.cos(f.ang) * 18, f.y + Math.sin(f.ang) * 18, 2, { color: '#fff4c2', speed: 90, life: 0.15, size: 2, ang: f.ang, spread: 0.6 });
           break;
+        case 'snipe': {
+          S.snipe(f.big);
+          if (this.tracers.length < 60) this.tracers.push({ x: f.x, y: f.y, tx: f.tx, ty: f.ty, life: f.big ? 0.3 : 0.18, max: f.big ? 0.3 : 0.18, big: f.big, spot: f.spot > 0 });
+          P.burst(f.tx, f.ty, f.big ? 10 : 4, { color: '#fff4c2', speed: 160, life: 0.3, size: 2.6 });
+          if (f.flak) {
+            this.ring(f.tx, f.ty, 4, f.flak, 0.25, '#b8f6ff', 2.5, 'rgba(184,246,255,0.18)', true);
+            P.burst(f.tx, f.ty, 8, { color: '#d8e4f0', speed: f.flak * 3, life: 0.35, size: 2.4 });
+          }
+          if (f.spot) this.ring(f.tx, f.ty, 6, f.spot, 0.45, '#ecc8ff', 1.8, 'rgba(236,200,255,0.10)');
+          break;
+        }
+        case 'flame':
+          S.flame();
+          if (this.flames.length < 40) this.flames.push({ x: f.x, y: f.y, ang: f.ang, r: f.r, arc: f.arc, life: 0.28, max: 0.28 });
+          for (let k = 0; k < 5; k++) {
+            const a = f.arc >= TAU - 0.01 ? Math.random() * TAU : f.ang + (Math.random() - 0.5) * f.arc;
+            const d = f.r * (0.3 + Math.random() * 0.7);
+            P.burst(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d, 1, { color: Math.random() < 0.5 ? '#ffd23a' : '#ff5a1a', speed: 40, life: 0.5, size: 3.4, grav: -80, ang: -Math.PI / 2, spread: 1 });
+          }
+          break;
+        case 'burst':
+          S.burst();
+          this.ring(f.x, f.y, 4, f.r, 0.3, '#fff3b0', 3, 'rgba(255,243,176,0.3)', true);
+          P.burst(f.x, f.y, 10, { color: '#ffffff', speed: f.r * 3, life: 0.35, size: 2.6 });
+          break;
+        case 'wildfire':
+          this.ring(f.x, f.y, 4, f.r, 0.3, '#ff7a2a', 2.5, 'rgba(255,120,40,0.15)', true);
+          break;
+        case 'firestorm':
+          S.flame();
+          this.hitStop = Math.max(this.hitStop, 0.1);
+          this.flash = { color: '255,120,40', t: 0.5, max: 0.5, a: 0.45 };
+          this.shake = Math.max(this.shake, 8);
+          this.callout = { text: 'FIRESTORM', sub: null, color: '#ff9a4a', t: 1.3, max: 1.3 };
+          break;
+        case 'tithe':
+          this.text(W / 2, 122, `Tithe  +${Math.round(f.amount)}`, '#ffd23a', 16, 2, 16);
+          break;
         case 'place':
           S.place();
           this.ring(f.x, f.y, 6, 40, 0.35, '#ffffff', 3);
@@ -261,8 +302,8 @@ export class Renderer {
           this.callout = { text: 'HOARFROST', sub: null, color: '#aef0ff', t: 1.3, max: 1.3 };
           break;
         case 'ability':
-          if (f.ward !== 'rime') S.ability();
-          if (f.ward !== 'rime') this.text(f.x, f.y - 34, f.name.toUpperCase(), '#ffe45c', 18, 1.3, 24);
+          if (f.ward !== 'rime' && f.ward !== 'censer') S.ability();
+          if (f.ward !== 'rime' && f.ward !== 'censer') this.text(f.x, f.y - 34, f.name.toUpperCase(), '#ffe45c', 18, 1.3, 24);
           this.ring(f.x, f.y, 8, 90, 0.5, '#ffe45c', 5, null, true);
           P.burst(f.x, f.y, 30, { color: '#ffe45c', speed: 240, life: 0.6, size: 3.2 });
           if (f.ward === 'mortar') this.shake = Math.max(this.shake, 5);
@@ -396,6 +437,7 @@ export class Renderer {
     this.drawStains(ctx, dt);
     this.drawLandmarks(ctx);
     this.drawZones(ctx, dt);
+    this.drawAuras(ctx);
 
     const sel = ui.selected;
     if (sel) {
@@ -417,6 +459,7 @@ export class Renderer {
     for (let i = 0; i < es.length; i++) { if (es[i].def.flying) flyers++; else drawEnemy(ctx, es[i], lite); }
     if (flyers) for (let i = 0; i < es.length; i++) if (es[i].def.flying) drawEnemy(ctx, es[i], lite);
 
+    this.drawBeams(ctx);
     const st = this._st;
     for (const t of game.towers) {
       let pop = this.pops.get(t.id) || 0;
@@ -433,6 +476,14 @@ export class Renderer {
       st.pop = pop > 0 ? Math.sin((1 - pop / POP_TIME) * Math.PI) * (pop / POP_TIME + 0.3) : 0;
       drawTower(ctx, t.type, t.tiers, st);
       ctx.restore();
+      // A Beacon's boost: a small golden chevron over the ward
+      if (t.aura) {
+        const y = t.y - 26 * towerScale(t.tiers) + Math.sin(this.time * 4 + t.id) * 1.5;
+        ctx.fillStyle = game.rally ? '#fff1a0' : '#ffd23a';
+        ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(t.x - 5, y + 3); ctx.lineTo(t.x, y - 2); ctx.lineTo(t.x + 5, y + 3); ctx.lineTo(t.x + 5, y + 6); ctx.lineTo(t.x, y + 1); ctx.lineTo(t.x - 5, y + 6); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+      }
       // Overdraw: a spinning golden aura while the buff lasts
       if (t.buffT > 0) {
         ctx.strokeStyle = '#ffe45c';
@@ -459,6 +510,8 @@ export class Renderer {
     }
 
     this.drawProjectiles(ctx);
+    this.drawFlames(ctx, dt);
+    this.drawTracers(ctx, dt);
     this.drawRings(ctx, dt);
     this.drawArcs(ctx, dt);
     this.drawPillars(ctx, dt);
@@ -584,6 +637,102 @@ export class Renderer {
         this.parts.burst(z.x + Math.cos(an) * d, z.y + Math.sin(an) * d, 1, { color: Math.random() < 0.5 ? '#ffd23a' : '#ff5a1a', speed: 30, life: 0.6, size: 3, grav: -90, ang: -Math.PI / 2, spread: 0.8 });
       }
     }
+  }
+
+  // Beacons: a soft pool of light over the wards they boost.
+  drawAuras(ctx) {
+    for (const t of this.game.towers) {
+      if (t.def.kind !== 'aura') continue;
+      const r = t.stats.range;
+      const p = (this.time * 0.35 + t.id * 0.13) % 1;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,220,110,0.05)';
+      ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = `rgba(255,214,110,${0.35 * (1 - p)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(t.x, t.y, r * (0.3 + p * 0.7), 0, TAU); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,214,110,0.3)';
+      ctx.setLineDash([5, 7]);
+      ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Prism beams: thicker and brighter as they charge; gold during Sunlance.
+  drawBeams(ctx) {
+    ctx.lineCap = 'round';
+    for (const t of this.game.towers) {
+      if (t.def.kind !== 'beam') continue;
+      const s = t.stats, sun = t.sunT > 0;
+      for (const b of t.beams) {
+        const e = b.e;
+        if (!e || !e.alive) continue;
+        const k = (b.charge - 1) / Math.max(1, s.maxCharge - 1);
+        const flick = 0.85 + Math.sin(this.time * 40 + t.id) * 0.15;
+        const sx = t.x, sy = t.y - 8;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = sun ? `rgba(255,190,60,${0.45 * flick})` : `rgba(200,140,255,${(0.25 + k * 0.35) * flick})`;
+        ctx.lineWidth = (4 + k * 9) * (sun ? 1.4 : 1);
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(e.x, e.y); ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = sun ? '#fff6c0' : k > 0.6 ? '#fff3b0' : '#f3e6ff';
+        ctx.lineWidth = 1.5 + k * 2.5;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(e.x, e.y); ctx.stroke();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = `rgba(255,240,200,${0.3 + k * 0.4})`;
+        ctx.beginPath(); ctx.arc(e.x, e.y, 5 + k * 7 * flick, 0, TAU); ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+    ctx.lineCap = 'butt';
+  }
+
+  drawTracers(ctx, dt) {
+    const list = this.tracers;
+    let w = 0;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < list.length; i++) {
+      const tr = list[i];
+      tr.life -= dt;
+      if (tr.life <= 0) continue;
+      list[w++] = tr;
+      const a = tr.life / tr.max;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = tr.spot ? `rgba(236,200,255,${0.5 * a})` : `rgba(255,230,150,${0.5 * a})`;
+      ctx.lineWidth = tr.big ? 7 : 4;
+      ctx.beginPath(); ctx.moveTo(tr.x, tr.y); ctx.lineTo(tr.tx, tr.ty); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = `rgba(255,255,255,${a})`;
+      ctx.lineWidth = tr.big ? 2.5 : 1.4;
+      ctx.beginPath(); ctx.moveTo(tr.x, tr.y); ctx.lineTo(tr.tx, tr.ty); ctx.stroke();
+    }
+    list.length = w;
+    ctx.lineCap = 'butt';
+  }
+
+  drawFlames(ctx, dt) {
+    const list = this.flames;
+    let w = 0;
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < list.length; i++) {
+      const f = list[i];
+      f.life -= dt;
+      if (f.life <= 0) continue;
+      list[w++] = f;
+      const u = 1 - f.life / f.max, a = f.life / f.max;
+      const r = f.r * (0.5 + u * 0.5);
+      const all = f.arc >= TAU - 0.01;
+      for (const [k, col] of [[1, `rgba(255,90,20,${0.35 * a})`], [0.65, `rgba(255,180,50,${0.4 * a})`], [0.35, `rgba(255,240,170,${0.45 * a})`]]) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        if (all) ctx.arc(f.x, f.y, r * k, 0, TAU);
+        else { ctx.moveTo(f.x, f.y); ctx.arc(f.x, f.y, r * k, f.ang - f.arc / 2, f.ang + f.arc / 2); ctx.closePath(); }
+        ctx.fill();
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    list.length = w;
   }
 
   rangeCircle(ctx, x, y, r, ok, minRange) {

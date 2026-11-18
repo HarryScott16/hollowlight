@@ -484,6 +484,14 @@ export function drawEnemy(ctx, e, lite) {
       ctx.beginPath(); ctx.ellipse(Math.cos(a) * r * 0.5, -r * 0.4 + Math.sin(a) * r * 0.3, 2.2, h, 0, 0, TAU); ctx.fill();
     }
   }
+  if (e.searT > 0 && !lite) {
+    // Scorched: a ring of ash (a branded one glows), so a player can see healing is shut off
+    ctx.strokeStyle = e.brand ? 'rgba(255,61,127,0.85)' : 'rgba(60,45,50,0.8)';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+  }
   if (e.stunT > 0) {
     ctx.fillStyle = '#fff36b';
     for (let i = 0; i < 3; i++) {

@@ -67,12 +67,18 @@ for (const cb of listeners.pointerdown || []) cb({}); // starts the (stub) audio
 
 ui.setSpeed(3);
 game.gold = 1e7;
-const spots = [[180, 250], [330, 250], [560, 330], [600, 160], [820, 200], [820, 520], [380, 470], [560, 520]];
-const order = ['bolt', 'mortar', 'rime', 'coil'];
-spots.forEach(([x, y], i) => { const t = game.place(order[i % 4], x, y); if (t) ui.select(t); });
+const order = ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon'];
+// Every ward type, near the path, three times (so each path's tier 3/4 art and effects get drawn).
+const cands = [];
+for (let y = 40; y < 700; y += 24) for (let x = 40; x < 1100; x += 24) if (game.map.buildable(x, y)) cands.push([x, y]);
+let placed = 0;
+for (let i = 0; placed < 24 && i < cands.length; i += 7) {
+  const t = game.place(order[placed % 8], cands[i][0], cands[i][1]);
+  if (t) { placed++; ui.select(t); }
+}
 for (const t of game.towers) {
   ui.select(t);
-  const main = t.id % 3;
+  const idx = game.towers.indexOf(t), main = (idx % 8 + Math.floor(idx / 8)) % 3;
   for (let k = 0; k < 4; k++) ui.buyUpgrade(main);
   for (let k = 0; k < 2; k++) ui.buyUpgrade((main + 1) % 3);
 }
@@ -100,6 +106,9 @@ for (const w of [20, 30, 40]) { game.lives = 1e6; play(w, 1); }
 if (game.over === 'win') ui.continueEndless();
 play(41, 1);
 play(50, 1);
+// keyboard: pick a ward, fire abilities by key, toggle FPS
+for (const key of ['5', 'Escape', 'a', 'g', 'h', 'j', 'k', '`', '`']) for (const cb of listeners.keydown || []) cb({ key, shiftKey: false, preventDefault() {} });
+frames(30);
 // sell one, exercise restart
 ui.select(game.towers[1]);
 ui.sellSelected();

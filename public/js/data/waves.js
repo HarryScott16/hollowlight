@@ -14,30 +14,34 @@ const g = (type, count, gap, delay = 0, opts = {}) => ({ type, count, gap, delay
 const V = { veiled: true };
 
 // ---- themed waves (21-29 and 31-39) ---------------------------------------------------------
-// A steady climb: each wave's pop budget grows 7.5% a wave from ~4.6k at wave 21 to ~8.9k at 30, then
-// 9.6% a wave to ~20k at 39 (wave 40 is ~24k plus the boss), and TOUGH/PACE below rise smoothly
+// A steady climb: each wave's pop budget grows 8.5% a wave from ~4.7k at wave 21 to ~9.7k at 30, then
+// 12% a wave to ~27k at 39 (wave 40 is ~30k plus the boss), and TOUGH/PACE below rise smoothly
 // on top. The late stretch climbs faster because a player who keeps investing earns more then. Each stretch has a recipe
 // that mixes several threats, so a handful of strong wards in one spot can't cover it:
 //   21-24 veiledArmour  Veiled shells and hulks behind shields, with Menders patching them
-//   25-29 airAndHide    Gloomwing flocks (some Veiled) over Arcane-proof Nullbacks and Heralds
+//                       (an Ember Censer shuts the healing and shield recharge down)
+//   25-29 airAndHide    Gloomwing flocks (half Veiled) over Arcane-proof Nullbacks and Heralds
+//                       (a Longeye or a Lighthouse Beacon covers sky and stealth at once)
 //   31-34 shieldWall    Aegis lines and Menders around colossi, with Heralds pushing them on
-//   35-39 longNight     everything at once
+//                       (a Prism's beam is made for colossi)
+//   35-39 longNight     everything at once (Beacons multiply a crowded defence)
+// None of them needs one particular ward: each threat has two or more answers.
 // Recipe rows: [type, share of the budget in pops, share of that group that is Veiled].
-export const BUDGET = (wave) => Math.round(4300 * 1.075 ** Math.min(10, wave - 20) * 1.096 ** Math.max(0, wave - 30));
+export const BUDGET = (wave) => Math.round(4300 * 1.085 ** Math.min(10, wave - 20) * 1.12 ** Math.max(0, wave - 30));
 const STRETCHES = {
   veiledArmour: {
-    banner: 'Veiled armour: hidden shells, shields and healers. Bring sight, Blast and Arcane',
-    mix: [['dreadhulk', 0.18, 0.5], ['husk', 0.15, 0.5], ['nullback', 0.15, 0.5], ['aegis', 0.12], ['mender', 0.07],
-      ['brood', 0.07, 1], ['wisp', 0.06], ['gloomwing', 0.12], ['herald', 0.05], ['skitter', 0.03]],
+    banner: 'Veiled armour: hidden shells behind shields and healers. Sight and fire help',
+    mix: [['dreadhulk', 0.18, 0.5], ['husk', 0.14, 0.5], ['nullback', 0.14, 0.5], ['aegis', 0.13], ['mender', 0.11],
+      ['brood', 0.07, 1], ['wisp', 0.06], ['gloomwing', 0.12], ['herald', 0.05]],
   },
   airAndHide: {
-    banner: 'Air and hide: flocks overhead, Arcane-proof hides below',
-    mix: [['gloomwing', 0.3, 0.4], ['nullback', 0.18], ['herald', 0.08], ['husk', 0.04], ['aegis', 0.08],
+    banner: 'Air and hide: flocks overhead, half of them unseen, and Arcane-proof hides below',
+    mix: [['gloomwing', 0.3, 0.5], ['nullback', 0.18], ['herald', 0.08], ['husk', 0.04], ['aegis', 0.08],
       ['dreadhulk', 0.12], ['colossus', 0.1], ['wisp', 0.05], ['mender', 0.04], ['skitter', 0.01]],
   },
   shieldWall: {
     banner: 'Shield wall: Aegis lines and Menders guard the colossi',
-    mix: [['aegis', 0.2], ['mender', 0.1], ['herald', 0.08], ['colossus', 0.18], ['dreadhulk', 0.1], ['nullback', 0.1],
+    mix: [['aegis', 0.2], ['mender', 0.1], ['herald', 0.08], ['colossus', 0.22], ['dreadhulk', 0.08], ['nullback', 0.1],
       ['gloomwing', 0.1, 0.3], ['wisp', 0.07], ['husk', 0.07]],
   },
   longNight: {
@@ -102,14 +106,14 @@ export const WAVES = [
   /* 10 */ { groups: [g('gravemaw', 1, 1), g('husk', 8, 1.2, 4), g('brood', 30, 0.4, 8), g('herald', 4, 3, 10), g('skitter', 80, 0.1, 16), g('gloomwing', 8, 1, 20)],
     banner: 'The Gravemaw rises' },
   /* 11 */ { groups: [g('aegis', 6, 1.2), g('husk', 12, 0.8, 8), g('brood', 40, 0.3, 10), g('aegis', 20, 0.6, 14), g('shambler', 100, 0.12, 16), g('gloomwing', 12, 0.8, 20), g('herald', 4, 3, 18), g('skitter', 30, 0.2, 24, V)],
-    banner: 'Aegis: shields that recharge. Storm Coils break them' },
+    banner: 'Aegis: shields that recharge. Storm Coils break them; fire stops the recharge' },
   /* 12 */ { groups: [g('dreadhulk', 2, 6), g('husk', 16, 0.7, 3), g('brood', 50, 0.25, 7), g('aegis', 20, 0.6, 10), g('gloomwing', 15, 0.7, 14), g('herald', 6, 2.5, 12), g('shambler', 40, 0.25, 18, V), g('skitter', 60, 0.12, 22)] },
   /* 13 */ { groups: [g('nullback', 4, 1.5), g('nullback', 14, 0.9, 8), g('husk', 16, 0.8, 10), g('brood', 50, 0.25, 12), g('aegis', 20, 0.6, 16), g('herald', 6, 2.5, 14), g('shambler', 100, 0.12, 20)],
     banner: 'Nullbacks: Arcane barely scratches them' },
   /* 14 */ { groups: [g('wisp', 15, 0.5), g('dreadhulk', 2, 5, 8), g('husk', 20, 0.7, 10), g('brood', 60, 0.22, 12), g('wisp', 40, 0.3, 16), g('gloomwing', 20, 0.6, 18), g('aegis', 20, 0.6, 20), g('herald', 8, 2, 16), g('skitter', 80, 0.12, 24)],
     banner: 'Wisps: always Veiled' },
   /* 15 */ { groups: [g('mender', 4, 1.5), g('shambler', 30, 0.2, 2), g('husk', 20, 0.8, 9), g('mender', 6, 2.5, 11), g('brood', 70, 0.22, 12), g('nullback', 12, 1, 15), g('aegis', 25, 0.5, 18), g('herald', 8, 2, 16), g('gloomwing', 20, 0.6, 20), g('wisp', 40, 0.3, 24), g('dreadhulk', 2, 6, 14)],
-    banner: 'Menders: they regrow and patch the Gloom around them' },
+    banner: 'Menders: they regrow and patch the Gloom around them. Fire stops them' },
 
   // ---- 16-30: themed waves ------------------------------------------------------------------
   /* 16 armour */ { groups: [g('dreadhulk', 3, 4), g('husk', 40, 0.4, 3), g('nullback', 20, 0.8, 8), g('brood', 60, 0.25, 10), g('mender', 6, 2.5, 12), g('herald', 8, 2, 14), g('aegis', 30, 0.5, 18)],
@@ -130,7 +134,7 @@ export const WAVES = [
   /* 31-34 */ themed(31, 'shieldWall'), themed(32, 'shieldWall'), themed(33, 'shieldWall'), themed(34, 'shieldWall'),
   /* 35-39 */ themed(35, 'longNight'), themed(36, 'longNight'), themed(37, 'longNight'),
   themed(38, 'longNight', { veiledGiants: true }), themed(39, 'longNight', { banner: 'The long night' }),
-  /* 40 */ { groups: [g('hollowking', 1, 1), g('colossus', 8, 4.5, 6), g('dreadhulk', 24, 1.4, 8), g('husk', 150, 0.2, 10), g('nullback', 120, 0.24, 14), g('aegis', 120, 0.22, 16), g('herald', 50, 0.7, 14), g('mender', 40, 0.9, 18), g('gloomwing', 200, 0.12, 20), g('wisp', 150, 0.15, 26),
+  /* 40 */ { groups: [g('hollowking', 1, 1), g('colossus', 16, 2.6, 6), g('dreadhulk', 40, 0.9, 8), g('husk', 150, 0.2, 10), g('nullback', 120, 0.24, 14), g('aegis', 120, 0.22, 16), g('herald', 50, 0.7, 14), g('mender', 40, 0.9, 18), g('gloomwing', 200, 0.12, 20), g('wisp', 150, 0.15, 26),
     g('herald', 12, 1, 44), g('gloomwing', 60, 0.25, 45), g('skitter', 150, 0.08, 46)],
     banner: 'The Hollow King comes for the Heartfire' },
 ];
@@ -138,13 +142,13 @@ export const WAVES = [
 // Three ramps on top of the counts above (`node tools/waves.js` prints the result):
 // - CROWD: the hand-written waves 16-20 thicken a little (x1.015 to x1.075); gaps shrink to match.
 //   The themed waves size themselves from BUDGET.
-// - TOUGH: from wave 21, shells, hulks and the multi-layer Gloom gain 6% health per wave, 12% after
-//   wave 30 (x1.79 at wave 30, x5.74 at 40), the same rule endless mode uses. Basic 10 HP layers never change and
+// - TOUGH: from wave 21, shells, hulks and the multi-layer Gloom gain 6.5% health per wave, 14.5% after
+//   wave 30 (x1.88 at wave 30, x7.26 at 40), the same rule endless mode uses. Basic 10 HP layers never change and
 //   bosses keep their own health, so towers still pop crowds in one hit; what late waves demand is
 //   heavy damage (tier 4s) on top of crowd control.
 // - PACE: from wave 26 everything moves 1% faster per wave (+15% at wave 40).
 export const CROWD = (wave) => (wave >= 16 && wave <= 20 ? 1 + 0.015 * (wave - 15) : 1);
-export const TOUGH = (wave) => (wave <= 20 ? 1 : 1.06 ** (wave - 20) * 1.06 ** Math.max(0, wave - 30));
+export const TOUGH = (wave) => (wave <= 20 ? 1 : 1.065 ** (wave - 20) * 1.075 ** Math.max(0, wave - 30));
 export const PACE = (wave) => (wave <= 25 ? 1 : 1 + 0.01 * (wave - 25));
 WAVES.forEach((w, i) => {
   const tough = TOUGH(i + 1), pace = PACE(i + 1);

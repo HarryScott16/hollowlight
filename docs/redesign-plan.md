@@ -501,3 +501,126 @@ Caveats:
   24 to 39, and wave 40 is the peak: one loses narrowly (the King leaks at 1-5%), one wins with 122
   lives, and one wins clean.
 
+
+---
+
+## 11. Four new wards (2026-11-18)
+
+Four wards that each add a mechanic the first four don't have. Each has 3 paths of 4 tiers with a
+one-line identity per path and per tier (numbers on hover or Shift), a distinct look at tier 3 and
+tier 4 on every path, and a tier 4 ability.
+
+| Ward | Cost | Role | Paths (tier 4) | Ability (key) |
+|---|---|---|---|---|
+| Longeye | 400 | Huge-range sniper (400). 4 layers a shot, sees Veiled, x2 to flyers | Deadeye: armour-piercing hulk breaker (Headhunter). Flak: air bursts that shred flocks (Flak Curtain). Spotter: tracers reveal Veiled and break shields for every ward (Eye in the Dark) | Killshot (G): the 12 toughest enemies on the map, x6, armour ignored |
+| Ember Censer | 275 | Short cone of Fire, hits flyers and Veiled. Burning enemies are **Scorched**: no healing, regrowing or shield recharge | Pyre: burns that grind hulks (Wildfire: fire spreads on death). Dragon's Breath: a wider, longer jet (a full ring at tier 4). Ash: Scorched enemies take more from every ward (Ashen Brand: they lose their resistances) | Firestorm (H): every enemy burning and Scorched for 8s |
+| Prism | 500 | One Radiant beam that ramps x1 to x5 over 4s on one enemy (and what it sheds), resets on a new target | Focus: higher, faster ramp (Sunspear). Refraction: several beams, each ramping on its own (Kaleidoscope). Afterglow: keeps its charge between targets, kills burst (Supernova) | Sunlance (J): every Prism at full charge, x2, for 5s |
+| Beacon | 450 | Never attacks. Wards in its light attack 10% faster. Beacons don't stack: each kind of boost comes from the best Beacon a ward is in | War Drum: attack speed and damage (Warhorn). Lighthouse: range, sight, and at tier 3 **Mortars and Rimes inside can hit flyers** (Pharos reveals Veiled). Tithe: gold each wave plus interest, best Beacon only (Golden Hearth) | Rally (K): every ward on the map gets this Beacon's boost for 10s |
+
+New damage types: **Fire** (Censer) and **Radiant** (Prism). No enemy resists either. Coil's
+Overcharge path is now "the heavy-crowd breaker", leaving boss killing to the Prism.
+
+### Other changes
+
+- **Hotkeys:** wards 1-8 in build-bar order; abilities on the home row A S D F G H J K in the same
+  order; Q W E upgrade the selected ward; X the Flare; Shift shows numbers; the FPS counter moved
+  from F to backtick (`` ` ``); restart moved from R (next to the upgrade keys) to Shift+R with a
+  confirmation.
+- **Leak cap:** a leaked enemy costs at most 25 lives (`RULES.maxLeak`). Bosses are uncapped.
+- **Waves:** each stretch now points at a new ward without needing it. 21-24 has more Menders and
+  Aegis (the Censer stops both), 25-29 has half its Gloomwings Veiled (Longeye or a Lighthouse
+  covers both), 31-34 has more colossi (Prism), and 35-39 throws everything (Beacons multiply a
+  crowded defence). Mender and Aegis banners mention fire.
+- **Future 9th ward:** a trap ward placed on the path itself (thorns or mines), a new placement
+  decision. Not built yet.
+
+### Rebalance
+
+- **Censer nerfed** after the first bot pass, where its Wildfire tier 4 did half of all damage at
+  ~300 damage per gold: base 1.0 attacks/s, 8 targets, burn 4/s; smaller Pyre and Firehose steps;
+  Wildfire spreads to 3 enemies, at most 15 times a second. After a small lift back, its tier 4s
+  measure ~105-135 damage per gold, the lower half of the tier 4 range, because part of its worth
+  is shutting down healers and shields.
+- **Waves 21-40 climb harder**, because eight wards buy more power per gold than four.
+  - BUDGET grows 8.5% a wave to wave 30, then 12% (~27k pops at 39).
+  - TOUGH grows 6.5% a wave, plus another 7.5% after wave 30 (x1.88 at 30, x7.26 at 40).
+  - Wave 40 has 16 colossi and 40 Dreadhulks (was 8 and 24), so it stays the peak: 30.6k pops plus
+    the Hollow King, against 27.2k at wave 39.
+- **Bot changes** (`tools/bot.js`):
+  - It values a share of single-target power, so Prisms and Longeyes get upgraded.
+  - It values Beacons by the boost to the wards they light, and places them by the gold invested
+    nearby.
+  - After a leak it spends what it has instead of saving for a tier 4.
+  - After flyers leak, its next upgrades go to wards that can hit them.
+- **New builds:**
+  - `newA`/`newB`/`newC` give the new wards first call on upgrades, to measure their tier 4s.
+  - `original4` is the pre-expansion build, using only the first four wards.
+  - The ban-one probes take `strongAlt` and never buy one ward. `noMortarCrowd` is the build a
+    player without Mortars would make.
+
+### Bot results
+
+| Build | Group | Result | First leak | Lives @25 | @30 | @35 | First / 3rd T4 | T4s @20 / @30 / end | Wards (T3/T4) | Peak enemies |
+|---|---|---|---|---|---|---|---|---|---|---|
+| lazy | lazy | lost on wave 9 | 6 | - | - | - | - | - / - / 0 | 3 (0/0) | 131 |
+| minimal | lazy | lost on wave 9 | 5 | - | - | - | - | - / - / 0 | 2 (0/0) | 152 |
+| lazyTier1 | lazy | lost on wave 10 | 9 | - | - | - | - | - / - / 0 | 3 (0/0) | 151 |
+| lazyNew | probe | lost on wave 4 | 3 | - | - | - | - | - / - / 0 | 3 (0/0) | 69 |
+| mixed | reasonable | lost on wave 34 | 34 | 150 | 150 | - | - | 0 / 0 / 0 | 16 (16/0) | 409 |
+| mixedAlt | reasonable | lost on wave 32 | 32 | 150 | 150 | - | - | 0 / 0 / 0 | 16 (16/0) | 433 |
+| focused | reasonable | lost on wave 33 | 33 | 150 | 150 | - | - | 0 / 0 / 0 | 9 (9/0) | 403 |
+| plateau | plateau | lost on wave 35 | 17 | 125 | 125 | - | 16 / 26 | 1 / 3 / 3 | 8 (3/3) | 368 |
+| plateauAlt | plateau | lost on wave 35 | 35 | 150 | 150 | - | 14 / 23 | 2 / 3 / 3 | 8 (0/3) | 342 |
+| strong | strong | lost on wave 38 | 17 | 145 | 145 | 145 | 17 / 27 | 1 / 3 / 5 | 18 (3/5) | 350 |
+| strongAlt | strong | **won**, 150/150 | never | 150 | 150 | 150 | 17 / 25 | 1 / 4 / 6 | 18 (3/6) | 478 |
+| strongThird | strong | **won**, 150/150 | never | 150 | 150 | 150 | 15 / 25 | 1 / 4 / 7 | 18 (2/7) | 660 |
+| strongTithe | strong | **won**, 33/150 (Last Light used) | 17 | 121 | 121 | 121 | 15 / 22 | 2 / 5 / 9 | 18 (1/9) | 692 |
+| newA | strong | lost on wave 37 | 37 | 150 | 150 | 150 | 16 / 28 | 1 / 3 / 5 | 18 (1/5) | 254 |
+| newB | strong | **won**, 150/150 | never | 150 | 150 | 150 | 16 / 28 | 1 / 3 / 6 | 18 (2/6) | 499 |
+| newC | strong | lost on wave 40 | 40 | 150 | 150 | 150 | 17 / 26 | 1 / 4 / 7 | 18 (1/7) | 720 |
+| original4 | probe | **won**, 150/150 (Last Light used) | never | 150 | 150 | 150 | 15 / 23 | 2 / 4 / 8 | 18 (0/8) | 497 |
+| spamNoUpgrades | probe | lost on wave 26 | 25 | 25 | - | - | - | 0 / - / 0 | 60 (0/0) | 359 |
+| noDetection | probe | lost on wave 20 | 20 | - | - | - | 15 / - | 1 / - / 1 | 13 (2/1) | 377 |
+| groundOnly | probe | lost on wave 12 | 9 | - | - | - | - | - / - / 0 | 8 (1/0) | 221 |
+| prismOnly | probe | lost on wave 4 | 3 | - | - | - | - | - / - / 0 | 2 (0/0) | 67 |
+| no-bolt | ban | **won**, 121/150 (Last Light used) | 10 | 142 | 142 | 142 | 20 / 30 | 1 / 3 / 6 | 18 (3/6) | 390 |
+| no-mortar | ban | lost on wave 38 | 34 | 150 | 150 | 138 | 16 / 27 | 1 / 4 / 5 | 18 (4/5) | 534 |
+| no-rime | ban | **won**, 143/150 (Last Light used) | 5 | 143 | 143 | 143 | 14 / 25 | 2 / 4 / 7 | 18 (2/7) | 366 |
+| no-coil | ban | **won**, 150/150 | never | 150 | 150 | 150 | 15 / 26 | 1 / 4 / 7 | 18 (2/7) | 398 |
+| no-longeye | ban | **won**, 150/150 | never | 150 | 150 | 150 | 15 / 27 | 1 / 4 / 7 | 18 (2/7) | 418 |
+| no-censer | ban | **won**, 150/150 | never | 150 | 150 | 150 | 15 / 27 | 1 / 4 / 7 | 18 (2/7) | 426 |
+| no-prism | ban | **won**, 150/150 | never | 150 | 150 | 150 | 15 / 26 | 1 / 4 / 7 | 18 (3/7) | 386 |
+| no-beacon | ban | **won**, 113/150 (Last Light used) | 40 | 150 | 150 | 150 | 15 / 24 | 2 / 4 / 7 | 18 (1/7) | 376 |
+| noMortarCrowd | ban | **won**, 119/150 (Last Light used) | 9 | 119 | 119 | 119 | 18 / 28 | 1 / 3 / 7 | 18 (1/7) | 613 |
+
+Endless: `strongAlt` reaches wave 45.
+
+What it shows:
+- **Lazy** builds lose on waves 9-10, and **reasonable** tier-3 builds on 32-34.
+- **Plateau** builds (three tier 4s, then nothing) lose on wave 35.
+- **Investing builds only just win.** Four win (one with 33 lives) and three lose on waves 37-40.
+  The full-life winners still reach 86-94% of the path on wave 40.
+- **No ward is required.** Seven of the eight ban-one builds win. The eighth, `no-mortar`, keeps
+  `strongAlt`'s hulk-focused paths, runs short of crowd damage, and loses on 38.
+  `noMortarCrowd`, which takes the crowd paths instead (Twin-shot, Forking, Dragon's Breath, Flak,
+  Focus Prisms), wins with 119 lives.
+- **New tier 4s, measured:**
+
+  | Tier 4 | Damage per gold |
+  |---|---|
+  | Prism Supernova | ~265 |
+  | Longeye Flak Curtain | ~225 |
+  | Prism Kaleidoscope | ~185 |
+  | Censer Wildfire | ~135 |
+  | Censer Dragon's Breath | ~105 |
+
+  For comparison, the original wards' tier 4s measure 92-265 (quartiles, median 175). Every new
+  tier 4 lands inside that range. A Beacon's worth only shows in the wards around it.
+
+Caveats:
+- **The plateau builds still don't bleed.** They hold until wave 34, then lose everything over one
+  or two waves, even with the 25-life cap: by then dozens of enemies leak at once. A player who
+  watches and reacts will bleed more slowly.
+- **The new wards aren't openers.** `lazyNew` (a tier-1 Longeye, Censer and Prism) loses on wave 4,
+  and `prismOnly` on wave 4. The slow sniper and the single beam can't keep up with wave 1-3
+  swarms; start with Bolts, Mortars or Rime.

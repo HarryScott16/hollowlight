@@ -22,10 +22,21 @@
 //           globalSlow, reveal (Veiled enemies in range can be targeted by every ward)
 //   chain   chains (enemies hit), jumpRange, falloff (per jump), heavyMul (x damage to hulks/boss), forks (primary targets),
 //           smiteEvery/smiteMul/smiteRadius, stunChance/stunDur, chargedPct (+% arcane taken)/chargedSlow/chargedDur
+//   snipe   instant shots: shots (targets per volley), airMul (x damage to flyers), heavyMul, armorPierce,
+//           flakRadius/flakHits (burst around the target at half damage), spotRadius/spotDur (reveals Veiled
+//           around the target), shieldMul (x damage to shields, any type), shieldStall (s shields can't recharge)
+//   flame   arc (cone width in radians, TAU = all round), maxHits, burnDps/burnDur (Fire), searDur (Scorched:
+//           can't heal, regrow or recharge shields), burnHeavy (x burn on hulks/bosses), spread/spreadRadius/
+//           spreadRate (Wildfire), searAmp (+% damage taken while Scorched), shieldMul, brand (Scorched lose resistances)
+//   beam    damage = damage/s at x1 charge; maxCharge, ramp (s to full charge), beams, keep (charge kept on a new
+//           target), burstMul/burstRadius/burstRate (light bursts from beam kills)
+//   aura    range = aura radius. auraRate/auraDmg/auraRange (+% to wards inside), auraDetect, auraAir,
+//           reveal, tithe (gold per wave cleared), interest/interestCap (on banked gold at each clear)
 
 export const PATH_COLORS = ['#ffae2b', '#2fe0ff', '#c86bff'];
+const TAU = Math.PI * 2;
 
-export const TOWER_ORDER = ['bolt', 'mortar', 'rime', 'coil'];
+export const TOWER_ORDER = ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon'];
 
 export const TOWERS = {
   bolt: {
@@ -111,10 +122,10 @@ export const TOWERS = {
     desc: 'Arcane lightning that jumps between 5 nearby enemies, breaking a layer off each.',
     base: { damage: 10, rate: 1.0, range: 135, type: 'arcane', chains: 5, jumpRange: 80, falloff: 1, forks: 1, hitsAir: true },
     paths: [
-      { name: 'Overcharge', blurb: "Raw voltage: the hulk and boss killer.", tiers: [
+      { name: 'Overcharge', blurb: "Raw voltage: the heavy-crowd breaker.", tiers: [
         { name: 'High Voltage', blurb: "Each strike strips two layers.", cost: 120, desc: 'x2 damage: strikes strip 2 layers.', mul: { damage: 2 } },
         { name: 'Surge', blurb: "Hits harder and jumps one enemy further.", cost: 300, desc: 'x1.5 damage and +1 jump.', mul: { damage: 1.5 }, add: { chains: 1 } },
-        { name: 'Thunderhead', blurb: "Devastating against hulks and bosses.", cost: 950, desc: 'x2 damage, and double damage to Dreadhulks and bosses.', mul: { damage: 2 }, set: { heavyMul: 2 } },
+        { name: 'Thunderhead', blurb: "Lightning that tears through packs of hulks.", cost: 950, desc: 'x2 damage, and double damage to Dreadhulks and bosses.', mul: { damage: 2 }, set: { heavyMul: 2 } },
         { name: 'Smite', blurb: "Calls down thunderbolts that blast and stun around their target.", cost: 4900, desc: 'x2.5 damage, x1.3 rate. Every 3rd strike calls a thunderbolt: x5 damage that explodes around its target and stuns.', mul: { damage: 2.5, rate: 1.3 }, set: { smiteEvery: 3, smiteMul: 5, smiteRadius: 80 } },
       ] },
       { name: 'Forking', blurb: "Lightning that leaps through whole crowds.", tiers: [
@@ -128,6 +139,110 @@ export const TOWERS = {
         { name: 'Static Shock', blurb: "Strikes sometimes stun what they hit.", cost: 280, desc: 'Each hit has a 15% chance to stun for 0.4s. x1.15 strike rate.', set: { stunChance: 0.15, stunDur: 0.4 }, mul: { rate: 1.15 } },
         { name: 'Conductive', blurb: "Struck enemies are slowed and take more lightning.", cost: 850, desc: 'Struck enemies are Charged for 3s: +30% Arcane damage taken and 20% slower. x1.5 damage, x1.2 strike rate.', set: { chargedPct: 0.3, chargedSlow: 0.2, chargedDur: 3 }, mul: { rate: 1.2, damage: 1.5 } },
         { name: 'Ion Storm', blurb: "A crackling storm of stuns and lightning.", cost: 4400, desc: 'x2.5 strike rate, x3 damage, stun chance 30%.', mul: { rate: 2.5, damage: 3 }, set: { stunChance: 0.3 } },
+      ] },
+    ],
+  },
+
+  longeye: {
+    name: 'Longeye', role: 'Sniper', cost: 400, kind: 'snipe', target: 'strong',
+    desc: 'A slow, huge-range rifle. Each shot strips 4 layers. Sees Veiled enemies and hits flyers twice as hard.',
+    base: { damage: 40, rate: 0.5, range: 400, type: 'kinetic', shots: 1, airMul: 2, hitsAir: true, detect: true },
+    paths: [
+      { name: 'Deadeye', blurb: "One perfect shot at a time: huge hits that ignore armour and crack hulk shells.", tiers: [
+        { name: 'Heavy Rounds', blurb: "Every shot hits twice as hard.", cost: 150, desc: 'x2 damage: shots strip 8 layers.', mul: { damage: 2 } },
+        { name: 'Hollow Points', blurb: "Rounds punch through plate and bite deep into hulks.", cost: 350, desc: 'Ignores all armour. x1.3 damage, x1.5 to hulks and bosses.', set: { armorPierce: 1, heavyMul: 1.5 }, mul: { damage: 1.3 } },
+        { name: 'Deadeye', blurb: "A marksman's rifle that breaks hulks open in a few shots.", cost: 1100, desc: 'x2.5 damage, x1.3 rate, x3 to hulks and bosses.', set: { heavyMul: 3 }, mul: { damage: 2.5, rate: 1.3 } },
+        { name: 'Headhunter', blurb: "Every shot can fell a hulk; bosses feel each one.", cost: 4600, desc: 'x3 damage, x1.5 rate, x4 to hulks and bosses.', set: { heavyMul: 4 }, mul: { damage: 3, rate: 1.5 } },
+      ] },
+      { name: 'Flak', blurb: "Shells burst in the air and shred whole flocks.", tiers: [
+        { name: 'Quick Bolt', blurb: "Fires noticeably faster.", cost: 120, desc: 'x1.5 fire rate.', mul: { rate: 1.5 } },
+        { name: 'Flak Rounds', blurb: "Shots burst, peppering everything around the target.", cost: 300, desc: 'Shots burst for half damage on up to 8 enemies within 45.', set: { flakRadius: 45, flakHits: 8 } },
+        { name: 'Flak Battery', blurb: "Wide bursts that tear flocks out of the sky.", cost: 1000, desc: 'Bursts reach 70 and hit up to 20. Flyers take x3 damage. x1.5 rate.', set: { flakRadius: 70, flakHits: 20, airMul: 3 }, mul: { rate: 1.5 } },
+        { name: 'Flak Curtain', blurb: "A wall of bursting shells across the sky.", cost: 4300, desc: '3 shots per volley at separate targets, bursts reach 90 and hit up to 40. x2 damage, x1.3 rate.', set: { shots: 3, flakRadius: 90, flakHits: 40 }, mul: { damage: 2, rate: 1.3 } },
+      ] },
+      { name: 'Spotter', blurb: "Tracer rounds reveal the Veiled and break shields for every ward.", tiers: [
+        { name: 'Tracers', blurb: "Shots light up hidden Gloom around the target for every ward.", cost: 130, desc: 'Hits reveal Veiled enemies within 60 of the target for 5s.', set: { spotRadius: 60, spotDur: 5 } },
+        { name: 'Shieldbreaker', blurb: "Rounds shatter shields and stop them recharging.", cost: 300, desc: 'x4 damage to shields; shields hit can\'t recharge for 4s. x1.3 rate.', set: { shieldMul: 4, shieldStall: 4 }, mul: { rate: 1.3 } },
+        { name: 'Flare Rounds', blurb: "Each shot lights up a wide patch of the path.", cost: 950, desc: 'Reveals within 140 for 6s. x1.5 damage, x1.4 rate.', set: { spotRadius: 140, spotDur: 6 }, mul: { damage: 1.5, rate: 1.4 } },
+        { name: 'Eye in the Dark', blurb: "Nothing hides anywhere it can see.", cost: 4000, desc: 'Reveals every Veiled enemy in its range, all the time. x6 damage to shields, x2 damage, x1.5 rate.', set: { reveal: true, shieldMul: 6 }, mul: { damage: 2, rate: 1.5 } },
+      ] },
+    ],
+  },
+
+  censer: {
+    name: 'Ember Censer', role: 'Fire / anti-heal', cost: 275, kind: 'flame', target: 'first',
+    desc: 'Sprays a short cone of Fire that hits up to 8 enemies, flyers and Veiled included. Burning enemies are Scorched: no healing, regrowing or shield recharge.',
+    base: { damage: 10, rate: 1.0, range: 95, type: 'fire', arc: 0.8, maxHits: 8, burnDps: 4, burnDur: 2, searDur: 2.5, hitsAir: true },
+    paths: [
+      { name: 'Pyre', blurb: "Hotter, longer burns that grind through hulks and armour.", tiers: [
+        { name: 'Hotter Coals', blurb: "Burns hurt twice as much.", cost: 110, desc: 'Burns deal x2 (8/s).', mul: { burnDps: 2 } },
+        { name: 'Clinging Flame', blurb: "Fire sticks for longer and the jet hits harder.", cost: 260, desc: 'Burns last 3s. x1.3 flame damage.', set: { burnDur: 3, searDur: 3.5 }, mul: { damage: 1.3 } },
+        { name: 'Pyre', blurb: "Hulks and bosses burn like dry wood.", cost: 900, desc: 'Burns x2; hulks and bosses burn x3. x1.3 flame damage.', set: { burnHeavy: 3 }, mul: { burnDps: 2, damage: 1.3 } },
+        { name: 'Wildfire', blurb: "Fire leaps from every burning death to the Gloom around it.", cost: 4200, desc: 'Burns x2, flames x1.5. A burning enemy that dies spreads its fire to up to 3 enemies within 70 (up to 15 a second).', set: { spread: 3, spreadRadius: 70, spreadRate: 15 }, mul: { burnDps: 2, damage: 1.5 } },
+      ] },
+      { name: "Dragon's Breath", blurb: "A longer, wider jet that hoses down whole crowds.", tiers: [
+        { name: 'Bellows', blurb: "The jet reaches further.", cost: 100, desc: '+20 range.', add: { range: 20 } },
+        { name: 'Wide Jet', blurb: "A broad fan of flame that catches far more.", cost: 250, desc: 'x1.6 cone width, hits up to 14.', mul: { arc: 1.6 }, set: { maxHits: 14 } },
+        { name: 'Firehose', blurb: "A roaring, relentless torrent of fire.", cost: 950, desc: 'x1.4 rate, x1.3 damage, +20 range, hits up to 24.', mul: { rate: 1.4, damage: 1.3 }, add: { range: 20 }, set: { maxHits: 24 } },
+        { name: "Dragon's Breath", blurb: "A full ring of fire: nothing near it escapes.", cost: 4400, desc: 'Breathes fire all the way round, hitting up to 60. x2 damage, x1.2 rate, +15 range, burns x1.5.', set: { arc: TAU, maxHits: 60 }, mul: { damage: 2, rate: 1.2, burnDps: 1.5 }, add: { range: 15 } },
+      ] },
+      { name: 'Ash', blurb: "Choking smoke: Scorched enemies take more damage from every ward.", tiers: [
+        { name: 'Soot', blurb: "Scorched enemies take a little more from everything.", cost: 110, desc: 'Scorched enemies take +10% damage from every ward.', set: { searAmp: 0.1 } },
+        { name: 'Melt', blurb: "Fire eats through shields.", cost: 260, desc: 'x3 damage to shields. Scorched take +15%.', set: { shieldMul: 3, searAmp: 0.15 } },
+        { name: 'Choking Ash', blurb: "Lingering ash leaves the Gloom soft for every ward.", cost: 900, desc: 'Scorched take +25% and stay Scorched 4s after the fire. x1.4 rate.', set: { searAmp: 0.25, searDur: 4 }, mul: { rate: 1.4 } },
+        { name: 'Ashen Brand', blurb: "Branded Gloom lose every resistance they had.", cost: 4000, desc: 'Scorched take +40% and lose their damage resistances (immunities stay). x2 damage.', set: { searAmp: 0.4, brand: true }, mul: { damage: 2 } },
+      ] },
+    ],
+  },
+
+  prism: {
+    name: 'Prism', role: 'Beam / boss killer', cost: 500, kind: 'beam', target: 'strong',
+    desc: 'Locks a Radiant beam onto one enemy. Damage builds up to x5 over 4s while it stays on that enemy (and what it sheds), and resets on a new target. Poor against swarms.',
+    base: { damage: 16, range: 150, type: 'radiant', maxCharge: 5, ramp: 4, beams: 1, keep: 0, hitsAir: true },
+    paths: [
+      { name: 'Focus', blurb: "Ramps higher and faster: melts hulks and bosses.", tiers: [
+        { name: 'Polished Lens', blurb: "A hotter beam.", cost: 150, desc: 'x1.5 damage.', mul: { damage: 1.5 } },
+        { name: 'Quick Focus', blurb: "Reaches full power twice as fast, and goes higher.", cost: 350, desc: 'Full charge in 2s, up to x6.', set: { ramp: 2, maxCharge: 6 } },
+        { name: 'Focus', blurb: "A searing lance of light that guts hulks.", cost: 1200, desc: 'x2 damage, charge up to x10, +30 range.', set: { maxCharge: 10 }, mul: { damage: 2 }, add: { range: 30 } },
+        { name: 'Sunspear', blurb: "A spear of sunlight that burns down bosses.", cost: 5000, desc: 'x2.5 damage, charge up to x16 in 1.5s.', set: { maxCharge: 16, ramp: 1.5 }, mul: { damage: 2.5 } },
+      ] },
+      { name: 'Refraction', blurb: "Splits into several beams, each building its own charge.", tiers: [
+        { name: 'Split Beam', blurb: "Two beams at two targets.", cost: 140, desc: '2 beams, each charging on its own target.', set: { beams: 2 } },
+        { name: 'Prism Array', blurb: "Three beams, reaching further.", cost: 330, desc: '3 beams. +20 range.', set: { beams: 3 }, add: { range: 20 } },
+        { name: 'Refraction', blurb: "A fan of beams that picks a whole pack of hulks apart.", cost: 1100, desc: '5 beams. x1.5 damage.', set: { beams: 5 }, mul: { damage: 1.5 } },
+        { name: 'Kaleidoscope', blurb: "Eight blazing beams that charge in a blink.", cost: 4600, desc: '8 beams. x2 damage, full charge twice as fast.', set: { beams: 8 }, mul: { damage: 2, ramp: 0.5 } },
+      ] },
+      { name: 'Afterglow', blurb: "Keeps its charge between targets, and kills burst into light.", tiers: [
+        { name: 'Warm Glass', blurb: "Keeps half its charge when it switches target.", cost: 130, desc: 'Keeps 50% of its charge on a new target.', set: { keep: 0.5 } },
+        { name: 'Afterglow', blurb: "Never loses its charge, so it chews through crowds too.", cost: 320, desc: 'Keeps all its charge on a new target. x1.3 damage.', set: { keep: 1 }, mul: { damage: 1.3 } },
+        { name: 'Burst of Light', blurb: "Every kill bursts in light around the target.", cost: 1050, desc: 'Beam kills burst for half the beam\'s current damage/s within 55 (up to 4 a second). x1.5 damage.', set: { burstMul: 0.5, burstRadius: 55, burstRate: 4 }, mul: { damage: 1.5 } },
+        { name: 'Supernova', blurb: "Kills erupt in blinding novas that clear the crowd.", cost: 4500, desc: 'Bursts deal the beam\'s full damage/s within 100 (up to 8 a second). x2 damage, charge up to x8.', set: { burstMul: 1, burstRadius: 100, burstRate: 8, maxCharge: 8 }, mul: { damage: 2 } },
+      ] },
+    ],
+  },
+
+  beacon: {
+    name: 'Beacon', role: 'Support aura', cost: 450, kind: 'aura',
+    desc: 'Never attacks. Wards inside its light attack 10% faster. Beacons don\'t stack: a ward gets the best boost of each kind it is in.',
+    base: { damage: 0, range: 130, type: null, auraRate: 0.1 },
+    paths: [
+      { name: 'War Drum', blurb: "Nearby wards attack faster.", tiers: [
+        { name: 'Drums', blurb: "A faster beat.", cost: 150, desc: 'Wards inside attack 15% faster.', set: { auraRate: 0.15 } },
+        { name: 'War Chant', blurb: "The beat quickens.", cost: 350, desc: 'Wards inside attack 25% faster.', set: { auraRate: 0.25 } },
+        { name: 'War Drum', blurb: "Wards inside fight much faster and harder.", cost: 1100, desc: 'Wards inside attack 35% faster and deal 15% more damage.', set: { auraRate: 0.35, auraDmg: 0.15 } },
+        { name: 'Warhorn', blurb: "A call to war across a wide field.", cost: 4500, desc: 'Wards inside attack 50% faster and deal 30% more damage. x1.2 radius.', set: { auraRate: 0.5, auraDmg: 0.3 }, mul: { range: 1.2 } },
+      ] },
+      { name: 'Lighthouse', blurb: "Nearby wards reach further, see the Veiled, and can strike flyers.", tiers: [
+        { name: 'Lamp', blurb: "Wards inside reach a little further.", cost: 120, desc: 'Wards inside get +10% range.', set: { auraRange: 0.1 } },
+        { name: 'Lighthouse', blurb: "Wards inside can see Veiled enemies.", cost: 300, desc: 'Wards inside see Veiled enemies.', set: { auraDetect: true } },
+        { name: 'Skyward Beam', blurb: "Mortars and Rime Spires inside can hit flyers.", cost: 900, desc: 'Every ward inside can hit flyers (Mortars and Rime Spires included). +20% range.', set: { auraAir: true, auraRange: 0.2 } },
+        { name: 'Pharos', blurb: "A great light: nothing hides inside it.", cost: 3800, desc: 'Reveals Veiled enemies in its light for every ward. +30% range for wards inside, x1.5 radius.', set: { auraRange: 0.3, reveal: true }, mul: { range: 1.5 } },
+      ] },
+      { name: 'Tithe', blurb: "Earns gold: a bonus every wave and interest on your savings.", tiers: [
+        { name: 'Tithe', blurb: "A little extra gold every wave.", cost: 200, desc: '+80 gold each wave cleared.', set: { tithe: 80 } },
+        { name: 'Interest', blurb: "Your savings earn interest.", cost: 400, desc: '+150 gold each wave, plus 3% of your banked gold (up to 150).', set: { tithe: 150, interest: 0.03, interestCap: 150 } },
+        { name: 'Coffers', blurb: "A steady stream of gold.", cost: 1200, desc: '+300 gold each wave, plus 5% of your banked gold (up to 300).', set: { tithe: 300, interest: 0.05, interestCap: 300 } },
+        { name: 'Golden Hearth', blurb: "A treasury that pays for a ward every few waves.", cost: 4000, desc: '+450 gold each wave, plus 5% of your banked gold (up to 600).', set: { tithe: 450, interest: 0.05, interestCap: 600 } },
       ] },
     ],
   },

@@ -39,6 +39,20 @@ export function estimateDps(kind, s, crowd = true) {
     if (crowd && s.shatterDmg) d += Math.min(s.shatterRate, hits * s.rate) * s.shatterDmg * 2;
     return d;
   }
+  if (kind === 'snipe') {
+    const burst = crowd && s.flakRadius ? 1 + Math.min(s.flakHits, 3 * (s.flakRadius / 45)) * 0.5 : 1;
+    return s.damage * s.rate * s.shots * burst * (crowd ? 1 : s.heavyMul || 1);
+  }
+  if (kind === 'flame') {
+    const hits = crowd ? Math.min(s.maxHits, 2 + 3 * Math.min(4, s.arc / 0.8) * (s.range / 95)) : 1;
+    const burn = s.burnDps * s.burnDur * 0.5 * (crowd ? 1 : s.burnHeavy || 1);
+    return (s.damage + burn) * s.rate * hits * (1 + (s.searAmp || 0) * 0.5) * (crowd && s.spread ? 1.4 : 1);
+  }
+  if (kind === 'beam') {
+    if (!crowd) return s.damage * s.maxCharge * 0.85;
+    const charge = 1 + (s.maxCharge - 1) * (s.keep || 0) * 0.6 + 0.4;
+    return s.damage * charge * s.beams * (1 + (s.burstMul ? 1.5 * s.burstMul : 0));
+  }
   if (kind === 'chain') {
     let jumps = 0, f = 1;
     const n = crowd ? Math.min(s.chains, 12) : 1;
@@ -55,10 +69,11 @@ export function createTower(game, type, x, y) {
   return {
     id: game.nextId++, type, def, x, y,
     tiers: [0, 0, 0], stats: computeStats(def, [0, 0, 0]),
-    cd: 0, ang: -Math.PI / 2, target: null, targetMode: 'first',
+    cd: 0, ang: -Math.PI / 2, target: null, targetMode: def.target || 'first',
     dmg: 0, kills: 0, spent: def.cost, shatterTokens: 0,
     abilityCd: null, buffT: 0, buffRate: 1,   // abilityCd stays null until the ward reaches tier 4
     recoil: 0, shotN: 0, pulseN: 0, pulseAnim: 0,
+    beams: [], sunT: 0, spreadTokens: 0, burstTokens: 0, aura: null,
   };
 }
 
@@ -130,11 +145,10 @@ function mortar(game, t, dt) {
   t.cd += 1 / s.rate;
   t.target = targets[0];
   t.recoil = 1;
-  const path = game.map.path;
   for (let i = 0; i < s.shells; i++) {
     const e = targets[i % targets.length];
     // Lead the target along the path.
-    path.posAt(e.dist + e.curSpeed * s.flight, aim, e.off);
+    e.path.posAt(e.dist + e.curSpeed * s.flight, aim, e.off);
     let tx = aim.x, ty = aim.y;
     if (i >= targets.length) { tx += (game.rand() - 0.5) * 50; ty += (game.rand() - 0.5) * 50; }
     if (i === 0) t.ang = Math.atan2(ty - t.y, tx - t.x);
@@ -241,7 +255,170 @@ function chain(game, t, dt) {
   }
 }
 
-const BEHAVIOURS = { bolt, mortar, pulse, chain };
+// --- snipe: instant long-range shots ----------------------------------------------------------
+const shotList = [];
+function snipe(game, t, dt) {
+  const s = t.stats;
+  track(t, dt);
+  if (t.cd > 0) return;
+  game.pickTargets(t, s.shots, targets);
+  if (!targets.length) return;
+  t.cd += 1 / s.rate;
+  t.target = targets[0];
+  t.ang = Math.atan2(targets[0].y - t.y, targets[0].x - t.x);
+  t.recoil = 1;
+  shotList.length = 0;
+  for (const e of targets) shotList.push(e);
+  for (const e of shotList) {
+    const x = e.x, y = e.y;
+    snipeHit(game, t, s, e, s.damage);
+    game.emit('snipe', { x: t.x, y: t.y, tx: x, ty: y, flak: s.flakRadius || 0, spot: s.spotRadius || 0, big: s.damage >= 300 });
+  }
+}
+
+export function snipeHit(game, t, s, e, dmg, big) {
+  const x = e.x, y = e.y;
+  const opts = { armorPierce: s.armorPierce || 0, shieldMul: s.shieldMul || 0, big: big || dmg >= 300 };
+  const k = (e.def.flying ? s.airMul || 1 : 1) * (e.def.heavy ? s.heavyMul || 1 : 1);
+  game.damage(e, dmg * k, s.type, t, opts);
+  if (s.shieldStall && e.alive && e.maxShield > 0) e.shieldCd = Math.max(e.shieldCd, s.shieldStall);
+  if (s.spotRadius) {
+    game.grid.query(x, y, s.spotRadius, buf);
+    for (const o of buf) if (o.veiled && o.alive) o.revealT = Math.max(o.revealT, s.spotDur);
+  }
+  if (s.flakRadius) {
+    game.grid.query(x, y, s.flakRadius, buf);
+    hitList.length = 0;
+    for (const o of buf) {
+      if (o === e || !game.targetable(o, s, true)) continue;
+      o._d2 = (o.x - x) ** 2 + (o.y - y) ** 2;
+      if (o._d2 <= (s.flakRadius + o.r * 0.5) ** 2) hitList.push(o);
+    }
+    if (hitList.length > s.flakHits) { hitList.sort((a, b) => a._d2 - b._d2); hitList.length = s.flakHits; }
+    for (const o of hitList) if (o.alive) game.damage(o, dmg * 0.5 * (o.def.flying ? s.airMul || 1 : 1), s.type, t, QUIET);
+  }
+}
+
+// --- flame: a cone (or ring) of fire that sets everything in it burning and Scorched ---------
+const flameHits = [];
+function flame(game, t, dt) {
+  const s = t.stats;
+  track(t, dt);
+  if (t.cd > 0) return;
+  // Fire is an area attack: it aims at anything in reach, Veiled included.
+  game.grid.query(t.x, t.y, s.range + 12, buf);
+  let best = null, bestS = -Infinity;
+  const mode = t.targetMode;
+  for (const e of buf) {
+    if (!game.targetable(e, s, true)) continue;
+    const d2 = (e.x - t.x) ** 2 + (e.y - t.y) ** 2;
+    if (d2 > (s.range + e.r * 0.5) ** 2) continue;
+    e._d2 = d2;
+    const sc = mode === 'first' ? e.dist * e.prog : mode === 'last' ? -e.dist * e.prog : mode === 'strong' ? (e.hp + e.shield) * 10000 + e.dist : -d2;
+    if (sc > bestS) { bestS = sc; best = e; }
+  }
+  if (!best) return;
+  t.cd += 1 / s.rate;
+  t.target = best;
+  const ang = Math.atan2(best.y - t.y, best.x - t.x);
+  t.ang = ang;
+  t.recoil = 1;
+  const all = s.arc >= TAU - 0.01, half = s.arc / 2;
+  flameHits.length = 0;
+  for (const e of buf) {
+    if (!game.targetable(e, s, true)) continue;
+    const d2 = (e.x - t.x) ** 2 + (e.y - t.y) ** 2;
+    if (d2 > (s.range + e.r * 0.5) ** 2) continue;
+    if (!all) {
+      const d = Math.abs(((Math.atan2(e.y - t.y, e.x - t.x) - ang + Math.PI) % TAU + TAU) % TAU - Math.PI);
+      if (d > half + Math.atan2(e.r, Math.sqrt(d2) + 1)) continue;
+    }
+    e._d2 = d2;
+    flameHits.push(e);
+  }
+  if (flameHits.length > s.maxHits) { flameHits.sort((a, b) => a._d2 - b._d2); flameHits.length = s.maxHits; }
+  const opts = s.shieldMul ? { quiet: true, shieldMul: s.shieldMul } : QUIET;
+  for (const e of flameHits) {
+    if (!e.alive) continue;
+    ignite(e, s, t);   // before the hit, so the hit itself counts the Scorched bonus and the burn carries into what it sheds
+    game.damage(e, s.damage, s.type, t, opts);
+  }
+  game.emit('flame', { x: t.x, y: t.y, ang, r: s.range, arc: s.arc });
+}
+
+// Sets an enemy burning with Fire and Scorched (no healing, regrowing or shield recharge).
+export function ignite(e, s, src) {
+  const dps = s.burnDps * (e.def.heavy ? s.burnHeavy || 1 : 1);
+  if (e.burnT <= 0 || dps >= e.burnDps) { e.burnDps = dps; e.burnType = 'fire'; e.burnSrc = src; }
+  e.burnT = Math.max(e.burnT, s.burnDur);
+  if (e.searT <= 0) { e.searAmp = 0; e.brand = false; }
+  e.searT = Math.max(e.searT, s.searDur || s.burnDur);
+  if (s.searAmp > e.searAmp) e.searAmp = s.searAmp;
+  if (s.brand) e.brand = true;
+}
+
+// --- beam: one or more Radiant beams that build charge on their target ------------------------
+const near = [];
+function inReach(game, t, s, e) {
+  return e && e.alive && game.targetable(e, s) && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 <= (s.range + e.r * 0.5) ** 2;
+}
+function beam(game, t, dt) {
+  const s = t.stats;
+  const n = s.beams;
+  while (t.beams.length < n) t.beams.push({ e: null, root: 0, charge: 1, x: 0, y: 0 });
+  if (t.beams.length > n) t.beams.length = n;
+  if (t.sunT > 0) t.sunT -= dt;
+  const rise = (s.maxCharge - 1) / s.ramp;
+  let picked = false;
+  for (let i = 0; i < n; i++) {
+    const b = t.beams[i];
+    if (!inReach(game, t, s, b.e)) {
+      let next = null;
+      // The target broke open: stay on what it shed (same lineage) and keep the charge.
+      if (b.e && !b.e.alive && b.root) {
+        game.grid.query(b.x, b.y, 45, near);
+        let bestHp = -1;
+        for (const o of near) if (o.root === b.root && inReach(game, t, s, o) && o.hp + o.shield > bestHp) { bestHp = o.hp + o.shield; next = o; }
+      }
+      if (!next) {
+        if (!picked) { game.pickTargets(t, n + 4, targets); picked = true; }
+        for (const o of targets) {
+          if (!o.alive) continue;
+          let taken = false;
+          for (let j = 0; j < n; j++) if (j !== i && t.beams[j].e && t.beams[j].e.root === o.root) { taken = true; break; }
+          if (!taken) { next = o; break; }
+        }
+        if (!next && targets.length) next = targets[i % targets.length].alive ? targets[i % targets.length] : null;
+        b.charge = 1 + (b.charge - 1) * (s.keep || 0);
+      }
+      b.e = next;
+      b.root = next ? next.root : 0;
+    }
+    const e = b.e;
+    if (!e) continue;
+    b.x = e.x; b.y = e.y;
+    b.charge = t.sunT > 0 ? s.maxCharge : Math.min(s.maxCharge, b.charge + rise * dt);
+    const dps = s.damage * b.charge * (t.sunT > 0 ? SUN_MUL : 1);
+    game.damage(e, dps * dt, s.type, t, DOT);
+    if (!e.alive && s.burstMul && t.burstTokens >= 1) {
+      t.burstTokens--;
+      game.grid.query(b.x, b.y, s.burstRadius, near);
+      const list = near.slice(0, 16);
+      for (const o of list) if (o.alive && game.targetable(o, s, true)) game.damage(o, dps * s.burstMul, s.type, t, QUIET);
+      game.emit('burst', { x: b.x, y: b.y, r: s.burstRadius });
+    }
+  }
+  const first = t.beams[0] && t.beams[0].e;
+  t.target = first && first.alive ? first : null;
+  if (t.target) turnTo(t, t.target.x, t.target.y, dt);
+}
+const DOT = { dot: true };
+export const SUN_MUL = 2;
+
+// --- aura: the Beacon never attacks; game.refreshGlobals applies its boost ---------------------
+function aura() {}
+
+const BEHAVIOURS = { bolt, mortar, pulse, chain, snipe, flame, beam, aura };
 
 export function updateTower(game, t, dt) {
   // Overdraw: the attack timer runs buffRate times faster.
@@ -250,6 +427,8 @@ export function updateTower(game, t, dt) {
   if (t.recoil > 0) t.recoil = Math.max(0, t.recoil - dt * 5);
   if (t.pulseAnim > 0) t.pulseAnim = Math.max(0, t.pulseAnim - dt * 2);
   if (t.stats.shatterRate) t.shatterTokens = Math.min(t.stats.shatterRate, t.shatterTokens + t.stats.shatterRate * dt);
+  if (t.stats.spreadRate) t.spreadTokens = Math.min(t.stats.spreadRate, t.spreadTokens + t.stats.spreadRate * dt);
+  if (t.stats.burstRate) t.burstTokens = Math.min(t.stats.burstRate, t.burstTokens + t.stats.burstRate * dt);
   BEHAVIOURS[t.def.kind](game, t, dt);
   // Idle towers stay ready rather than banking negative cooldown.
   if (t.cd < 0) t.cd = 0;

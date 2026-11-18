@@ -2,7 +2,7 @@
 // of 2,000 pops stays a pleasant patter instead of noise. The context starts on the first click
 // or key press, as browsers require.
 
-const LIMITS = { pop: 26, crack: 8, boom: 7, zap: 7, tick: 9, pulse: 4, coin: 10 };
+const LIMITS = { pop: 26, crack: 8, boom: 7, zap: 7, tick: 9, pulse: 4, coin: 10, snipe: 5, flame: 5, burst: 5 };
 
 export class Sound {
   constructor() {
@@ -114,6 +114,22 @@ export class Sound {
   pulse() {
     if (!this.ok('pulse')) return;
     this.hiss(0.35, 0.25, 2500, 0.6, 0, 'highpass');
+  }
+
+  snipe(big) { // a rifle crack
+    if (!this.ok('snipe')) return;
+    this.hiss(big ? 0.22 : 0.12, big ? 0.6 : 0.4, 3200, 0.7);
+    this.tone('square', big ? 900 : 1300, 120, big ? 0.16 : 0.08, 0.08);
+  }
+
+  flame() { // a whoosh of fire
+    if (!this.ok('flame')) return;
+    this.hiss(0.28, 0.3, 700, 0.5, 0, 'lowpass');
+  }
+
+  burst() { // a light burst
+    if (!this.ok('burst')) return;
+    this.tone('sine', 1600, 2400, 0.12, 0.06);
   }
 
   coin() {
