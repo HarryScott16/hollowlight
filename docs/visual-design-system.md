@@ -64,6 +64,7 @@ All four are mocked up in the Lanterns style in `concepts/lanterns/new-wards.png
 
 | Where | What |
 |---|---|
+| `docs/research-notes/` | the five agents' raw notes, with every source link |
 | `docs/visual-research.md` | research from five web-research agents: case studies, gimmicks, scaling systems, principles, camera view, and a 15-point readability checklist |
 | `docs/visual-design-system.md` | this document: diagnosis, design system, three directions, recommendation |
 | `docs/tower-ideas.md` | 13 new ward concepts, roster gap analysis, the top 4 |
