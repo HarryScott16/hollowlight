@@ -263,3 +263,6 @@ export function draw(ctx, type, tiers, st) {
   if (P.mt >= 4) crown(ctx, type === 'beacon' ? -1 : type === 'censer' ? 1 : 0, type === 'beacon' ? -21 : top + 1, d);
   ctx.restore();
 }
+
+// Shared with dir-kindlings-ideas.mjs (the 13 new-ward ideas in this style).
+export { hearthstone, eyes, tuft, badge, crown, crossbow, mini, WAX, WAX2, WOOD, IRON, BRONZE, STEEL };

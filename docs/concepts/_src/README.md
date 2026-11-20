@@ -25,10 +25,13 @@ A full run takes a minute or two and uses well under 200 MB.
 | `render-new.mjs` | `lanterns/new-wards.png`, `lanterns/lineup-12.png` |
 | `render-palette.mjs` | `palette-cvd.png`, and prints colour-blind ΔE tables |
 | `render-crowd.mjs` | `crowd-test.png`, and prints heights and occlusion numbers |
+| `render-ideas.mjs` | `kindlings/ideas/*.png`: all 13 new-ward ideas in the Kindlings style |
+| `render-chosen.mjs` | `chosen/*.png`: the four chosen wards in both skins, the Wandering Light attack sheets and the lineup |
 
 Library files:
 - `sheet.mjs`: canvas, labels, turf, greyscale, silhouette and blur
 - `wardsheets.mjs`: the standard sheets
 - `metrics.mjs`: the blend metric
 - `kit.mjs`: the design system's palette, glyphs and helpers
+- `dir-kindlings-ideas.mjs`, `dir-lanterns-new.mjs`, `dir-chosen.mjs`: the new-ward mock-ups (`dir-chosen.mjs` also draws the Wandering Light attacks)
 - `dir-*.mjs`: one draw function per direction, with the same signature as the game's `drawTower(ctx, type, tiers, st)`

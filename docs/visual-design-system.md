@@ -48,6 +48,16 @@ Kindlings is the charming runner-up, and its best idea could be borrowed as an o
 
 All four are mocked up in the Lanterns style in `concepts/lanterns/new-wards.png`.
 
+### Decided so far (2026-11-20)
+
+- **Skin:**
+  - **Kindlings (B) is the active skin.**
+  - **Lanterns (A) is maintained alongside it as a complete second skin.**
+  - **Exception: the Longeye uses the Lantern body with the Kindling eye.**
+  - Waystones (C) is dropped.
+  - This replaces my recommendation of Lanterns in section 4. Items 1 and 3-5 below are still open.
+- **New wards:** Thornlight Snare, Moth Lantern, Wandering Light (Wandlight, Arcane) and Ember Vault (Gleaning Brazier). They will be built after the overhaul. See [tower-ideas.md](tower-ideas.md) §0.
+
 ### What you need to decide
 
 1. **The view.** Do we switch to an upright three-quarter view?

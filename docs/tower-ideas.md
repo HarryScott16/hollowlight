@@ -12,7 +12,230 @@ The mechanics survey behind this list (16 games, ~35 sources) is summarised in [
 
 All names, mechanics and looks are Hollowlight's own. Where an idea is inspired by another game's mechanic, the inspiration is named so you can judge the distance.
 
-![The four recommended new wards in the Lanterns direction](concepts/lanterns/new-wards.png)
+All 13 are also mocked up in the Kindlings style in `concepts/kindlings/ideas/`.
+
+---
+
+## 0. Chosen wards (2026-11-20)
+
+> **Final:** Thornlight Snare, Moth Lantern, Wandering Light (b) Wandlight (Arcane), and Ember Vault (2) Gleaning Brazier. Kindlings is the active skin, with Lanterns as a complete second skin. See [Decided](#decided-2026-11-20).
+
+You picked **Moth Lantern, Thornlight Snare, Wandering Light and Ember Vault**. They will be built *after* the visual overhaul, so they are drawn once, in the new style. This section refines them; the original write-ups in §2 still hold except where this section changes them.
+
+Every design is mocked up in **both skins** (B · Kindlings and A · Lanterns) at base, T2 and T4 on each path, in `concepts/chosen/`:
+
+| File | Shows |
+|---|---|
+| `snare.png`, `moth.png` | the two wards kept as designed |
+| `wanderA.png`, `wanderB.png` | the two Wandering Light versions |
+| `wander-a-attack.png`, `wander-b-attack.png` | each version attacking real enemies at every tier: the attack, projectile and hit effect |
+| `vaultA.png`, `vaultB.png`, `vaultC.png` | the three Ember Vault versions, each with an empty / half / full strip |
+| `lineup.png` | the current 8 plus every chosen design at real size, in both skins |
+
+![The 8 current wards plus the chosen designs, both skins](concepts/chosen/lineup.png)
+
+### Decisions I made while drawing (easy to reverse)
+
+- **Wandering Light is Arcane (violet), not Kinetic or Radiant.**
+  - Kinetic is the "unlit" type, and magic glows.
+  - Radiant would put three gold wards on the map (Prism, Moth Lantern and Wandering Light), which is the kind of blending the overhaul is meant to fix.
+  - Arcane gives the Storm Coil a sibling instead. It also gives the flying ward a real weakness: Nullback take only 20% Arcane damage.
+- **In the Lanterns skin the "mouth" is an open round port in the lantern's window**, because lanterns don't have faces.
+- **Every Ember Vault version shows how full it is**, because the whole decision is "cash out now or wait":
+  - the Coffer: a coin stack or coin heap;
+  - the Brazier: an ember pile and a flame that grows;
+  - the War Chest: a heart-shaped window that fills with gold and shines when full.
+- **Ember Vault stays Hearth (rose)**, with gold coins as the fill. Beacon's Tithe path should change if any version ships (see §2.5).
+
+### Coverage note
+
+With this set:
+- **Heavy** gets a brief control answer (Snare, Binding Light T4).
+- **Flyers** get two new answers (Moth Lantern, Wandering Light).
+- **Fast leakers** get a last line (Snare).
+- **Herald** still has no dedicated answer (the Recall Bell was the one that covered it).
+- **Mender** still has only Scorched.
+
+That's fine if it's deliberate. It could matter for the endless "Mending" modifier.
+
+### 1. Thornlight Snare: kept as designed
+
+There are no changes from §2.1. It is the only ward with no height, so it lies flat on the road:
+- **Kindlings skin:** a spirit peeking up through the grate.
+- **Lanterns skin:** a floor-lantern grate.
+
+![Thornlight Snare, both skins](concepts/chosen/snare.png)
+
+### 2. Moth Lantern: kept as designed
+
+There are no changes from §2.6:
+- **Kindlings skin:** a spirit holding the shepherd's crook.
+- **Lanterns skin:** an iron crook on a plinth.
+
+The paper lantern hangs from the hook in both, with moths circling it. On the Moth-trap path the paper lantern becomes a cage.
+
+![Moth Lantern, both skins](concepts/chosen/moth.png)
+
+### 3. Wandering Light: two magic attacks
+
+The base is the same as §2.10:
+- a floating ward with no plinth, over a soft shadow;
+- it patrols between two points or follows the lead enemy;
+- paths **Hunter** (Might), **Swarm** (Many: splits into 2, then 3 smaller lights) and **Torchbearer** (Craft: carries a rose, Beacon-like aura ring).
+
+Only the attack changes.
+
+#### (a) Lightbreath: a stream of fairy light from its mouth *(not chosen)*
+
+![Wandering Light (a) attacking, every tier, both skins](concepts/chosen/wander-a-attack.png)
+
+- **Attack:** a continuous, short-range stream. It hits the first enemy and anything in a short line behind it, and deals damage every tick while the stream is on.
+- **Look:**
+  - a wavy violet ribbon with a white core, sparkles scattered along it, and a sparkle burst where it lands;
+  - the Kindling spirit has an open "O" mouth;
+  - the lantern opens a round port in its window.
+- **Higher tiers:**
+  - **Hunter:** a thicker stream with longer reach (T2). T4 is a broad beam wrapped in a white spiral, with a bigger burst and a shock ring on the target.
+  - **Swarm:** 2 lights at T2 and 3 at T4, each with a thinner stream at its own target.
+  - **Torchbearer:** the aura ring travels with it. The stream sheds rose motes that linger on the path and hurt Gloom that walk through them (wider at T4).
+- **Pros:**
+  - very "fairy", and it's easy to see that the ward is attacking;
+  - the beam follows naturally as the ward moves;
+  - the hit test is a short line, like the Censer's cone;
+  - no projectiles to simulate.
+- **Cons:**
+  - **Streams are already the Prism's (beam) and the Ember Censer's (spray) attack.** A third stream attack works against the readability the overhaul is for.
+  - In the Lanterns skin it reads like a flamethrower lantern.
+  - Short range means more repositioning micro.
+
+![Wandering Light (a), both skins](concepts/chosen/wanderA.png)
+
+#### (b) Wandlight: casts with a wand *(chosen)*
+
+![Wandering Light (b) attacking, every tier, both skins](concepts/chosen/wander-b-attack.png)
+
+- **Attack:** casts homing star-bolts at a steady rate, at medium range. Each star bursts on hit.
+- **Look:**
+  - a little wand with a star tip, flashing as it casts;
+  - the bolt is a five-point star with a sparkle tail, and lands in a starburst;
+  - the Kindling spirit holds the wand; the lantern carries it as its aiming rod.
+- **Higher tiers:**
+  - **Hunter:** bigger stars at T2. At T3 the wand becomes a staff with a crystal, which is the T3 silhouette milestone. T4 fires a comet with a long tail that bursts over a small area, leaving a ground ring.
+  - **Swarm:** 2 lights at T2 and 3 at T4, each with a small wand. At T4 each one casts a 2-star volley.
+  - **Torchbearer:** the stars turn rose and leave a rune mark under the target. Marked Gloom take more damage from every ward, and the mark is bigger at T4.
+- **Pros:**
+  - **No other ward fires stars**, so both the projectile and the ward read as distinct.
+  - The wand is a part that grows with tier (wand, then staff), so upgrades show clearly.
+  - It works equally well in both skins.
+  - It reuses the existing projectile code (Bolt).
+- **Cons:**
+  - less unusual than a breath;
+  - small projectiles can get lost in a busy wave (the star shape and the tail help);
+  - there's a risk it plays like "a Bolt Ward that flies". The Hunter comet and Torchbearer marks are there to prevent that.
+
+![Wandering Light (b), both skins](concepts/chosen/wanderB.png)
+
+**My recommendation: (b) Wandlight.** Readability is the whole point of the overhaul, and (a) adds a third stream attack. If you love the breath, a middle option is the (b) mechanics with the open-mouth cast pose from (a) on the Kindling.
+
+### 4. Ember Vault: three ways to do "bank it and let it grow"
+
+The core idea is the same in all three: **the ward stores gold that grows while you leave it there, and you choose when to cash out.** What changes is where the gold comes from, what else you can do with it, and how much its placement matters.
+
+#### (1) Coffer: an interest bank (the original concept) *(not chosen)*
+
+![Ember Vault (1) Coffer, both skins](concepts/chosen/vaultA.png)
+
+- **Mechanic:**
+  - At wave end it takes a share of that wave's gold.
+  - Stored gold grows by a percentage each wave, up to a cap.
+  - Click it to withdraw everything.
+- **Decision:** spend now or compound; cash out before the boss wave.
+- **Paths:**
+  - **Deep Vault:** bigger cap, better interest.
+  - **Tithe Box:** kills in its radius pay bonus gold.
+  - **Heartfire Coffer:** spend stored gold to recharge the Flare and abilities.
+- **Look:**
+  - **Kindlings skin:** a chest spirit whose lid is its hat, with coins stacking on the lid.
+  - **Lanterns skin:** a squat box-lantern whose window shows the coin heap.
+- **Pros:**
+  - familiar and instantly understood;
+  - one formula, so it's easy to build and balance;
+  - a strong "investment" feeling.
+- **Cons:**
+  - **placement doesn't matter**, so it's a menu that happens to stand on the map;
+  - passive, and withdrawing every few waves is a chore;
+  - can snowball on easy maps.
+
+#### (2) Gleaning Brazier: banks embers from kills in its radius *(chosen)*
+
+![Ember Vault (2) Gleaning Brazier, both skins](concepts/chosen/vaultB.png)
+
+- **Mechanic:**
+  - Gloom that die inside its radius drop an ember into it, worth part of their bounty.
+  - Stored embers grow by a percentage each wave, up to a cap. At the cap it stops collecting.
+  - Click it to cash out.
+- **Decision:**
+  - **Where to put it.** It wants the kill zone, which is also where your damage wards want to be.
+  - When to empty it.
+- **Paths:**
+  - **Great Brazier:** bigger cap and growth.
+  - **Gleaners:** ember-wisps collect from a wider radius.
+  - **Hearthwarm:** while it is over half full, nearby wards attack faster, so emptying it has a real cost.
+- **Look:**
+  - **Kindlings skin:** a spirit tending a brazier.
+  - **Lanterns skin:** an iron cresset on three legs.
+  - In both, the ember pile and the rose flame on top grow as it fills.
+- **Pros:**
+  - **placement matters**, so it's a real ward;
+  - income is tied to how well you defend;
+  - the fill is very visible;
+  - Hearthwarm makes "cash out or keep the buff" a good tension.
+- **Cons:**
+  - the rich get richer (a strong defence earns more);
+  - weak on maps where kills are spread out;
+  - it takes a premium tile;
+  - its value is harder to predict.
+
+#### (3) War Chest: savings you can spend as defence *(not chosen)*
+
+![Ember Vault (3) War Chest, both skins](concepts/chosen/vaultC.png)
+
+- **Mechanic:**
+  - Banks and grows gold like the Coffer.
+  - You can also **break it open**: the stored gold erupts as a Heartfire blast in its radius, with damage scaled to the gold inside. Then it starts again, empty.
+- **Decision:** save for upgrades, or spend the savings to stop a leak. Where to put the "panic button" (near the end of the path, or at a choke).
+- **Paths:**
+  - **Iron Chest:** bigger cap and interest.
+  - **Small Change:** break it in up to 3 smaller bursts instead of one.
+  - **Heartlock:** the blast also stuns and Scorches.
+- **Look:**
+  - **Kindlings skin:** a round spirit with a padlock shackle on its head.
+  - **Lanterns skin:** an iron strongbox.
+  - Both have a heart-shaped glass window that fills with gold and shines when full.
+- **Pros:**
+  - **gold is never dead money**;
+  - a dramatic comeback moment;
+  - placement matters for the blast;
+  - the strongest identity of the three.
+- **Cons:**
+  - overlaps the Flare, the abilities and Flarepot as a "panic button";
+  - the conversion rate from gold to damage is hard to balance;
+  - breaking your savings can feel bad;
+  - it needs an extra button.
+
+**My recommendation: (2) Gleaning Brazier.** It's the only version where *where you put it* matters every wave, which is what makes it a ward rather than a menu. Hearthwarm also gives it a support role without competing with Beacon's aura. (3) War Chest is a close second if you'd rather have the drama.
+
+### Decided (2026-11-20)
+
+1. **Wandering Light: (b) Wandlight.** (a) Lightbreath is kept above for reference only.
+2. **Wandering Light damage type: Arcane (violet).**
+3. **Ember Vault: (2) Gleaning Brazier.** (1) Coffer and (3) War Chest are kept above for reference only.
+4. **Skin:**
+   - **Kindlings is the active skin.**
+   - **Lanterns is maintained alongside it as a complete second skin**, so every ward, including these four, is drawn in both.
+   - **Exception: the Longeye uses the Lantern body with the Kindling eye.**
+
+The final four are **Thornlight Snare, Moth Lantern, Wandering Light (Wandlight) and Ember Vault (Gleaning Brazier)**. They will be built after the visual overhaul.
 
 ---
 
@@ -214,6 +437,8 @@ I checked this against `data/towers.js`, `data/enemies.js` and the sim, not from
 ---
 
 ## 3. The four I'd add first
+
+> **Superseded (2026-11-20):** you picked Moth Lantern, Thornlight Snare, Wandering Light and Ember Vault instead (see §0). My original reasoning is kept below for reference.
 
 | # | Ward | New decision | Threat it answers | Build cost (my estimate) |
 |---|---|---|---|---|
