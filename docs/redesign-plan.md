@@ -1,3 +1,212 @@
+# Morning summary: tier 5 and endless (`tier5` branch)
+
+Everything is on the **`tier5`** branch, which comes off `master` in steps, for you to review before
+merging. Nothing was merged or pushed (there's no remote). Port 3000 and `~/projects/test-game`
+weren't touched.
+
+Docs:
+- `docs/tier5-research.md`: BTD6 and five other games; cost, power, limits, feel, look and endless.
+- `docs/tier5-design.md`: all 36 tier 5s, plus the rules.
+- `CLAUDE.md`: new "Tier 5" and "Endless" sections.
+
+## Part 1: tier 5
+
+**The rules** (research-backed, details in `tier5-design.md`):
+- **Cost:** about 4.5x the path's tier 4, 16,000-22,500 gold.
+- **Power:** about 3-5x the tier 4, plus one signature mechanic each. That is never just bigger
+  numbers: new attack forms, map-wide reach, companions, buffs to other wards, a last-stand save,
+  or economy.
+- **Limit:** only one of each tier 5 on the map (per ward type and path), BTD6's rule. The UI says
+  so, and clicking the locked button selects the ward that holds it.
+- **Crosspath:** unchanged (one path to 5, a second to 2).
+- **Abilities:** unchanged. Tier 5 stats feed into them.
+
+**The 36:**
+
+| Ward | Tier 5s |
+|---|---|
+| Bolt Ward | Worldpiercer, Thousand Bolts, Wild Hunt |
+| Mortar Kiln | Worldbreaker, Grand Battery, Magma Heart |
+| Rime Spire | Permafrost, Avalanche, Whiteout |
+| Storm Coil | Stormlord, Ball Lightning, Eye of the Storm |
+| Longeye | Kingslayer, Shrapnel Storm, Eye of Fate |
+| Ember Censer | Phoenix, Elder Wyrm, Pall of Ash |
+| Prism | Dawnbreaker, Lightweb, Second Sun |
+| Beacon | Anthem of War, Worldlight, Golden Age |
+| Thornlight Snare | Thornwall, Constellation, Seal of Dawn |
+| Moth Lantern | False Moon, Amber Trap, Moth Queen |
+| Wandering Light | Falling Sky, Starhost, Dawnbringer |
+| Ember Vault | Dragon's Hoard, Ember Tide, Second Heartfire |
+
+Each has:
+- a one-line identity (the path blurb style);
+- a qualitative blurb, with exact numbers on hover or Shift;
+- full art in **both** skins;
+- a signature effect on the map.
+
+**Art:**
+- A tier 5 is the skin's tier 4 form plus a **second form**. That's a companion, summon or apparatus
+  beside or behind the ward: the siege-engine frame and lance, the spirit-hawk, the falling
+  mountain, the glacier, storm crowns, the dragon's head, a second sun, a false moon, the Moth Queen,
+  a hoard with a little gold dragon, and so on.
+- It also gets a bright tier 5 ground sigil, and a five-point diadem with a white-hot core, the only
+  pure white on an idle ward.
+- Each skin passes its own materials (bronze, wood and wax vs iron, brass and glass). The code is in
+  `render/wards/ascend.js`, shared like the other props.
+- Wards grow x1.4 with a 76 px cap. `tools/wards.mjs` checks every tier 5 in both skins: **all
+  pass**, heights and the body-and-face rule.
+
+**Feel:**
+- A fifth (gold diamond) pip.
+- The tier 5 button gets a gold frame and a "gold saved" bar.
+- On purchase:
+  - a white pillar and a pillar in the ward's colour;
+  - a wide shockwave;
+  - rising motes;
+  - a fanfare;
+  - its name across the screen ("WORLDPIERCER · Tier 5 · Bolt Ward").
+
+**Checks:**
+- `smoke.js` takes every path of every ward to tier 5 through the real UI (click, drag, key, both
+  skins) and checks the one-of-each limit. It passes.
+- `tools/tier5.js` measures each tier 5 against its tier 4 on the same late wave. At wave 75 most are
+  2.5-6x. I trimmed the outliers: Second Sun was 48x, Whiteout 15x.
+- `report.js` has a tier 5 column.
+- Test mode needed no changes. It's UI-only, so the limit applies there too.
+
+## Part 2: endless
+
+**The problem:**
+- Wave 41 had **86% more health** than wave 40.
+- Health then grew **17-20% a wave**.
+- Speed went to x1.74 at 55 and x2.4 at 70.
+- The old strong 12-ward bot hit a wall at **wave 57**: 150 lives to 0 in one wave, with 52k gold
+  unspent.
+
+**Now** (`sim/endless.js`; `node tools/endless.js` prints the curve):
+- **Health budget.** Each wave has one that **picks up where wave 40 leaves off**. It grows **5.5% a
+  wave to 60** (time to buy tier 5s), **7% to 80**, then **8%**, whatever the mix.
+- **Toughness** grows only 2% a wave. Most of the growth is more enemies. Basic layers stay at 10 HP.
+- **Speed** creeps up and is **capped at x1.7**.
+- **Variety:**
+  - Five **stretches** rotate every 5 waves (horde, black sky, iron and hide, swarm, siege), each
+    with a banner.
+  - A **modifier** switches on every 5 waves from 45 to 90. They alternate between ones that change
+    the waves (Veiled hulks, shadows, escorts, a Veiled sky, swarms) and ones that make them harder
+    (mending, swift +10%, armoured shells +50%, twin bosses, frenzy +10%).
+- **Numbers.**
+  - The spawn cap rises from 450 to 600.
+  - Above it, groups are thinned evenly and the tough enemies carry the health that was thinned
+    away. Before, everything was promoted into colossi: wave 75 was all Veiled colossi.
+
+**Bot results, endless** (seed 1, `node tools/bot.js <build> --endless --cap=130 -v`):
+
+| Build | Wards | Tier 5s at the end | First tier 5 | First endless leak | Lost on wave |
+|---|---|---|---|---|---|
+| strong12 (the old 57) | 18 | 12 | 63 | 98 | **103** |
+| strong12B | 18 | 9 | 62 | 87 | **92** |
+| endless12 (26 wards, second wards on other paths) | 26 | 9 | 73 | 91 | **93** |
+| endless12B | 26 | 7 | 73 | 91 | **92** |
+| strong12 **without tier 5s** (`--no-t5`) | 18 | 0 | - | 77 | **79** |
+
+- **Strong defences now reach the low 90s to about 100.** Tier 5s are worth about 24 waves to the
+  same build (79 vs 103).
+- **Signs come first.** The furthest any enemy gets ("deepest") creeps from about 80% to 100% over
+  5-8 waves before lives start to go.
+- **The end is still quick.** The last 150 lives go over 2-6 waves. A leak costs up to 25 lives per
+  enemy, so once the line breaks it breaks fast. That's much more gradual than one wave, but tell me
+  if you'd like it slower (a lower leak cap in endless would do it).
+- The bot builds its first tier 5 only around wave 62-73. It fills its wards to tier 4 first and saves
+  for a tier 5 only when it's about a wave and a half away. A human who saves earlier would get
+  further.
+
+## Balance: the campaign (Medium)
+
+**The Medium targets hold.** Full suite, seed 1, compared with `master`:
+- **Every strong build wins with 150/150**: strong, strongAlt, strongThird, strongTithe, newA/B/C,
+  strong12/B/C, endless12/B, original4.
+- **Medium builds still struggle:**
+  - mixed12 wins with 75/150 (unchanged);
+  - mixed wins only with Last Light;
+  - mixedAlt and focused lose at 38-39 (was 39).
+- **Lazy builds lose at waves 9-10** (unchanged).
+- **Ban-one probes all win**, as before.
+
+In the campaign, the bots never reach a tier 5: they finish their tier 4s first. A player who saves
+can afford one around waves 33-38. That matches "mostly late campaign and endless".
+
+| Build | Group | Result | First leak |
+|---|---|---|---|
+| lazy / minimal / lazyTier1 | lazy | lost on wave 9 / 9 / 10 | 6 / 5 / 9 |
+| mixed | reasonable | won, 150/150 (Last Light used) | never |
+| mixedAlt / focused | reasonable | lost on wave 38 / 39 | 37 / 38 |
+| mixed12 | reasonable | won, 75/150 (Last Light used) | 40 |
+| plateau / plateauAlt | plateau | lost on wave 40 / won, 110/150 (was 150) | 40 / 37 |
+| strong, strongAlt, strongThird, strongTithe | strong | won, 150/150 | never |
+| newA, newB, newC, original4 | strong / probe | won, 150/150 | never |
+| strong12, strong12B, strong12C | strong | won, 150/150 | never |
+| endless12, endless12B | endless | won, 150/150 | never |
+| spamNoUpgrades / noDetection / groundOnly / prismOnly | probe | lost on wave 31 / 20 / 12 / 4 | 30 / 20 / 9 / 3 |
+| no-bolt / no-mortar / no-rime | ban | won, 106 / 146 / 124 (of 150) | 10 / 13 / 5 |
+| other ban-one probes, noMortarCrowd | ban | won, 150/150 | never |
+
+The two small changes come from merging overlapping fire pools: plateauAlt now loses 40 lives, and
+mixedAlt loses one wave earlier. Both are within those builds' targets: plateau builds should lose
+lives late.
+
+## Performance (`tools/perf.mjs`, 5x speed, canvas calls per frame)
+
+| Scene | Calls | Enemies on screen |
+|---|---|---|
+| Wave 80, full tier 4 defence (old endless) | 7,532 | 583 |
+| Wave 80, full tier 4 defence (new endless) | 5,628 | 234 |
+| Wave 100, full tier 4 defence (new endless) | 5,430 | 367 |
+| Wave 80, tier 5 defence (new endless) | 9,474 | 58 (full quality) |
+| Wave 100, tier 5 defence (new endless) | 10,889 | 196 |
+
+- **The new endless waves are cheaper to draw:** fewer, more varied enemies.
+- **A tier 5 defence costs more:** its effects, and Starhost's five lights each drawn as a ward.
+- **Cuts made in crowds:**
+  - a tier 5's second form is one cached image;
+  - overlapping fire pools from one ward merge (they never stacked damage, so balance is unchanged);
+  - lure threads are capped;
+  - stun stars are cached;
+  - the minor effect rings are skipped.
+- **Please check the real frame rate** with a big tier 5 defence late in endless (the ` overlay). If
+  it's heavy, the next step is redrawing wards less often when several tier 5s stand.
+
+## Decisions I made (easy to reverse)
+
+- **One of each tier 5 on the map**, as in BTD6. That allows three per ward type (one per path) and
+  36 in all. No sacrifices or Paragons; room is left for a tier 6.
+- **Two boss capstones break the "executions skip the Heavy" habit:**
+  - Wild Hunt executes marked hulks under 15% (never bosses).
+  - Kingslayer's shots take 3% of a hulk's and 1.2% of a boss's full health.
+  - The research suggests keeping these off hulks and bosses. I kept them because each is that
+    path's whole identity. Say if you'd rather cap them.
+- **Golden Age** discounts tiers 1-4 only (15%), never a tier 5.
+- **Second Heartfire** is the one last-stand save: 40 embers per life when something gets through.
+- **Dragon's Hoard** was trimmed (cap 20,000, +20% on big cash-outs). Combined with Windfall it was
+  paying out 57k at once.
+- **Diadem rather than a bigger crown.** Every tier 5 gets the same small five-point diadem over its
+  crown, so it reads as tier 5 at a glance.
+- **The bot:**
+  - Builds main path to tier 4, then the minor path, then tier 5. Before this, strict builds stopped
+    buying their minor path while they waited on an unaffordable tier 5, and lost lives at wave 25.
+  - Saves for a tier 5 only when it's close.
+  - New `endless12` builds and a `--no-t5` flag.
+
+## Needs your eye
+
+- **The second forms in play, in both skins** (`L` to switch). They're all drawn on the contact
+  sheets, but a few may want polish: Anthem of War's drum hides behind the body, and Worldlight's
+  beam sweeps flat across the ground.
+- **The purchase moment and the gold "saved" bar** on the tier 5 button.
+- **How endless feels around waves 80-100**, and whether the last lives should go more slowly.
+- **The frame rate** with a big tier 5 defence (see above).
+
+---
+
 # Morning summary (overnight 2026-11-20 → 21)
 
 Everything is on `redesign` in four commits (`a3356ce`, `52df143`, `bcf11b6`, `76a74df`), plus this
