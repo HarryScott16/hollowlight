@@ -427,6 +427,16 @@ function sprite(type, r, frame) {
   return c;
 }
 // A cached overlay drawn once into a canvas of `half` (map units) around the origin.
+// Which of n frames an angle-like value (radians, any size) falls in.
+function frameOf(v, n) { return Math.floor((((v % TAU) + TAU) % TAU) / TAU * n) % n; }
+// Stun stars circling over the head: one of six cached frames.
+function stunOverlay(r, wob) {
+  const k = frameOf(wob * 2, 6), R = r * 1.6 + 8;
+  return overlay(`sn${Math.round(r)}|${k}`, R, (g) => {
+    g.fillStyle = '#fff36b';
+    for (let i = 0; i < 3; i++) { const a = (k / 6) * TAU + (i / 3) * TAU; g.fillRect(Math.cos(a) * (r + 3) - 2, Math.sin(a) * (r + 3) * 0.5 - r - 2, 4, 4); }
+  });
+}
 function overlay(key, half, draw) {
   let c = overlays.get(key);
   if (c) return c;
@@ -555,13 +565,9 @@ export function drawEnemy(ctx, e, lite, quality = lite ? 1 : 2) {
     ctx.stroke();
   }
   if (e.veiled) {
-    if (quality === 2) {
-      ctx.strokeStyle = e.revealT > 0 ? '#ff7ae0' : 'rgba(225,200,255,0.75)';
-      ctx.lineWidth = 1.6;
-      ctx.setLineDash([3, 4]);
-      ctx.lineDashOffset = e.wob * 4;
-      ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, TAU); ctx.stroke();
-      ctx.setLineDash([]);
+    if (quality === 2) {   // the dashes creep round: one of four cached frames
+      const rv = e.revealT > 0, R = r + 6, k = Math.floor((((e.wob * 4) % 7 + 7) % 7) / 7 * 4) % 4;
+      ctx.drawImage(overlay(`vq${Math.round(r)}|${rv}|${k}`, R, (g) => { g.strokeStyle = rv ? '#ff7ae0' : 'rgba(225,200,255,0.75)'; g.lineWidth = 1.6; g.setLineDash([3, 4]); g.lineDashOffset = k * 7 / 4; g.beginPath(); g.arc(0, 0, r + 4, 0, TAU); g.stroke(); }), -R, -R, R * 2, R * 2);
     } else {
       const rv = e.revealT > 0, R = r + 6;
       ctx.drawImage(overlay(`vl${Math.round(r)}|${rv}`, R, (g) => { g.strokeStyle = rv ? '#ff7ae0' : 'rgba(225,200,255,0.75)'; g.lineWidth = 1.6; g.setLineDash([3, 4]); g.beginPath(); g.arc(0, 0, r + 4, 0, TAU); g.stroke(); }), -R, -R, R * 2, R * 2);
@@ -579,54 +585,44 @@ export function drawEnemy(ctx, e, lite, quality = lite ? 1 : 2) {
     const R = r + 5;
     ctx.drawImage(overlay(`sl${Math.round(r)}`, R, (g) => { g.strokeStyle = '#52e6ff'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, r + 3, 0, TAU); g.stroke(); }), -R, -R, R * 2, R * 2);
   }
+  // Status marks, each one of a few cached frames (one drawImage each: a tier 5 defence leaves
+  // almost every enemy burning, Scorched, marked and Charged at once).
   if (quality === 2) {
+    const ri = Math.round(r);
     if (e.burnT > 0) {
-      ctx.fillStyle = 'rgba(255,120,30,0.85)';
-      const f = e.wob * 4;
-      for (let i = 0; i < 3; i++) {
-        const a = f + i * 2.1, h = 4 + Math.sin(f * 1.7 + i) * 2;
-        ctx.beginPath(); ctx.ellipse(Math.cos(a) * r * 0.5, -r * 0.4 + Math.sin(a) * r * 0.3, 2.2, h, 0, 0, TAU); ctx.fill();
-      }
+      const k = frameOf(e.wob * 4, 8), R = r + 6;
+      ctx.drawImage(overlay(`bn${ri}|${k}`, R, (g) => {
+        g.fillStyle = 'rgba(255,120,30,0.85)';
+        const f = (k / 8) * TAU;
+        for (let i = 0; i < 3; i++) { const a = f + i * 2.1, h = 4 + Math.sin(f * 1.7 + i) * 2; g.beginPath(); g.ellipse(Math.cos(a) * r * 0.5, -r * 0.4 + Math.sin(a) * r * 0.3, 2.2, h, 0, 0, TAU); g.fill(); }
+      }), -R, -R, R * 2, R * 2);
     }
     if (e.searT > 0) {
       // Scorched: a ring of ash (a branded one glows), so a player can see healing is shut off
-      ctx.strokeStyle = e.brand ? 'rgba(220,30,40,0.85)' : 'rgba(60,45,50,0.8)';
-      ctx.lineWidth = 2.5;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, TAU); ctx.stroke();
-      ctx.setLineDash([]);
+      const R = r + 7, br = !!e.brand;
+      ctx.drawImage(overlay(`sr${ri}|${br}`, R, (g) => { g.strokeStyle = br ? 'rgba(220,30,40,0.85)' : 'rgba(60,45,50,0.8)'; g.lineWidth = 2.5; g.setLineDash([3, 3]); g.beginPath(); g.arc(0, 0, r + 4, 0, TAU); g.stroke(); }), -R, -R, R * 2, R * 2);
     }
     if (e.markT > 0) {
-      ctx.strokeStyle = '#e9eef6';
-      ctx.lineWidth = 2.2;
-      const m = r + 6;
-      ctx.beginPath();
-      for (let i = 0; i < 4; i++) {
-        const a = (i / 4) * TAU + Math.PI / 4 + e.wob * 0.3;
-        ctx.moveTo(Math.cos(a) * m, Math.sin(a) * m);
-        ctx.lineTo(Math.cos(a) * (m - 6), Math.sin(a) * (m - 6));
-      }
-      ctx.stroke();
+      const k = frameOf(e.wob * 0.3 * 4, 6), R = r + 8;   // four-fold: a quarter turn repeats
+      ctx.drawImage(overlay(`mk${ri}|${k}`, R, (g) => {
+        g.strokeStyle = '#e9eef6'; g.lineWidth = 2.2; g.beginPath();
+        const m = r + 6;
+        for (let i = 0; i < 4; i++) { const a = (i / 4) * TAU + Math.PI / 4 + (k / 6) * (TAU / 4); g.moveTo(Math.cos(a) * m, Math.sin(a) * m); g.lineTo(Math.cos(a) * (m - 6), Math.sin(a) * (m - 6)); }
+        g.stroke();
+      }), -R, -R, R * 2, R * 2);
     }
     if (e.chargedT > 0) {
-      ctx.strokeStyle = '#c8a0ff';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      const a = e.wob * 5;
-      ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-      ctx.lineTo(Math.cos(a + 1) * (r + 5), Math.sin(a + 1) * (r + 5));
-      ctx.lineTo(Math.cos(a + 2) * r, Math.sin(a + 2) * r);
-      ctx.stroke();
+      const k = frameOf(e.wob * 5, 12), R = r + 7;
+      ctx.drawImage(overlay(`cg${ri}|${k}`, R, (g) => {
+        g.strokeStyle = '#c8a0ff'; g.lineWidth = 1.5; g.beginPath();
+        const a = (k / 12) * TAU;
+        g.moveTo(Math.cos(a) * r, Math.sin(a) * r); g.lineTo(Math.cos(a + 1) * (r + 5), Math.sin(a + 1) * (r + 5)); g.lineTo(Math.cos(a + 2) * r, Math.sin(a + 2) * r);
+        g.stroke();
+      }), -R, -R, R * 2, R * 2);
     }
   }
   if (e.rootT > 0) { const R = r + 7; ctx.drawImage(heldOverlay(r), -R, -R, R * 2, R * 2); }
-  else if (e.stunT > 0) {
-    ctx.fillStyle = '#fff36b';
-    for (let i = 0; i < 3; i++) {
-      const a = e.wob * 2 + (i / 3) * TAU;
-      ctx.fillRect(Math.cos(a) * (r + 3) - 2, Math.sin(a) * (r + 3) * 0.5 - r - 2, 4, 4);
-    }
-  }
+  else if (e.stunT > 0) ctx.drawImage(stunOverlay(r, e.wob), -(r * 1.6 + 8), -(r * 1.6 + 8), (r * 1.6 + 8) * 2, (r * 1.6 + 8) * 2);
   if (e.groundT > 0 && !(e.lureT > 0)) { const R = r + 4; ctx.drawImage(lowOverlay(r), -R, 16 - R * 0.5, R * 2, R); }
   if (e.flash > 0) {
     const R = r * 1.05 + 1;
@@ -671,13 +667,7 @@ function drawCrowdEnemy(ctx, e, x, y, r, quality) {
         g.closePath(); g.fill(); g.stroke();
       }), -R, -R, R * 2, R * 2);
     }
-    if (e.stunT > 0 && !(e.rootT > 0)) {   // stun stars: one of six cached frames (crowds are often stunned en masse)
-      const k = Math.floor((((e.wob * 2) % TAU + TAU) % TAU) / TAU * 6) % 6, R = r * 1.6 + 8;
-      ctx.drawImage(overlay(`sn${Math.round(r)}|${k}`, R, (g) => {
-        g.fillStyle = '#fff36b';
-        for (let i = 0; i < 3; i++) { const a = (k / 6) * TAU + (i / 3) * TAU; g.fillRect(Math.cos(a) * (r + 3) - 2, Math.sin(a) * (r + 3) * 0.5 - r - 2, 4, 4); }
-      }), -R, -R, R * 2, R * 2);
-    }
+    if (e.stunT > 0 && !(e.rootT > 0)) { const R = r * 1.6 + 8; ctx.drawImage(stunOverlay(r, e.wob), -R, -R, R * 2, R * 2); }   // (crowds are often stunned en masse)
   }
   // A huge crowd shows health bars only on hulks and shields (hundreds of small bars are noise).
   if (quality > 0 || e.def.heavy || e.shield > 0) queueBar(e, x, y, r);

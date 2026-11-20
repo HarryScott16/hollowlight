@@ -656,7 +656,9 @@ export class Renderer {
     const s = this.scale;
     // Quality scales with the crowd so big waves stay smooth: 2 full, 1 crowd (no small status
     // overlays, fewer particles and rings), 0 huge crowd (lighter still). Hysteresis stops flicker.
-    const n = game.enemies.length, q = this.quality;
+    // The load counts more than enemies: a big tier 5 defence fills the screen with wards, shots
+    // and effects even when it leaves few enemies standing.
+    const n = game.enemies.length + game.towers.length * 4 + game.projectiles.length * 1.5, q = this.quality;
     this.quality = q === 2 ? (n > 200 ? 1 : 2) : q === 1 ? (n < 150 ? 2 : n > 650 ? 0 : 1) : (n < 560 ? 1 : 0);
     const lite = this.quality < 2;
     DETAIL.q = this.quality;
