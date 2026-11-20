@@ -852,7 +852,7 @@ export class Renderer {
     const s = t.stats;
     this.rangeCircle(ctx, t.x, t.y, Math.max(s.radius, 24), true);
     if (s.mineMax) {
-      const path = this.game.map.path, a = Math.max(30, t.pathDist - 30), b = Math.min(path.length - 90, t.pathDist + s.mineRange);
+      const path = this.game.map.path, a = Math.max(30, t.pathDist - s.mineRange), b = Math.min(path.length - 90, t.pathDist + 30);
       ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = MAP.pathWidth - 10; ctx.lineCap = 'round';
       ctx.beginPath(); for (let d = a; d <= b; d += 8) { path.posAt(d, this._pos || (this._pos = {}), 0); if (d === a) ctx.moveTo(this._pos.x, this._pos.y); else ctx.lineTo(this._pos.x, this._pos.y); } ctx.stroke();
       ctx.lineCap = 'butt';

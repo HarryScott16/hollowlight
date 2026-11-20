@@ -269,25 +269,25 @@ export const TOWERS = {
   snare: {
     name: 'Thornlight Snare', role: 'Path trap', cost: 200, kind: 'snare', onPath: true,
     desc: 'Built on the path itself. Each enemy that steps on it loses a layer and spends a charge; charges refill slowly and fully at the end of each wave. Flyers pass over it.',
-    base: { damage: 10, charges: 15, refill: 2, radius: 20, type: 'kinetic', hitsAir: false },
+    base: { damage: 10, charges: 20, refill: 3, radius: 20, type: 'kinetic', hitsAir: false },
     paths: [
       { name: 'Caltrops', blurb: "Heavier thorns that bite through armour and drag the Gloom down.", tiers: [
         { name: 'Sharp Thorns', blurb: "Every bite strips two layers.", cost: 100, desc: 'x2 damage: each bite strips 2 layers.', mul: { damage: 2 } },
-        { name: 'Thornbed', blurb: "Holds more charges, refills faster and bites into plate.", cost: 250, desc: '+10 charges, x1.5 refill, ignores half of armour.', add: { charges: 10 }, mul: { refill: 1.5 }, set: { armorPierce: 0.5 } },
-        { name: 'Iron Thorns', blurb: "Iron spikes tear through plate and slow whatever they bite.", cost: 750, desc: 'x2 damage, +15 charges, ignores all armour, bitten enemies slowed 30% for 1s.', mul: { damage: 2 }, add: { charges: 15 }, set: { armorPierce: 1, slow: 0.3, slowDur: 1 } },
+        { name: 'Thornbed', blurb: "Holds more charges, refills faster and bites into plate.", cost: 250, desc: '+10 charges, x2 refill, ignores half of armour.', add: { charges: 10 }, mul: { refill: 2 }, set: { armorPierce: 0.5 } },
+        { name: 'Iron Thorns', blurb: "Iron spikes tear through plate and slow whatever they bite.", cost: 750, desc: 'x2 damage, x1.5 refill, +15 charges, ignores all armour, bitten enemies slowed 30% for 1s.', mul: { damage: 2, refill: 1.5 }, add: { charges: 15 }, set: { armorPierce: 1, slow: 0.3, slowDur: 1 } },
         { name: 'Iron Briar', blurb: "A briar of iron that shreds the road and mires everything on it.", cost: 3900, desc: 'x3 damage, x2.5 refill, x2 charges, bitten enemies slowed 50% for 2s.', mul: { damage: 3, refill: 2.5, charges: 2 }, set: { slow: 0.5, slowDur: 2 } },
       ] },
-      { name: 'Flashmines', blurb: "Sows little mine-lamps along the road that burst underfoot.", tiers: [
+      { name: 'Flashmines', blurb: "Sows little mine-lamps on the road ahead of it that burst underfoot.", tiers: [
         { name: 'Lamp Seeds', blurb: "Sows a couple of mines on the road nearby.", cost: 110, desc: 'Keeps up to 2 mines on the path near it (one every 3s). Each bursts for 20 on up to 8 enemies within 40.', set: { mineMax: 2, mineEvery: 3, mineDmg: 20, mineRadius: 40, mineHits: 8, mineRange: 150 } },
         { name: 'Seedbed', blurb: "More mines, sown faster, bursting harder.", cost: 260, desc: 'Up to 4 mines, one every 2s, bursting for 30.', set: { mineMax: 4, mineEvery: 2, mineDmg: 30 } },
         { name: 'Flashmines', blurb: "A minefield: bright bursts all along the road.", cost: 800, desc: 'Up to 8 mines, one a second, bursting for 60 on up to 15 enemies within 50.', set: { mineMax: 8, mineEvery: 1, mineDmg: 60, mineRadius: 50, mineHits: 15, mineRange: 190 } },
         { name: 'Starfield', blurb: "The road glitters with mines that blast and stun.", cost: 4200, desc: 'Up to 16 mines, 2.5 a second, bursting for 80 on up to 25 enemies within 60 and stunning for 0.6s.', set: { mineMax: 16, mineEvery: 0.4, mineDmg: 80, mineRadius: 60, mineHits: 25, mineStun: 0.6, mineRange: 230 } },
       ] },
       { name: 'Binding Light', blurb: "Chains of light hold the Gloom in place, even the Heavy.", tiers: [
-        { name: 'Snaring Light', blurb: "Holds whatever it bites for a moment.", cost: 100, desc: 'Bitten non-heavy enemies are held for 0.5s.', set: { rootDur: 0.5 } },
-        { name: 'Chains of Light', blurb: "Holds longer, with more charges.", cost: 240, desc: 'Held for 0.9s. +6 charges.', set: { rootDur: 0.9 }, add: { charges: 6 } },
-        { name: 'Binding Circle', blurb: "Each bite binds the crowd around it too.", cost: 850, desc: 'x2 damage. Held 1.2s, and a bite also holds up to 6 non-heavy enemies within 50 (once a second).', mul: { damage: 2 }, set: { rootDur: 1.2, rootRadius: 50, rootHits: 6 } },
-        { name: 'Lightbound', blurb: "Chains strong enough to hold a Heavy.", cost: 4000, desc: 'x3 damage. Held 1.5s, up to 12 around each bite, and it holds a Heavy for 1.5s every 5s.', mul: { damage: 3 }, set: { rootDur: 1.5, rootHits: 12, heavyRoot: 1.5, heavyRootEvery: 5 } },
+        { name: 'Snaring Light', blurb: "Holds whatever it bites for a moment.", cost: 100, desc: 'Bitten non-heavy enemies are held for 0.5s. x1.5 refill.', set: { rootDur: 0.5 }, mul: { refill: 1.5 } },
+        { name: 'Chains of Light', blurb: "Holds longer, with more charges.", cost: 240, desc: 'Held for 0.9s. +6 charges, x1.5 refill.', set: { rootDur: 0.9 }, add: { charges: 6 }, mul: { refill: 1.5 } },
+        { name: 'Binding Circle', blurb: "Each bite binds the crowd around it too.", cost: 850, desc: 'x2 damage, x1.5 refill. Held 1.2s, and a bite also holds up to 6 non-heavy enemies within 50 (once a second).', mul: { damage: 2, refill: 1.5 }, set: { rootDur: 1.2, rootRadius: 50, rootHits: 6 } },
+        { name: 'Lightbound', blurb: "Chains strong enough to hold a Heavy.", cost: 4000, desc: 'x3 damage, x2 refill. Held 1.5s, up to 12 around each bite, and it holds a Heavy for 1.5s every 5s.', mul: { damage: 3, refill: 2 }, set: { rootDur: 1.5, rootHits: 12, heavyRoot: 1.5, heavyRootEvery: 5 } },
       ] },
     ],
   },
@@ -326,14 +326,14 @@ export const TOWERS = {
       { name: 'Hunter', blurb: "Bigger stars, a staff, and finally a comet.", tiers: [
         { name: 'Bright Stars', blurb: "Each star hits twice as hard.", cost: 100, desc: 'x2 damage.', mul: { damage: 2 } },
         { name: 'Seeking Stars', blurb: "Roams further and faster, and hits harder still.", cost: 260, desc: 'x1.5 damage, +20 range, +40 roaming, +30 speed.', mul: { damage: 1.5 }, add: { range: 20, leash: 40, moveSpeed: 30 } },
-        { name: 'Star Staff', blurb: "A crystal staff: stars burst wide at full strength.", cost: 850, desc: 'x2.5 damage. Stars burst for full damage on up to 8 enemies within 45 and ignore half of armour.', mul: { damage: 2.5 }, set: { starRadius: 45, starHits: 8, starMul: 1, armorPierce: 0.5 } },
-        { name: 'Comet', blurb: "Casts comets that crash down on the crowd.", cost: 4300, desc: 'x3 damage, x1.3 rate, +60 roaming. Comets burst on up to 16 enemies within 70.', mul: { damage: 3, rate: 1.3 }, add: { leash: 60 }, set: { starRadius: 70, starHits: 16, comet: true } },
+        { name: 'Star Staff', blurb: "A crystal staff: stars burst wide at full strength.", cost: 850, desc: 'x2 damage. Stars burst for 75% damage on up to 6 enemies within 45 and ignore half of armour.', mul: { damage: 2 }, set: { starRadius: 45, starHits: 6, starMul: 0.75, armorPierce: 0.5 } },
+        { name: 'Comet', blurb: "Casts comets that crash down on the crowd.", cost: 4300, desc: 'x2.5 damage, x1.3 rate, +60 roaming. Comets burst on up to 12 enemies within 70.', mul: { damage: 2.5, rate: 1.3 }, add: { leash: 60 }, set: { starRadius: 70, starHits: 12, comet: true } },
       ] },
       { name: 'Swarm', blurb: "Splits into several lights, each casting on its own.", tiers: [
         { name: 'Quick Wand', blurb: "Casts noticeably faster.", cost: 90, desc: 'x1.4 cast rate.', mul: { rate: 1.4 } },
         { name: 'Two Lights', blurb: "Splits into two lights.", cost: 280, desc: '2 lights, each casting at its own target.', set: { lights: 2 } },
-        { name: 'Wisp Swarm', blurb: "Three lights, faster and brighter.", cost: 800, desc: '3 lights. x1.3 rate, x1.5 damage.', set: { lights: 3 }, mul: { rate: 1.3, damage: 1.5 } },
-        { name: 'Starswarm', blurb: "Every light casts volleys of stars.", cost: 4000, desc: 'Each light casts 2 stars at once. x1.5 rate, x2.5 damage.', set: { shots: 2 }, mul: { rate: 1.5, damage: 2.5 } },
+        { name: 'Wisp Swarm', blurb: "Three lights, casting faster.", cost: 800, desc: '3 lights. x1.3 rate.', set: { lights: 3 }, mul: { rate: 1.3 } },
+        { name: 'Starswarm', blurb: "Every light casts volleys of stars.", cost: 4000, desc: 'Each light casts 2 stars at once. x1.5 rate, x2 damage.', set: { shots: 2 }, mul: { rate: 1.5, damage: 2 } },
       ] },
       { name: 'Torchbearer', blurb: "Rose stars mark the Gloom, and its torch lifts nearby wards.", tiers: [
         { name: 'Rune Stars', blurb: "Stars mark their target: it takes more damage from every ward.", cost: 110, desc: 'Hits mark for 3s: +15% damage from everything.', set: { markPct: 0.15, markDur: 3 } },

@@ -56,8 +56,9 @@ export function estimateDps(kind, s, crowd = true) {
     return s.damage * charge * s.beams * (1 + (s.burstMul ? 1.5 * s.burstMul : 0));
   }
   if (kind === 'snare') {
-    // Bites: steady state is the refill rate (plus a stock to spend on a rush); mines burst in crowds.
-    let d = s.damage * s.refill * (crowd ? 1.6 : 1) * (s.rootDur ? 1.15 : 1);
+    // Bites: at most the refill rate, and only as often as enemies walk over it (about 70% of the
+    // refill in a busy lane, measured with the bots); mines burst in crowds.
+    let d = s.damage * s.refill * 0.7 * (s.rootDur ? 1.15 : 1);
     if (s.mineMax) d += (s.mineDmg * (crowd ? Math.min(s.mineHits, 6) : 1)) / s.mineEvery;
     return d;
   }
@@ -498,7 +499,8 @@ function sowMines(game, t, s, dt) {
   for (const m of game.mines) if (m.src === t) n++;
   if (n >= s.mineMax) return;
   const path = game.map.path;
-  const d = Math.max(30, Math.min(path.length - 90, t.pathDist - 30 + game.rand() * (s.mineRange + 30)));
+  // sown upstream of the snare, where the Gloom arrives (and a little past it)
+  const d = Math.max(30, Math.min(path.length - 90, t.pathDist + 30 - game.rand() * (s.mineRange + 30)));
   path.posAt(d, aim, (game.rand() - 0.5) * 26);
   game.mines.push({ x: aim.x, y: aim.y, src: t, arm: 0.5 });
   game.emit('mine', { x: aim.x, y: aim.y });

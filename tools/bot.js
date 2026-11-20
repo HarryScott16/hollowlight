@@ -93,6 +93,24 @@ const STRATEGIES = {
   },
 };
 
+// Builds with the four newest wards (Snare, Moth Lantern, Wandering Light, Ember Vault) in the mix.
+// (economy and the flyer lure come after the first boss, as a player would buy them)
+const ALL12 = ['bolt', 'rime', 'mortar', 'coil', 'censer', 'prism', 'snare', 'wander', 'longeye', 'vault', 'moth', 'beacon', 'mortar', 'snare', 'wander', 'coil', 'bolt', 'prism'];
+const NEWP_A = { snare: [0, 2], moth: [2, 0], wander: [0, 2], vault: [0, 1] };
+const NEWP_B = { snare: [1, 0], moth: [1, 2], wander: [1, 0], vault: [2, 0] };
+const NEWP_C = { snare: [2, 1], moth: [0, 1], wander: [2, 1], vault: [1, 2] };
+Object.assign(STRATEGIES, {
+  strong12: { ...STRONG, order: ALL12, paths: { ...PATHS_A, ...NEWP_A }, strict: true },
+  strong12B: { ...STRONG, order: ALL12, paths: { ...PATHS_B, ...NEWP_B }, strict: true },
+  strong12C: { ...STRONG, order: ALL12, paths: { ...PATHS_C, ...NEWP_C }, strict: true },
+  mixed12: { reveal: true, group: 'reasonable', order: ALL12, paths: { ...PATHS_A, ...NEWP_B }, maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.45)), tierCap: 3 },
+  // Leans on the new wards: they get first call on upgrades (probe: how strong are their tier 4s?)
+  newWards: { ...STRONG, group: 'probe', order: ['bolt', 'snare', 'wander', 'rime', 'vault', 'mortar', 'moth', 'wander', 'snare', 'coil', 'wander', 'snare', 'prism', 'vault', 'wander', 'mortar'],
+    paths: { ...PATHS_A, ...NEWP_A }, favour: 4, favourSet: ['snare', 'moth', 'wander', 'vault'], strict: true },
+  lazySnare: { // two Bolts and a Snare, never upgraded: a probe (a bare Snare is a supplement, not an opener)
+    group: 'probe', order: ['bolt', 'bolt', 'snare'], paths: {}, maxTowers: () => 3, noAbilities: true },
+});
+
 // Without Mortars, crowd damage has to come from elsewhere: the no-Mortar build a player would make.
 STRATEGIES.noMortarCrowd = { ...STRONG, group: 'ban', order: ALL8.filter((t) => t !== 'mortar'), strict: true,
   paths: { bolt: [1, 2], rime: [1, 2], coil: [1, 0], censer: [1, 2], longeye: [1, 2], prism: [0, 2], beacon: [0, 1] } };
@@ -123,8 +141,32 @@ function coverage(game, x, y, range, minRange = 0) {
   return n;
 }
 
+// Thornlight Snares go on the road: where the most ward coverage already is (the kill zone, so
+// what it holds gets hit), not too near the end.
+function snareSpot(game) {
+  const p = game.map.path;
+  let best = null, bestScore = -1;
+  for (let i = 20; i < p.count - 30; i += 3) {
+    const x = p.xs[i], y = p.ys[i];
+    if (!game.snapToPath(x, y)) continue;
+    let score = 1;
+    for (const t of game.towers) if (t.stats.range && !t.def.onPath && Math.hypot(t.hx - x, t.hy - y) < t.stats.range) score += 1 + t.spent / 500;
+    score *= 1 - (i / p.count) * 0.3;   // earlier is a little better: what it holds stays in the kill zone
+    if (score > bestScore) { bestScore = score; best = { x, y }; }
+  }
+  return best;
+}
+// Flyer coverage: how much of the flight route a spot reaches.
+function flyCoverage(game, x, y, range) {
+  const p = game.map.flyPath;
+  let n = 0;
+  for (let i = 0; i < p.count; i += 2) if (p.xs[i] > 0 && Math.hypot(p.xs[i] - x, p.ys[i] - y) <= range) n++;
+  return n;
+}
+
 function bestSpot(game, spots, type) {
-  const base = TOWERS[type].base;
+  if (TOWERS[type].onPath) return snareSpot(game);
+  const base = TOWERS[type].base, kind = TOWERS[type].kind;
   let best = null, bestScore = -1;
   for (const s of spots) {
     if (!game.canPlace(type, s.x, s.y)) continue;
@@ -134,6 +176,16 @@ function bestSpot(game, spots, type) {
       score = 0;
       for (const t of game.towers) if (t.def.kind !== 'aura' && Math.hypot(t.x - s.x, t.y - s.y) < base.range - 10) score += t.spent;
       score += coverage(game, s.x, s.y, base.range) * 2;
+    } else if (kind === 'lure') {
+      // Moth Lanterns: on the flight route, near the ground splash that will hit what it lures.
+      score = flyCoverage(game, s.x, s.y, base.range) * 2;
+      for (const t of game.towers) if (!t.stats.hitsAir && t.stats.range && Math.hypot(t.x - s.x, t.y - s.y) < t.stats.range) score += 20;
+    } else if (kind === 'vault') {
+      // Ember Vaults: in the kill zone, among the wards.
+      score = coverage(game, s.x, s.y, base.range);
+      for (const t of game.towers) if (t.stats.range && Math.hypot(t.hx - s.x, t.hy - s.y) < t.stats.range) score += 3;
+    } else if (kind === 'wander') {
+      score = coverage(game, s.x, s.y, base.range + base.leash);
     } else if (base.global) {
       // A map-wide ward works from anywhere: put it where it takes the least path coverage from others.
       score = 1000 - coverage(game, s.x, s.y, 160);
@@ -152,7 +204,7 @@ const boostMul = (s) => (1 + (s.auraRate || 0)) * (1 + (s.auraDmg || 0)) * (1 + 
 function beaconGain(game, b, before, after) {
   let base = 0;
   for (const t of game.towers) {
-    if (t.def.kind === 'aura' || Math.hypot(t.x - b.x, t.y - b.y) > after.range) continue;
+    if (t === b || t.def.kind === 'aura' || Math.hypot(t.hx - b.hx, t.hy - b.hy) > after.range) continue;
     base += estimateDps(t.def.kind, computeStats(t.def, t.tiers));
   }
   return base * (boostMul(after) - boostMul(before));
@@ -166,7 +218,20 @@ function upgradeValue(game, t, pi, strat) {
   tiers[pi]++;
   const next = computeStats(t.def, tiers), now = computeStats(t.def, t.tiers);
   let gain;
-  if (t.def.kind === 'aura') {
+  if (t.def.kind === 'vault') {
+    // Embers: worth what they bank per wave (cap and growth), plus Hearthwarm's boost like a Beacon's.
+    // A bigger cap only pays once the vault actually fills; a player sees that before buying it.
+    const left = Math.max(0, 34 - game.wave), full = t.botFull ? 1 : 0;
+    gain = ((next.cap - now.cap) * 0.1 * full + (next.glean - now.glean) * (t.botRate || 0) * 0.5 + (next.growth - now.growth) * Math.min(next.cap, t.botRate || 0) + ((next.gleanAll ? 1 : 0) - (now.gleanAll ? 1 : 0)) * (t.botRate || 0) * 0.4) * left * 0.06;
+    if (next.warmRate) gain += beaconGain(game, t, { auraRate: now.warmRate || 0, auraDmg: now.warmDmg || 0 }, { auraRate: next.warmRate, auraDmg: next.warmDmg || 0, range: next.range }) * 0.7;
+  } else if (t.def.kind === 'lure') {
+    // A lure's worth: the ground splash it lets reach flyers (more held, longer), plus its own moths.
+    let ground = 0;
+    for (const o of game.towers) if (!o.stats.hitsAir && o.stats.range && Math.hypot(o.x - t.x, o.y - t.y) < o.stats.range + next.range) ground += estimateDps(o.def.kind, o.stats) * 0.15;
+    const hold = (s) => Math.min(s.lureMax, 12) * s.lureDur * (1 + (s.lureAmp || 0)) + (s.groundDur || 0) * 2 + (s.releaseSlow || 0) * 10;
+    gain = ground * (hold(next) - hold(now)) / 20 + estimateDps('lure', next) - estimateDps('lure', now);
+    if (game.botNeedAir) gain *= 3;
+  } else if (t.def.kind === 'aura') {
     gain = beaconGain(game, t, now, next);
     // Tithe: gold now for gold later, worth it with enough waves left to pay back.
     if (next.tithe) gain += ((next.tithe - (now.tithe || 0)) + ((next.interestCap || 0) - (now.interestCap || 0)) * 0.5) * Math.max(0, 32 - game.wave) * (strat.tithe ? 0.6 : 0.15);
@@ -180,7 +245,7 @@ function upgradeValue(game, t, pi, strat) {
   // Frost spires are worth more than their own damage: they multiply everyone else's. Fire
   // shuts down Menders and shields, which the damage estimate doesn't see.
   const util = t.def.kind === 'pulse' ? 3 : t.def.kind === 'flame' ? 1.5 : 1;
-  const fav = strat.favour && NEW_WARDS.has(t.type) ? strat.favour : 1;
+  const fav = strat.favour && (strat.favourSet ? strat.favourSet.includes(t.type) : NEW_WARDS.has(t.type)) ? strat.favour : 1;
   return { t, pi, cost: info.up.cost, value: (gain * util * fav) / info.up.cost };
 }
 
@@ -196,7 +261,17 @@ function ensureReveal(game, strat) {
   return true;
 }
 
+function cashOutVaults(game) {
+  for (const t of game.towers) {
+    if (t.type !== 'vault') continue;
+    // what it gathers a wave (for valuing its upgrades), measured as it fills
+    if (t.botWave !== game.wave) { if (t.botWave) t.botRate = (t.botRate || 0) * 0.5 + Math.max(0, t.bank - (t.botBank || 0)) * 0.5; t.botWave = game.wave; t.botBank = t.bank; }
+    if (t.bank >= t.stats.cap * 0.95) { t.botFull = true; game.cashOut(t); t.botBank = 0; }
+  }
+}
+
 function spend(game, strat, spots, state) {
+  cashOutVaults(game);
   // Plateau builds stop investing for good once they own this many tier 4 wards.
   if (strat.stopAtT4 && game.towers.filter((t) => t.tiers.includes(4)).length >= strat.stopAtT4) return;
   if (!ensureReveal(game, strat)) return;
