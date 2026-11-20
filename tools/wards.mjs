@@ -19,7 +19,7 @@ const req = createRequire(process.env.CANVAS_MODULES ? join(process.env.CANVAS_M
 const { createCanvas, GlobalFonts } = req('@napi-rs/canvas');
 if (process.env.FONT_DIR) GlobalFonts.registerFromPath(join(process.env.FONT_DIR, 'DejaVuSans.ttf'), 'Sans');
 const out = process.argv[2] || 'wards.png';
-const CAPS = [46, 50, 56, 62, 68, 76];   // by main-path tier (the Longeye is the tall one)
+const CAPS = [46, 50, 56, 62, 68, 104];   // by main-path tier (the Longeye is the tall one)
 
 const STATES = [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0], [5, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [0, 0, 5], [4, 2, 0], [0, 2, 4], [2, 0, 4], [5, 2, 0], [2, 0, 5]];
 const skins = Object.keys(SKINS);
@@ -34,7 +34,7 @@ for (const s of skins) for (const t of types) if (!SKINS[s].art[t]) { console.lo
 // how much of the ward's body box (art.self) it covers, worst case over eight aim directions.
 const COVER = 0.3;
 // Canvases are reused: @napi-rs/canvas memory is native, and new canvases per render add up fast.
-const COVER_CTX = createCanvas(160, 160).getContext('2d'), HEIGHT_CTX = createCanvas(120, 120).getContext('2d');
+const COVER_CTX = createCanvas(160, 160).getContext('2d'), HEIGHT_CTX = createCanvas(160, 160).getContext('2d');
 function coverage(art, type, tiers, skin) {
   const P = artPath(tiers), d = WARD_DMG[type], box = art.self(P), Z = 3, N = 160;
   let worst = 0;
@@ -61,17 +61,17 @@ function height(type, tiers) {
   let worst = 0;
   const ctx = HEIGHT_CTX;
   for (let k = 0; k < 8; k++) {
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 120, 120);
-    drawWard(ctx, { type, tiers, x: 60, y: 90, id: 1 }, { ang: (k / 8) * Math.PI * 2, recoil: 0, time: 0.3, pulse: 0, fire: 0, pop: 0, id: 1 });
-    const px = ctx.getImageData(0, 0, 120, 120).data;
-    let top = 120;
-    for (let y = 0; y < 120 && top === 120; y++) for (let x = 0; x < 120; x++) if (px[(y * 120 + x) * 4 + 3] > 60) { top = y; break; }
-    worst = Math.max(worst, 90 + (14 - 11) * wardScale(tiers) - top);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 160, 160);
+    drawWard(ctx, { type, tiers, x: 80, y: 130, id: 1 }, { ang: (k / 8) * Math.PI * 2, recoil: 0, time: 0.3, pulse: 0, fire: 0, pop: 0, id: 1 });
+    const px = ctx.getImageData(0, 0, 160, 160).data;
+    let top = 160;
+    for (let y = 0; y < 160 && top === 160; y++) for (let x = 0; x < 160; x++) if (px[(y * 160 + x) * 4 + 3] > 60) { top = y; break; }
+    worst = Math.max(worst, 130 + (14 - 11) * wardScale(tiers) - top);
   }
   return worst;
 }
 
-const Z = 2, CW = 70 * Z, CH = 80 * Z, LBL = 18;
+const Z = 2, CW = 90 * Z, CH = 104 * Z, LBL = 18;
 const W = 90 + STATES.length * CW, H = types.length * skins.length * (CH + LBL) + 30;
 const sheet = createCanvas(W, H), g = sheet.getContext('2d');
 g.fillStyle = '#2f9a74'; g.fillRect(0, 0, W, H);
@@ -101,7 +101,7 @@ for (const s of skins) {
     STATES.forEach((tiers, i) => {
       const r = results.get(`${s}|${t}|${i}`);
       g.save(); g.translate(90 + i * CW, y0); g.scale(Z, Z);
-      drawWard(g, { type: t, tiers, x: 35, y: 62, id: i }, { ang: 0.6, recoil: 0, time: 0.3 + i, pulse: 0, fire: 0, pop: 0, id: i });
+      drawWard(g, { type: t, tiers, x: 45, y: 88, id: i }, { ang: 0.6, recoil: 0, time: 0.3 + i, pulse: 0, fire: 0, pop: 0, id: i });
       g.restore();
       g.fillStyle = r.over ? '#ff6060' : '#d8ffe8'; g.fillText(`${r.h.toFixed(0)}px`, 90 + i * CW + 4, y0 + CH + 12);
     });

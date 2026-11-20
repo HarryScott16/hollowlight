@@ -28,7 +28,7 @@ export function nextSkin() { const keys = Object.keys(SKINS); setSkin(keys[(keys
 // bigger than a tier 0 (about x1.35); tiers on the second path add a little. tools/wards.mjs
 // checks the heights. Enemies behind a ward show through it (see Renderer.drawGhosts).
 const K = 0.86;
-const GROW = [1, 1.06, 1.13, 1.22, 1.35, 1.4];
+const GROW = [1, 1.06, 1.13, 1.22, 1.35, 1.5];
 export function wardScale(tiers) { const P = mainPath(tiers); return K * (GROW[P.mt] + (P.lvl - P.mt) * 0.02); }
 const PLINTH_Y = 11;   // ward units: the plinth centre sits on the ward's map position
 

@@ -19,8 +19,8 @@ Every path has a fifth tier, a capstone: about 4.5x its tier 4's cost, 3-5x its 
 signature mechanic each (`docs/tier5-design.md`; research in `docs/tier5-research.md`). Only one of
 each tier 5 may stand on the map (`RULES.uniqueTier5`, checked in `upgradeInfo`). The data is the
 `TIER5` block at the end of `data/towers.js`. Art: a tier 5 is drawn as its skin's tier 4 form
-(`artPath`: `P.mt` 4, `P.t5` set) plus the shared second form in `render/wards/ascend.js` (both skins
-get it, with their own materials); height cap 76 px. Tier 5 effects on the map are in
+(`artPath`: `P.mt` 4, `P.t5` set), grown x1.5, plus the shared second form in `render/wards/ascend.js`
+(both skins get it, with their own materials); height cap 104 px. Tier 5 effects on the map are in
 `Renderer.drawTier5` and the fx cases marked "tier 5 signatures".
 
 ## Endless
@@ -76,10 +76,11 @@ every ward for each skin; `bolt-parts.js` and `parts.js` hold props both skins s
   extra lights are drawn as wards of their own (`Renderer.lightWard`).
 - Wards are upright (three-quarter view) and grow with every tier on their main path, so a tier 4
   is clearly bigger and more imposing than a tier 0 (about x1.35). Height caps (checked by
-  `tools/wards.mjs`): about 46 px for a base ward, 68 px for a tier 4, 76 px for a tier 5 (x1.4).
+  `tools/wards.mjs`): about 46 px for a base ward, 68 px for a tier 4, 104 px for a tier 5 (x1.5).
   Enemies behind a ward show through it as outlined ghosts (`Renderer.drawGhosts`), so size never
-  hides them. A tier 5's second form goes beside or behind the body (`wards/ascend.js`), and its
-  diadem is the only pure white on an idle ward. On this machine run `tools/wards.mjs` in groups of
+  hides them. A tier 5's second form is a big silhouette framing the ward from behind (wings, a vortex,
+  a sunburst, a glacier, a dragon: `wards/ascend.js`; the benchmarks are Starhost, Phoenix, Elder Wyrm
+  and Eye of the Storm), and its diadem is the only pure white on an idle ward. On this machine run `tools/wards.mjs` in groups of
   four wards (`node tools/wards.mjs out.png bolt mortar rime coil`): all twelve at once runs out of
   memory.
 - Each ward is coloured and dressed for its role and damage type in both skins (e.g. the Censer is

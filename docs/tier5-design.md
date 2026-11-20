@@ -43,7 +43,9 @@ left unused:
    materials: Kindlings get bronze, wood and wax; Lanterns get iron, brass and smoked glass.
 2. **The brightest highlights.** A floating five-point diadem with a white-hot core sits on the
    crown. It is the only pure white on an idle ward.
-3. **Height up to about 76 px** (tier 4: 68). Wards grow x1.4 at tier 5 (x1.35 at tier 4).
+3. **Height up to 104 px** (tier 4: 68). Wards grow x1.5 at tier 5 (x1.35 at tier 4), and the second
+   form is a big silhouette framing the ward from behind, so a tier 5 is clearly bigger than a tier 4.
+   Enemies behind it show through as ghosts.
    `tools/wards.mjs` checks every path's tier 5 in both skins, including the body-and-face rule: big
    forms are drawn behind the body, and only small things go in front, beside or above it.
 4. **A signature effect on the battlefield** for every tier 5: the hawk's dive, the falling mountain,
@@ -160,6 +162,6 @@ which the panel shows on hover or Shift.
 - `node tools/tier5.js [wave=35]`: each tier 5 against its tier 4 on the same late wave, alone (damage
   dealt and the ratio), and which tier 5 effects fired.
 - `node tools/report.js`: estimated power and power per gold, with a T5 column.
-- `node tools/wards.mjs`: every tier 5 in both skins, 76 px cap, body-and-face rule. Run it in groups
+- `node tools/wards.mjs`: every tier 5 in both skins, 104 px cap, body-and-face rule. Run it in groups
   of four wards on this machine (memory).
 - `node tools/perf.mjs defence=t5`: the full defence with tier 5s where the limit allows.
