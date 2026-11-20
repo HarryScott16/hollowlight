@@ -43,6 +43,7 @@ const crop = (name, x = 110, y = 470, w = 380, h = 190, z = 2) => {
 // Wait for a crowd on the bottom straight, then snapshot both skins at the same moment.
 const WAVE = Number(process.env.WAVE) || 24;
 g.wave = g.rewarded = WAVE - 1;
+if (WAVE > 40) { g.endless = true; g.over = null; }   // the late endless waves (crowd quality)
 // For the snapshot only: wards deal a sliver of their damage, so a crowd builds up in front of them.
 const realDamage = g.damage.bind(g);
 g.damage = (e, amt, ...rest) => realDamage(e, amt * 0.002, ...rest);

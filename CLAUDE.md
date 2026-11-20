@@ -17,8 +17,10 @@ It lives only in the UI layer and must never touch the simulation, the bots or b
   particles, no per-frame gradients, shadowBlur or filters.
 - Quality scales with the crowd (`Renderer.quality`: 2 full, 1 crowd, 0 huge crowd, with
   hysteresis): fewer small overlays, particles, rings, stains and flame, and no decorative ward
-  idle details. Wards redraw their live layer into a per-ward canvas every 2nd frame (3rd or 4th in
-  crowds). The simulation has an 8 ms per-frame budget at high speed (see `main.js`).
+  idle details. Wards redraw their live layer into a per-ward canvas every 2nd frame (4th or 6th in
+  crowds). In crowds an enemy's body, cracks and veil are baked into one image (`combo` in
+  `enemyArt.js`), and burning zones and Coil arcs are batched. `perf.mjs` also takes `STATES=1`
+  (enemy states) and `SECTION=enemies,ground,...` (calls by method per section). The simulation has an 8 ms per-frame budget at high speed (see `main.js`).
 
 ## Art rules
 

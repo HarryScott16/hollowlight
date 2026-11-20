@@ -477,7 +477,7 @@ export class Renderer {
     let pt = performance.now();
     this.consume();
     this.time += dt;
-    pt = this.mark('effects', pt);
+    pt = this.mark('events', pt);
     this.parts.update(dt);
     pt = this.mark('particles', pt);
     this.flushMulti(dt);
@@ -492,9 +492,9 @@ export class Renderer {
     this.quality = q === 2 ? (n > 200 ? 1 : 2) : q === 1 ? (n < 150 ? 2 : n > 650 ? 0 : 1) : (n < 560 ? 1 : 0);
     const lite = this.quality < 2;
     DETAIL.q = this.quality;
-    // Wards redraw their live layer every 2nd frame (every 3rd or 4th in big crowds), staggered.
+    // Wards redraw their live layer every 2nd frame (every 4th or 6th in big crowds), staggered.
     this.frameN = (this.frameN || 0) + 1;
-    setWardRefresh([4, 3, 2][this.quality], this.frameN, [1.5, 2, 3][this.quality]);
+    setWardRefresh([6, 4, 2][this.quality], this.frameN, [1.2, 1.6, 3][this.quality]);
     if (this.frameN % 300 === 0) pruneWardCache(new Set(game.towers.map((t) => t.id)));
     this.parts.cap = [500, 800, 1400][this.quality];
     this.parts.share = [0.35, 0.6, 1][this.quality];
@@ -562,15 +562,20 @@ export class Renderer {
     let wi = 0;
     for (let i = 0; i < walk.length; i++) {
       const e = walk[i];
-      while (wi < wards.length && wards[wi].y + 3 <= e.y) this.drawWardAt(ctx, wards[wi++], dt);
+      if (wi < wards.length && wards[wi].y + 3 <= e.y) {
+        ctx.setTransform(s, 0, 0, s, sx * s, sy * s);   // drawEnemy leaves its own transform set
+        while (wi < wards.length && wards[wi].y + 3 <= e.y) this.drawWardAt(ctx, wards[wi++], dt);
+      }
       drawEnemy(ctx, e, lite, this.quality);
     }
+    ctx.setTransform(s, 0, 0, s, sx * s, sy * s);
     while (wi < wards.length) this.drawWardAt(ctx, wards[wi++], dt);
     { const t = performance.now(); this.addPerf('enemies', t - pt - this.perf.wardT); this.addPerf('wards', this.perf.wardT); pt = t; }
     this.drawGhosts(ctx, lite);
     pt = this.mark('ghosts', pt);
     if (flyers) for (let i = 0; i < es.length; i++) { const e = es[i]; if (e.def.flying && e.x > -40 && e.x < W + 40 && e.y > -40 && e.y < H + 40) drawEnemy(ctx, e, lite, this.quality); }
     flushEnemyBars(ctx);
+    ctx.setTransform(s, 0, 0, s, sx * s, sy * s);
     pt = this.mark('enemies', pt);
 
     for (const t of game.towers) {
@@ -600,12 +605,14 @@ export class Renderer {
 
     pt = this.mark('wards', pt);
     this.drawProjectiles(ctx);
+    pt = this.mark('shots', pt);
     this.flameFx.draw(ctx, { s, e: sx * s, f: sy * s });
+    pt = this.mark('flames', pt);
     this.drawTracers(ctx, dt);
     this.drawRings(ctx, dt);
     this.drawArcs(ctx, dt);
     this.drawPillars(ctx, dt);
-    pt = this.mark('effects', pt);
+    pt = this.mark('rings', pt);
     this.parts.draw(ctx);
     pt = this.mark('particles', pt);
     this.drawSnow(ctx, dt);
@@ -720,11 +727,12 @@ export class Renderer {
     }
     if (!this.showFps) return;
     const g = this.game, sh = P.shown || {}, ms = (k) => (sh[k] || 0).toFixed(1);
+    sh.effects = ['events', 'shots', 'flames', 'rings', 'effects'].reduce((t, k) => t + (sh[k] || 0), 0);
     const total = ['sim', 'ui', 'effects', 'ground', 'enemies', 'wards', 'ghosts', 'particles', 'overlay'].reduce((t, k) => t + (sh[k] || 0), 0);
     const lines = [
       `${f.value} fps  (worst ${f.shownWorst || 0} ms)  ·  quality ${this.quality === 2 ? 'full' : this.quality === 1 ? 'crowd' : 'huge crowd'}`,
       `ms/frame  sim ${ms('sim')} (${(sh.steps || 0).toFixed(1)} steps)  ·  enemies ${ms('enemies')}  ·  wards ${ms('wards')}  ·  see-through ${ms('ghosts')}`,
-      `effects ${ms('effects')}  ·  particles ${ms('particles')}  ·  ground ${ms('ground')}  ·  overlay ${ms('overlay')}  ·  ui ${ms('ui')}  ·  total ${total.toFixed(1)}`,
+      `effects ${ms('effects')} (shots ${ms('shots')}, flames ${ms('flames')}, rings ${ms('rings')})  ·  particles ${ms('particles')}  ·  ground ${ms('ground')}  ·  overlay ${ms('overlay')}  ·  ui ${ms('ui')}  ·  total ${total.toFixed(1)}`,
       `${g.enemies.length} enemies  ·  ${g.towers.length} wards  ·  ${g.projectiles.length} shots  ·  ${this.parts.list.length} particles  ·  ${this.flameFx.flame.length} flame  ·  ${this.rings.length} rings`,
     ];
     ctx.font = `700 12px ${FONT}`;
@@ -789,19 +797,39 @@ export class Renderer {
     if (Math.random() < 0.3) this.parts.burst(g.x + (Math.random() - 0.5) * 12, g.y - h * 0.6, 1, { color: '#ffd23a', speed: 40, life: 0.8, size: 2.4, grav: -70, ang: -Math.PI / 2, spread: 1 });
   }
 
+  // Burning ground: the two glowing discs are one cached additive image (additive light adds up the
+  // same baked or live), drawn at the zone's flicker; the settled rims are stroked as one path.
+  zoneSprite() {
+    if (this._zoneSprite) return this._zoneSprite;
+    const c = document.createElement('canvas'), N = 128, g = c.getContext('2d');
+    c.width = c.height = N;
+    g.globalCompositeOperation = 'lighter';
+    g.fillStyle = 'rgba(255,90,20,0.3)'; g.beginPath(); g.arc(N / 2, N / 2, N / 2 - 1, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,200,60,0.28)'; g.beginPath(); g.arc(N / 2, N / 2, (N / 2 - 1) * 0.6, 0, TAU); g.fill();
+    return (this._zoneSprite = c);
+  }
+
   drawZones(ctx, dt) {
-    for (const z of this.game.zones) {
-      const a = Math.min(1, z.t * 2);
-      const flick = 0.85 + Math.sin(this.time * 14 + z.x) * 0.15;
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = `rgba(255,90,20,${0.3 * a * flick})`;
-      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, TAU); ctx.fill();
-      ctx.fillStyle = `rgba(255,200,60,${0.28 * a * flick})`;
-      ctx.beginPath(); ctx.arc(z.x, z.y, z.r * 0.6, 0, TAU); ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = `rgba(255,120,30,${0.8 * a})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, TAU); ctx.stroke();
+    const zs = this.game.zones;
+    if (!zs.length) return;
+    const img = this.zoneSprite();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const z of zs) {
+      ctx.globalAlpha = Math.min(1, z.t * 2) * (0.85 + Math.sin(this.time * 14 + z.x) * 0.15);
+      ctx.drawImage(img, z.x - z.r, z.y - z.r, z.r * 2, z.r * 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,120,30,0.8)';
+    ctx.beginPath();
+    for (const z of zs) if (z.t >= 0.5) { ctx.moveTo(z.x + z.r, z.y); ctx.arc(z.x, z.y, z.r, 0, TAU); }
+    ctx.stroke();
+    for (const z of zs) {
+      if (z.t < 0.5) {   // burning out: its rim fades
+        ctx.strokeStyle = `rgba(255,120,30,${0.8 * Math.min(1, z.t * 2)})`;
+        ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, TAU); ctx.stroke();
+      }
       if (dt > 0 && Math.random() < 0.6) {
         const an = Math.random() * TAU, d = Math.random() * z.r;
         this.parts.burst(z.x + Math.cos(an) * d, z.y + Math.sin(an) * d, 1, { color: Math.random() < 0.5 ? '#ffd23a' : '#ff5a1a', speed: 30, life: 0.6, size: 3, grav: -90, ang: -Math.PI / 2, spread: 0.8 });
@@ -1001,6 +1029,7 @@ export class Renderer {
   }
 
   drawArcs(ctx, dt) {
+    if (this.quality < 2) { this.drawArcsBatched(ctx, dt); return; }
     const arcs = this.arcs;
     let w = 0;
     ctx.lineJoin = 'round';
@@ -1034,6 +1063,51 @@ export class Renderer {
       ctx.stroke();
     }
     arcs.length = w;
+    ctx.globalAlpha = 1;
+    ctx.lineJoin = 'miter';
+  }
+
+  // The crowd version: arcs grouped by kind and by three fade levels, two strokes per group.
+  drawArcsBatched(ctx, dt) {
+    const arcs = this.arcs;
+    let w = 0;
+    for (let i = 0; i < arcs.length; i++) { const a = arcs[i]; a.life -= dt; if (a.life > 0) arcs[w++] = a; }
+    arcs.length = w;
+    if (!w) return;
+    ctx.lineJoin = 'round';
+    for (let smite = 0; smite < 2; smite++) {
+      for (let lv = 1; lv <= 3; lv++) {
+        ctx.beginPath(); let any = false;
+        for (let i = 0; i < w; i++) {
+          const a = arcs[i];
+          if ((a.smite ? 1 : 0) !== smite || Math.min(3, Math.max(1, Math.ceil(Math.min(1, (a.life / a.max) * 1.6) * 3))) !== lv) continue;
+          any = true;
+          const pts = a.pts;
+          ctx.moveTo(pts[0], pts[1]);
+          for (let k = 2; k < pts.length; k += 2) {
+            const x0 = pts[k - 2], y0 = pts[k - 1], x1 = pts[k], y1 = pts[k + 1];
+            const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+            const nx = -(y1 - y0) / len, ny = (x1 - x0) / len;
+            const segs = Math.max(2, Math.min(4, Math.round(len / 24)));
+            for (let j = 1; j < segs; j++) {
+              const t = j / segs, off = (Math.random() - 0.5) * (smite ? 24 : 15);
+              ctx.lineTo(x0 + (x1 - x0) * t + nx * off, y0 + (y1 - y0) * t + ny * off);
+            }
+            ctx.lineTo(x1, y1);
+          }
+        }
+        if (!any) continue;
+        ctx.globalAlpha = lv / 3;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = smite ? 'rgba(220,180,255,0.85)' : 'rgba(176,107,255,0.75)';
+        ctx.lineWidth = smite ? 10 : 7;
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = smite ? 3.5 : 2;
+        ctx.stroke();
+      }
+    }
     ctx.globalAlpha = 1;
     ctx.lineJoin = 'miter';
   }
