@@ -3,7 +3,7 @@
 // and dressed for its job (a hardy green archer, an ember salamander, a frosted ghost, a watchful
 // eye on a mast). Same interface as lanterns.js (body / back / front / muzzle), plus
 // `breathe: true` for a slow idle squash. The Longeye is the Lantern body with a Kindling eye.
-import { DMG, INK, TAU, circle, poly, rrect, star, ink, flat, line, glow, notches, pips, glyph, aim, FORE, shade, crown, groundAura, twinkle, risingMotes, brows } from './kit.js';
+import { FACE, gearInFront, DMG, INK, TAU, circle, poly, rrect, star, ink, flat, line, glow, notches, pips, glyph, aim, FORE, shade, crown, groundAura, twinkle, risingMotes, brows } from './kit.js';
 import { longeyeArt, roof } from './lanterns.js';
 import { crossbowX, tripod, ballista, repeater, hawk, mark, banner, sigil, quiver, BALLISTA_TIP, REPEATER_TIP, STEEL as STEEL_B, STEEL2, GOLD, LEATHER, BRASS, GREEN, GREEN2, NIGHT, NIGHT2, SILVER } from './bolt-parts.js';
 
@@ -27,6 +27,7 @@ export function hearthstone(ctx, w, P, d, look = 'plain') {
 
 // Big eyes that look along the aim and blink now and then; brows and iris colour give character.
 export function eyes(ctx, x, y, st, { sep = 3.6, r = 2.8, one = false, lid = false, brow = null, iris = INK } = {}) {
+  if (FACE.skip) return;
   const A = aim(st.ang), blink = ((st.time + (st.id || 0) * 1.7) % 4.3) < 0.11;
   for (const s of one ? [0] : [-1, 1]) {
     const ex = x + s * sep;
@@ -43,6 +44,7 @@ export function eyes(ctx, x, y, st, { sep = 3.6, r = 2.8, one = false, lid = fal
 
 // The head flame (the ward's light), flickering.
 export function tuft(ctx, x, y, size, d, t = 0, lean = 0) {
+  if (FACE.skip) return;
   const D = DMG[d], fl = 1 + Math.sin(t * 9) * 0.08 + Math.sin(t * 23) * 0.05;
   const h = 10 * size * fl, w = 5 * size;
   glow(ctx, x, y - h * 0.4, h * 1.3, D.glow ? D.core : '#ffffff', D.glow ? 0.5 : 0.3);
@@ -118,56 +120,84 @@ function helper(ctx, x, y, s, st, d) {
   ctx.restore();
   crossbowX(ctx, x + 2 * s / 0.66, y - 3, st.ang, s * 0.95, { recoil: st.recoil });
 }
-const HELPERS = (P) => (P.many && P.mt >= 4 ? [[-16, 10], [16, 10]] : P.many && P.mt >= 3 ? [[-15, 10]] : []);
-const BOLT_AX = (P) => (P.might && P.mt >= 3 ? -4 : 0);
+const HELPERS = (P) => (P.many && P.mt >= 4 ? [[-19, 10], [19, 11]] : P.many && P.mt >= 3 ? [[-18, 10]] : []);
+// On Ballista and Twin-shot tiers 3-4 the archer steps left and works a machine mounted beside it.
+const BOLT_AX = (P) => ((P.might || P.many) && P.mt >= 3 ? -5 : 0);
+const MOUNT = [9, 0];
+function boltGear(ctx, P, st) { // the big weapon: drawn in front, or behind the archer when it points across it
+  const { might, mt } = P;
+  if (might) ballista(ctx, MOUNT[0], MOUNT[1] + 1, st.ang, mt >= 4 ? 1.15 : 0.95, mt >= 4, mt >= 4, st.time, st.recoil);
+  else repeater(ctx, MOUNT[0], MOUNT[1], st.ang, mt >= 4 ? 1.15 : 1, st.time, mt >= 4, st.recoil);
+}
+const bigGear = (P) => (P.might || P.many) && P.mt >= 3;
+// Held crossbows follow the same rule as the machines: in front when pointing away from the body,
+// behind it when pointing across it. inFront selects which ones to draw in this pass.
+function heldBows(ctx, P, st, inFront) {
+  const { might, many, mt } = P, ax = BOLT_AX(P);
+  if (bigGear(P)) return;
+  if (many && mt >= 2) {
+    if (gearInFront(st.ang, -1) === inFront) crossbowX(ctx, -9, 1, st.ang, 0.95, { recoil: st.recoil });
+    if (gearInFront(st.ang, 1) === inFront) crossbowX(ctx, 9, 1, st.ang, 0.95, { recoil: st.recoil });
+  } else if (gearInFront(st.ang) === inFront) {
+    if (might) crossbowX(ctx, ax + 8, 3, st.ang, 1 + mt * 0.2, { heavy: mt >= 1, winch: mt >= 1, recoil: st.recoil });
+    else crossbowX(ctx, ax + 6, 2, st.ang, 1, { recoil: st.recoil });
+  }
+}
 const bolt = {
   breathe: true,
+  self: (P) => { const ax = BOLT_AX(P); return [ax - 8, -15, ax + 8, 9]; },
   body(ctx, P, d) {
     const { might, many, craft, mt } = P, ax = BOLT_AX(P);
-    hearthstone(ctx, might && mt >= 3 ? 32 : many && mt >= 3 ? 34 : 26, P, d);
-    if (might && mt >= 3) for (const x of [-15, 15]) { poly(ctx, [[x - 1.4, 11], [x + 1.4, 11], [x, 4]]); flat(ctx, mt >= 4 ? GOLD : STEEL2, 0.9); }   // anchoring stakes
-    if (many && mt >= 4) for (const x of [-7, 7]) { rrect(ctx, x - 3.5, 6, 7, 5, 1); ink(ctx, '#6a4a2a', 1.1, x - 3.5, x + 3.5); }                // ammo crates
+    hearthstone(ctx, bigGear(P) ? 34 : 26, P, d);
+    if (might && mt >= 3) for (const x of [-17, 17]) { poly(ctx, [[x - 1.4, 11], [x + 1.4, 11], [x, 4]]); flat(ctx, mt >= 4 ? GOLD : STEEL2, 0.9); }   // anchoring stakes
+    if (many && mt >= 4) for (const x of [-9, 4]) { rrect(ctx, x - 3.5, 6, 7, 5, 1); ink(ctx, '#6a4a2a', 1.1, x - 3.5, x + 3.5); }                // ammo crates
     quiver(ctx, ax - 12.5, -15, many ? Math.min(6, 3 + mt) : mt >= 2 ? 4 : 3, might && mt >= 1 ? STEEL : '#f0f0f0');
-    if (many && mt >= 1 && mt < 4) quiver(ctx, 7, -14, 3 + mt, '#f0f0f0');
-    if (might && mt >= 4) banner(ctx, -17, -36, 10);
+    if (many && mt >= 1 && mt < 3) quiver(ctx, 7, -14, 3 + mt, '#f0f0f0');
+    if (might && mt >= 4) banner(ctx, -19, -36, 10);
+    if (bigGear(P)) { // the machine's mount: a tripod for the ballista, a brass post for the battery
+      if (might) tripod(ctx, MOUNT[0], MOUNT[1] + 3, 1, mt >= 4);
+      else { rrect(ctx, MOUNT[0] - 1.6, MOUNT[1], 3.2, 10, 1); ink(ctx, BRASS, 1.2, MOUNT[0] - 1.6, MOUNT[0] + 1.6); }
+    }
     archer(ctx, ax, P);
-    if (might && mt >= 3) tripod(ctx, 7, 3, 1, mt >= 4);
     if (mt >= 4) crown(ctx, ax, craft ? -31.5 : -30, d, 1.1);
     return craft && mt >= 4 ? -43 : -39;
   },
-  back(ctx, P, st, d) { if (P.mt >= 4) { if (P.craft) sigil(ctx, st.time, 24); else groundAura(ctx, d, st.time, 24); } },
+  back(ctx, P, st, d) {
+    if (P.mt >= 4) { if (P.craft) sigil(ctx, st.time, 24); else groundAura(ctx, d, st.time, 24); }
+    if (bigGear(P) && !gearInFront(st.ang)) boltGear(ctx, P, st);
+    heldBows(ctx, P, st, false);
+    if (P.craft && P.mt >= 4) for (let i = 0; i < 3; i++) { const a = st.time * 1.1 + (i / 3) * TAU; if (Math.sin(a) < 0) mark(ctx, Math.cos(a) * 16, -2 + Math.sin(a) * 5, 3.4, st.time + i, 0.8); }
+  },
   front(ctx, P, st, d) {
     const { might, many, craft, mt } = P, ax = BOLT_AX(P);
-    eyes(ctx, ax, -6, st, { lid: craft && mt >= 2 && mt < 4, brow: craft && mt >= 2 ? null : 'stern' });
-    if (craft && mt >= 4) for (const s of [-1, 1]) glow(ctx, ax + s * 3.6, -6, 4.5, '#ffffff', 0.8 + Math.sin(st.time * 3) * 0.15);
-    if (craft && mt === 1) twinkle(ctx, 2.4, -7.4, 2.2, Math.sin(st.time * 2.5) * 1.5 - 0.3);
-    tuft(ctx, ax + (craft && mt >= 4 ? 1.5 : 0), craft && mt >= 4 ? -21.5 : -14 - (might && mt >= 4 ? 3 : 0), 1 + mt * 0.06, d, st.time);
-    // the weapon: a crossbow (with a winch on Might), twin crossbows, a repeater or battery, or a ballista
-    if (might && mt >= 3) ballista(ctx, 7, 1, st.ang, mt >= 4 ? 1.15 : 0.95, mt >= 4, mt >= 4, st.time, st.recoil);
-    else if (might) crossbowX(ctx, ax + 4, 2, st.ang, 1 + mt * 0.2, { heavy: mt >= 1, winch: mt >= 1, recoil: st.recoil });
-    else if (many && mt >= 3) repeater(ctx, 2, 1, st.ang, mt >= 4 ? 1.15 : 1, st.time, mt >= 4, st.recoil);
-    else if (many && mt >= 2) { crossbowX(ctx, -9, 1, st.ang, 0.95, { recoil: st.recoil }); crossbowX(ctx, 9, 1, st.ang, 0.95, { recoil: st.recoil }); }
-    else crossbowX(ctx, ax + 4, 2, st.ang, 1, { recoil: st.recoil });
+    // gear first: the weapon (big machines only when they point away from the archer), helpers, the hawk
+    if (bigGear(P)) { if (gearInFront(st.ang)) boltGear(ctx, P, st); }
+    heldBows(ctx, P, st, true);
     for (const [x, y] of HELPERS(P)) helper(ctx, x, y, 0.66, st, d);
     const g = (st.time * 0.7 + (st.id || 0) * 0.3) % 2.2;   // a glint runs along the loaded bolt now and then
     if (g < 0.25) { const m = this.muzzle(P, st.ang, TMP_B); twinkle(ctx, m[0], m[1], 2.4, 1 - g * 4); }
-    if (craft && mt >= 3) { // Hunting Party: a hawk on the shoulder; Death Sentence: aloft, and marks orbit
+    if (craft && mt >= 3) { // Hunting Party: a hawk on the shoulder; Death Sentence: aloft, and marks orbit at belt height
       if (mt >= 4) {
         hawk(ctx, -10 + Math.cos(st.time * 1.2) * 6, -29 + Math.sin(st.time * 2.4) * 2, 0.9, st.time, true);
-        for (let i = 0; i < 3; i++) { const a = st.time * 1.1 + (i / 3) * TAU; mark(ctx, Math.cos(a) * 15, -6 + Math.sin(a) * 6, 3.4, st.time + i, 0.8); }
-      } else { hawk(ctx, -7.5, -15, 0.85, st.time, false); mark(ctx, 12, -20, 5, st.time); }
+        for (let i = 0; i < 3; i++) { const a = st.time * 1.1 + (i / 3) * TAU; if (Math.sin(a) >= 0) mark(ctx, Math.cos(a) * 16, -2 + Math.sin(a) * 5, 3.4, st.time + i, 0.8); }
+      } else { hawk(ctx, -10.5, -14, 0.85, st.time, false); mark(ctx, 12, -20, 5, st.time); }
     }
-    if (might && mt >= 4) risingMotes(ctx, st.time, 4, 2, 16, -2, 14, '#ffffff', 1.4, 1.2, st.id || 0);
-    if (many && mt >= 4) risingMotes(ctx, st.time, 3, -16, 16, 6, 8, '#ffcf4a', 1.2, 0.9, st.id || 0);
+    if (might && mt >= 4) risingMotes(ctx, st.time, 4, 4, 18, -2, 14, '#ffffff', 1.4, 1.2, st.id || 0);
+    if (many && mt >= 4) risingMotes(ctx, st.time, 3, -18, 18, 6, 8, '#ffcf4a', 1.2, 0.9, st.id || 0);
+    // the face last, so no gear ever covers it
+    eyes(ctx, ax, -6, st, { lid: craft && mt >= 2 && mt < 4, brow: craft && mt >= 2 ? null : 'stern' });
+    if (craft && mt >= 4 && !FACE.skip) for (const s of [-1, 1]) glow(ctx, ax + s * 3.6, -6, 4.5, '#ffffff', 0.8 + Math.sin(st.time * 3) * 0.15);
+    if (craft && mt === 1) twinkle(ctx, 2.4, -7.4, 2.2, Math.sin(st.time * 2.5) * 1.5 - 0.3);
+    tuft(ctx, ax + (craft && mt >= 4 ? 1.5 : 0), craft && mt >= 4 ? -21.5 : -14 - (might && mt >= 4 ? 3 : 0), 1 + mt * 0.06, d, st.time);
   },
   muzzle(P, ang, out) {
     const { might, many, mt } = P, c = Math.cos(ang), s = Math.sin(ang) * FORE;
     let x, y, L;
-    if (might && mt >= 3) { const k = mt >= 4 ? 1.15 : 0.95; x = 7; y = 1; L = BALLISTA_TIP * k; }
-    else if (might) { x = BOLT_AX(P) + 4; y = 2; L = 12 * (1 + mt * 0.2); }
-    else if (many && mt >= 3) { x = 2; y = 1; L = REPEATER_TIP * (mt >= 4 ? 1.15 : 1); }
+    if (might && mt >= 3) { x = MOUNT[0]; y = MOUNT[1] + 1; L = BALLISTA_TIP * (mt >= 4 ? 1.15 : 0.95); }
+    else if (might) { x = BOLT_AX(P) + 8; y = 3; L = 12 * (1 + mt * 0.2); }
+    else if (many && mt >= 3) { x = MOUNT[0]; y = MOUNT[1]; L = REPEATER_TIP * (mt >= 4 ? 1.15 : 1); }
     else if (many && mt >= 2) { x = c >= 0 ? 9 : -9; y = 1; L = 12 * 0.95; }
-    else { x = 4; y = 2; L = 12; }
+    else { x = 6; y = 2; L = 12; }
     out[0] = x + c * L; out[1] = y + s * L; return out;
   },
 };

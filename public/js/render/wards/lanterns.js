@@ -9,7 +9,7 @@
 //   front(ctx, P, st, d)   live parts in front: whatever aims, recoils, flickers or spins
 //   muzzle(P, ang, out)    where shots leave, in ward units (out = [x, y])
 // P = mainPath(tiers) + { tiers }. st = { ang, recoil, time, pulse, fire (0-1), id }.
-import { DMG, INK, TAU, circle, poly, rrect, star, ink, flat, line, glow, notches, pips, glyph, aimPlane, FORE, shade, crown, groundAura, twinkle, risingMotes } from './kit.js';
+import { FACE, gearInFront, DMG, INK, TAU, circle, poly, rrect, star, ink, flat, line, glow, notches, pips, glyph, aimPlane, FORE, shade, crown, groundAura, twinkle, risingMotes } from './kit.js';
 import { crossbowX, tripod, ballista, repeater, hawk, mark, banner, sigil, BALLISTA_TIP, REPEATER_TIP, STEEL2, GOLD, GREEN2, NIGHT, NIGHT2, SILVER } from './bolt-parts.js';
 
 export const IRON = '#3a4160', IRON2 = '#4d5677', BRONZE = '#8f6b47', WOOD = '#7a5236', STEEL = '#b8c2d2', BRASS = '#c8963a';
@@ -61,6 +61,7 @@ function flicker(ctx, x, y, r, d, t, k = 1) {
 // hunter's spire with a glowing eye, a hawk and orbiting marks.
 const L_ROOF = -15;
 const bolt = {
+  self: () => [-9, -15, 9, 7],
   body(ctx, P, d) {
     const { might, many, craft, mt } = P;
     plinth(ctx, might && mt >= 3 ? 28 : many && mt >= 4 ? 30 : 24, P, d, mt >= 4 && might ? '#5a5f70' : WOOD);
@@ -104,7 +105,10 @@ const bolt = {
     if (mt >= 4) crown(ctx, steel ? -16 : 0, steel ? -31 : craft ? L_ROOF - 12 : L_ROOF - 6, d, 1.05);
     return steel && mt >= 4 ? -40 : craft && mt >= 4 ? -36 : -34;
   },
-  back(ctx, P, st, d) { if (P.mt >= 4) { if (P.craft) sigil(ctx, st.time, 24); else groundAura(ctx, d, st.time, 24); } },
+  back(ctx, P, st, d) {
+    if (P.mt >= 4) { if (P.craft) sigil(ctx, st.time, 24); else groundAura(ctx, d, st.time, 24); }
+    if (P.craft && P.mt >= 4) for (let i = 0; i < 3; i++) { const a = st.time * 1.1 + (i / 3) * TAU; if (Math.sin(a) < 0) mark(ctx, Math.cos(a) * 17, 3 + Math.sin(a) * 5, 3.4, st.time + i, 0.8); }
+  },
   front(ctx, P, st, d) {
     const { might, many, craft, mt } = P, steel = might && mt >= 3;
     flicker(ctx, 0, -5, 11 + mt * 1.5, d, st.time + (st.id || 0));
@@ -131,7 +135,7 @@ const bolt = {
     if (craft && mt >= 3) {
       if (mt >= 4) {
         hawk(ctx, -12 + Math.cos(st.time * 1.2) * 6, -35 + Math.sin(st.time * 2.4) * 2, 0.9, st.time, true);
-        for (let i = 0; i < 3; i++) { const a = st.time * 1.1 + (i / 3) * TAU; mark(ctx, Math.cos(a) * 16, -8 + Math.sin(a) * 6, 3.4, st.time + i, 0.8); }
+        for (let i = 0; i < 3; i++) { const a = st.time * 1.1 + (i / 3) * TAU; if (Math.sin(a) >= 0) mark(ctx, Math.cos(a) * 17, 3 + Math.sin(a) * 5, 3.4, st.time + i, 0.8); }
       } else { hawk(ctx, 9.5, L_ROOF - 3, 0.85, st.time, false); mark(ctx, -15, -24, 5, st.time); }
     }
     if (might && mt >= 4) risingMotes(ctx, st.time, 4, -8, 8, L_ROOF - 6, 14, '#ffffff', 1.4, 1.2, st.id || 0);

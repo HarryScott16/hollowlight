@@ -140,6 +140,14 @@ export function pips(ctx, tiers, main, x, y) {
 export const FORE = 0.72;
 export function aimPlane(ctx, ang) { ctx.scale(1, FORE); ctx.rotate(ang); }
 
+// Body-and-face rule: a ward's own body and face are never covered by its gear. Big aimed gear sits
+// beside the body and swings behind it whenever it points across it (drawn in `back` when this is
+// false, in `front` when true). The face is always drawn last. FACE.skip makes every face part (eyes,
+// head flames, Lantern windows drawn live) skip itself: tools/wards.mjs uses it to measure how much
+// of each ward's body box (art.self) its gear covers.
+export const FACE = { skip: false };
+export function gearInFront(ang, side = 1) { const c = Math.cos(ang) * side, s = Math.sin(ang); return c > 0.15 || s > 0.6; }
+
 // Aim direction squashed for the three-quarter view (for eyes and other non-rotating cues).
 export function aim(ang) { const x = Math.cos(ang), y = Math.sin(ang) * 0.6; return { x, y, a: Math.atan2(y, x) }; }
 

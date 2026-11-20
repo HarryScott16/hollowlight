@@ -93,6 +93,12 @@ On every path and tier, in both skins:
 | **Palette family** | the ward's role colours (Bolt: green and leather) | the housing materials (Bolt: green iron and wood) |
 | **Footprint** | fixed: growth goes up and outward, never wider at the ground | same |
 
+**The body and face are never covered by gear (rule, 2026-11-20).** At every tier, on every path, at every aim angle, the ward's own body and face stay visible:
+- Big gear (a ballista, a bolt battery, extra heads, a cannon) sits *beside* the body, and swings *behind* it whenever it points across it.
+- The face is always drawn last.
+- Companions, orbiters and helpers pass behind the body or below the face.
+- `tools/wards.mjs` checks this for every ward in both skins. Each ward declares its body box (`self`), and the check fails if its live gear covers more than 30% of that box at any aim angle.
+
 ### 2.2 What each path pushes (shared by every ward)
 
 Each path exaggerates **one trait**, so its tier 3-4 silhouette differs from the other two even in solid black:
@@ -144,6 +150,7 @@ Tier 4 deliberately leaves these channels unused, so a tier 5 has somewhere to g
 
 ### 2.6 Checks before a ward is approved
 
+0. **Body and face:** never covered by gear (see 2.1). `tools/wards.mjs` must pass.
 1. **Silhouette:** the three tier 4s (and the three tier 3s) look different in solid black at real size. The progression sheets include this strip.
 2. **Each tier is a visible step from the one before** at real size. Tier 1 may be subtle at a glance, but must be visible.
 3. **The anchors in 2.1 are all present** on every path and tier.

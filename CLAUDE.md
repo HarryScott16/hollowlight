@@ -25,6 +25,11 @@ The ward design system is in `docs/visual-design-system.md`; the code is in
 - Each ward is coloured and dressed for its role and damage type in both skins (e.g. the Censer is
   ember-orange and charred, the Rime frosted blue with icicles), with idle life (breathing,
   flicker, sparks), and must stay instantly distinguishable from every other ward.
+- **A ward's body and face are never covered by its gear**, at any tier, path or aim angle. Big
+  gear sits beside the body and swings behind it when pointing across it (`gearInFront` in
+  `wards/kit.js`), and the face is drawn last. Every ward declares its body box (`self`), and
+  `tools/wards.mjs` fails if live gear covers more than 30% of it. Upgrades follow the framework in
+  `docs/upgrade-visuals-research.md` (distinct path forms by tier 3, an impressive tier 4).
 - One channel per fact: role = silhouette, damage type = signature colour + glyph
   (`DMG` in `wards/kit.js`, also used for projectiles, effects and damage numbers), tier = notches
   on the plinth, path = shape (Might / Many / Craft). **No path colours on the battlefield:** they
