@@ -1,3 +1,177 @@
+# Morning summary: tier 5 performance and art (`tier5` branch, second night)
+
+Everything is on **`tier5`** in four new commits (`b7409aa`, `edc426a`, `89a08cb`, and this doc).
+Nothing is merged. The one-tier-5-per-path rule is unchanged.
+
+## Performance
+
+### What I found
+
+**The simulation (6.5 ms a step in your browser).** I reproduced it headless: 690 enemies against 35
+tier 5 wards at wave 250 took 6.1 ms a step. Profiling showed three hot spots, all fixed with
+**identical results**. Bot runs match to the last gold coin and every boss kill time.
+
+1. **Herald auras: the single biggest cost.**
+   - Every Herald scanned every enemy near it, every step. The endless "escorts" modifier puts dozens
+     of Heralds in a dense crowd.
+   - Now each enemy checks only the Heralds near it and stops at the first one in reach. The result is
+     the same.
+2. **Target picking sorted everyone in range** for wards that take several targets (8-bolt volleys,
+   12 beams, 5 lights).
+   - Now it keeps a short best-first list.
+   - Ties come out in the same order as the stable sort they replace.
+3. **Hidden-class churn.**
+   - Tier 5 code added fields to enemies, wards and bolts after they were created (`snareAt`,
+     `magmaT`, `doomT`, `markSrc`, `phx`, and so on). Each kind of object ended up with many different
+     shapes, which made property access slow everywhere.
+   - Now every enemy, ward, bolt and shell is created with every field it will ever have.
+
+**Result: 6.08 → 1.10 ms a step (5.5x).** `node tools/simbench.mjs` reproduces the scene, and
+`node --cpu-prof` with `tools/cpuprof.mjs` profiles it.
+
+**The untracked ~12 ms of "effects".** The overlay's effects figure also included the event pass,
+the flame simulation, the Prism beams and the snow, without listing them.
+- The overlay now **breaks effects down fully**: events, flame sim, beams, shots, flames, rings,
+  tier 5 and snow. I also moved the tier 5 map effects (orbs, phoenix, Lightweb threads, Doomed eyes)
+  out of the "enemies" figure.
+- **I couldn't pin down that 12 ms headless.** A software canvas doesn't behave like a GPU one, and
+  every one of those sections is small here (beams 1.4 ms, events 0.2 ms).
+- I cut everything there that costs in a GPU canvas or creates garbage (your worst frame, 52 ms,
+  looks like a garbage-collection pause):
+  - **Beams and rings:** drawn in a few blend-mode passes. Before, each beam or additive ring switched
+    `globalCompositeOperation` itself, which can force a flush on a GPU canvas.
+  - **Snow:** batched.
+  - **Ring objects and common particle options:** reused instead of allocated.
+  - **Small hit sparks in crowds:** fewer.
+- **If effects is still high, please send a screenshot of the new overlay line.** It will name the
+  culprit.
+
+**Enemy drawing.**
+- **Status marks are cached frames.** A tier 5 defence leaves nearly every enemy burning, Scorched,
+  marked and Charged at once, and each mark was drawn as paths and dashed rings. Now each is one of a
+  few cached frames (one `drawImage`).
+- **Huge crowds draw less.** They skip small enemies' health bars, flyer shadows and small-enemy hit
+  flashes. Stun stars are cached.
+- **Mortar shells are cached sprites.** A Grand Battery keeps dozens in the air.
+- **Quality follows the whole load.** It now counts wards and shots as well as enemies. Before, a big
+  tier 5 defence that had thinned a wave out drew everything at full detail.
+
+### Before and after (`tools/perf.mjs`, software canvas, 2x speed, 35 tier 5 wards)
+
+"Before" is last night's tip (`8b8a778`) with today's measuring tools.
+
+| Scene | Before | After |
+|---|---|---|
+| Simulation, 690 enemies (`simbench.mjs`, ms per step) | 6.08 | **1.10** |
+| Wave 250, crowd of ~765: simulation ms/frame | 11.6 | **2.5** |
+| Wave 250, crowd: enemy canvas calls/frame | 4,543 | **2,499** |
+| Wave 250, crowd: all canvas calls/frame | 10,043 | **7,369** |
+| Wave 250, crowd: wall ms/frame (software) | 137.9 | **116.0** |
+| Wave 100: all canvas calls/frame | 13,872 | **6,621** |
+| Wave 100: ward canvas calls/frame | 5,056 | **1,669** |
+| Wave 100: wall ms/frame (software) | 104.8 | **77.5** |
+
+Commands:
+- `perf.mjs wave=100 speed=2 defence=t5 wards=35`
+- `perf.mjs wave=250 speed=2 defence=t5 wards=35 crowd=600` (waves overlap to hold a crowd)
+
+Software-canvas milliseconds are dominated by pixel fill, which a GPU does for nearly free. Compare
+the canvas calls, and the simulation, which is plain JavaScript.
+
+**What I expect in your browser at wave 253** (you measured 40.5 ms):
+- simulation 11.7 → about 2.5 ms;
+- enemies 8.7 → about 5 ms;
+- effects: unknown until the new overlay line shows what it is.
+
+That should land around **40-50 fps at wave 250**, short of or just at the 45 target, depending on
+effects. Wave 100 should be much closer to 60: the simulation there is under 1 ms, and the frame now
+has half the canvas calls. **I can't promise 60 / 45 without a real browser.** Please check the
+overlay (`) at waves 100 and 250 with a full tier 5 defence.
+
+## Tier 5 art
+
+**Size.** Tier 5s now grow ×1.5 (tier 4: ×1.35), with the height cap raised from 76 to 104 px. Enemies
+behind them show through as ghosts.
+
+**Shape.** Every second form is now a large silhouette framing the ward from behind, the way your
+benchmarks did (Starhost, Phoenix, Elder Wyrm, Eye of the Storm), in both skins. The body-and-face
+rule holds for all 36 (`tools/wards.mjs`).
+
+- **Rime Spire (reworked first):**
+  - **Permafrost:** an ice cathedral of seven spires glowing from inside, snowflakes orbiting it,
+    frost motes rising.
+  - **Avalanche:** a turning ice mandala, with boulders and ice blades tumbling round the ward.
+  - **Whiteout:** a blizzard vortex of spiralling snow under a great storm cloud, with a snowflake
+    at its eye.
+- **Prism:**
+  - **Second Sun (reworked):** a whole second sun rising behind the prism, its corona flaring and
+    small worlds circling it.
+  - **Dawnbreaker:** a bigger sun-disc with long turning spear-rays.
+  - **Lightweb:** a ring of eight crystal nodes woven with threads of light.
+- **Bolt Ward:**
+  - **Worldpiercer:** a towering siege gantry with turning winches, a colossal glowing lance on top.
+  - **Thousand Bolts:** a great double wheel of crossbows.
+  - **Wild Hunt:** a spirit-hawk with two pairs of spread wings, marks circling.
+- **Mortar Kiln:**
+  - **Worldbreaker:** a molten mountain with circling rubble.
+  - **Grand Battery:** a fan of four great guns.
+  - **Magma Heart:** a volcano with a lava fountain and a fire lake.
+- **Storm Coil:**
+  - **Stormlord:** a storm-cloud crown, lightning forking to tall rods.
+  - **Ball Lightning:** big spheres with arcs between them.
+  - **Eye of the Storm:** three counter-turning vortex rings.
+- **Longeye:**
+  - **Kingslayer:** a colossal spectral rifle and a crowned standard.
+  - **Shrapnel Storm:** flak drums and a ring of shrapnel.
+  - **Eye of Fate:** a great eye ringed with runes.
+- **Ember Censer:**
+  - **Phoenix:** double wings of fire.
+  - **Elder Wyrm:** a bigger dragon with smoke.
+  - **Pall of Ash:** a towering ash column with embers.
+- **Beacon:**
+  - **Anthem of War:** a great war drum with rolling sound rings and battle standards.
+  - **Worldlight:** a lighthouse tower whose twin beams sweep the ground.
+  - **Golden Age:** a golden sunburst and laurel, with coins circling.
+- **Thornlight Snare:** wider rings of briars, constellation stars and seals (it still lies flat on
+  the road).
+- **Moth Lantern:**
+  - **False Moon:** a great haloed moon.
+  - **Amber Trap:** two amber drops on a crooked branch.
+  - **Moth Queen:** a great eyed moth.
+- **Wandering Light:**
+  - **Falling Sky:** a crescent of stars and falling stars.
+  - **Starhost:** a seven-star constellation ring.
+  - **Dawnbringer:** a rose sunrise between two tall torches.
+- **Ember Vault:**
+  - **Dragon's Hoard:** a gold dragon with spread wings on the hoard.
+  - **Ember Tide:** an ember whirlpool.
+  - **Second Heartfire:** a great heart-flame crowned with fire.
+
+**In crowds**, each second form is drawn as one cached still image, so the extra art costs almost
+nothing when it matters.
+
+## Please look at
+
+- The **overlay at waves 100 and 250** with a full tier 5 defence, especially the new effects
+  breakdown line.
+- **The new tier 5s in play**, in both skins (`L` switches). The weakest now, I think:
+  - Shrapnel Storm's drums;
+  - the Worldlight beams, which sweep flat along the ground and read as a line.
+- **Whether 104 px is too tall** when several tier 5s stand together. It's one number:
+  `GROW[5]` in `render/wardArt.js`, plus the form sizes.
+
+## Decisions I made
+
+- **No behaviour changes in the performance work.** Every simulation change is exact, which the bot
+  results confirm. The only visual losses are in huge crowds (quality 0): no health bars on small
+  enemies, no flyer shadows, no small-enemy hit flashes, and fewer small hit sparks. Beams now
+  flicker together rather than per Prism.
+- **The quality level now counts the whole load:** enemies + 4 per ward + 1.5 per shot. So a big
+  defence drops to "crowd" detail sooner.
+- **Height cap 104 px** for tier 5, as you suggested.
+
+---
+
 # Morning summary: tier 5 and endless (`tier5` branch)
 
 Everything is on the **`tier5`** branch, which comes off `master` in steps, for you to review before
