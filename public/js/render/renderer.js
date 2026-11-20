@@ -671,7 +671,7 @@ export class Renderer {
 
     // the Heartfire
     const g = MAP.goal;
-    const life = Math.max(0.15, this.game.lives / RULES.startLives);
+    const life = Math.max(0.15, Math.min(1, this.game.lives / RULES.startLives));
     const flick = Math.sin(t * 11) * 0.08 + Math.sin(t * 17.3) * 0.05;
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = `rgba(255,170,60,${0.18 + life * 0.12})`;

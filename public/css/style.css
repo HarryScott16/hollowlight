@@ -263,3 +263,16 @@ body.details .tp-hint { display: none; }
 @keyframes gold-bump { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
 .stat.gold.bump { animation: gold-bump 0.14s ease-out; display: inline-block; }
 .stat.gold { display: inline-block; }
+
+/* Test mode (ui/testmode.js): a small panel in the bottom-left corner, only while it's on. */
+.test-panel {
+  position: fixed; left: 10px; bottom: 10px; z-index: 50;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-radius: 8px;
+  background: rgba(29, 16, 48, 0.88); border: 2px solid var(--red);
+  font-size: 12px;
+}
+.test-label { color: var(--red); letter-spacing: 0.08em; }
+.test-note { color: var(--dim); }
+.test-wave { width: 56px; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 3px 4px; user-select: text; }
+.test-btn { padding: 3px 8px; font-size: 12px; }

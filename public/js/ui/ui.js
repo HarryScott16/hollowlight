@@ -8,6 +8,7 @@ import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { upgradeInfo, computeStats, estimateDps } from '../sim/towers.js';
 import { drawWardIcon, nextSkin, skinName } from '../render/wardArt.js';
 import { drawEnemyIcon } from '../render/enemyArt.js';
+import { TestMode, testFromQuery } from './testmode.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -140,6 +141,8 @@ export class UI {
     this.refreshPreview();
     this.renderer.onCoin = () => this.bumpGold();
     this.syncMute();
+    this.test = new TestMode(this);
+    if (typeof location !== 'undefined' && testFromQuery(location.search)) this.test.enable();
     window.addEventListener('resize', () => this.renderer.resize());
   }
 
@@ -308,7 +311,7 @@ export class UI {
   }
 
   recordWave(n) {
-    if (n <= this.bestWave) return;
+    if (this.test.on || n <= this.bestWave) return;   // test runs never count
     try { localStorage.setItem('hollowlight.bestWave', String(n)); } catch { /* storage unavailable */ }
   }
 
@@ -362,7 +365,14 @@ export class UI {
     window.addEventListener('blur', () => details(false));
     window.addEventListener('keydown', (ev) => {
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      if (ev.target && ev.target.type === 'number') return;   // typing in test mode's wave box
       const k = ev.key;
+      if (this.test.key(k)) return;
+      if (k === 'T' && ev.shiftKey && !this.test.on) {
+        // Test mode sits behind Shift+T and a confirmation, so it can't start by accident.
+        if (window.confirm && window.confirm('Turn on test mode? Unlimited gold and lives, and wave skipping. This run won\'t count. Reload the page to leave it.')) this.test.enable();
+        return;
+      }
       const low = k.length === 1 ? k.toLowerCase() : k;
       const abType = TOWER_ORDER.find((t) => ABILITIES[t].key.toLowerCase() === low);
       if (k === 'R' && ev.shiftKey) {
@@ -599,7 +609,8 @@ export class UI {
     const g = this.game;
     if (this.auto && !this.paused && g.canStartWave && g.clear) g.startWave();
 
-    this.setText('hud-lives', String(g.lives));
+    this.test.update();
+    this.setText('hud-lives', this.test.on ? '∞' : String(g.lives));
     this.setText('hud-gold', String(Math.floor(g.gold)));
     // Pops per second, sampled twice a second and smoothed.
     const now = performance.now(), pr = this.popRate;

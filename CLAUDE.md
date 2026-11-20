@@ -2,6 +2,8 @@
 
 Canvas game, no dependencies and no build step. `npm start` serves `public/` on :3001.
 Checks: `node tools/smoke.js` (browser code against a stub DOM), `node tools/bot.js` (balance).
+Test mode for checking art: `?test=1` or Shift+T (unlimited gold and lives, wave jumping; `ui/testmode.js`).
+It lives only in the UI layer and must never touch the simulation, the bots or balance.
 
 ## Art rules
 
