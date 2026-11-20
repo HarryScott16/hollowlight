@@ -10,6 +10,7 @@
 //   muzzle(P, ang, out)    where shots leave, in ward units (out = [x, y])
 // P = mainPath(tiers) + { tiers }. st = { ang, recoil, time, pulse, fire (0-1), id }.
 import { DMG, INK, TAU, circle, poly, rrect, star, ink, flat, line, glow, notches, pips, glyph, aimPlane, FORE, shade, crown, groundAura, twinkle, risingMotes } from './kit.js';
+import { crossbowX, tripod, ballista, repeater, hawk, mark, banner, sigil, BALLISTA_TIP, REPEATER_TIP, STEEL2, GOLD, GREEN2, NIGHT, NIGHT2, SILVER } from './bolt-parts.js';
 
 export const IRON = '#3a4160', IRON2 = '#4d5677', BRONZE = '#8f6b47', WOOD = '#7a5236', STEEL = '#b8c2d2', BRASS = '#c8963a';
 const GREEN_IRON = '#35553a', GREEN_TRIM = '#5f8a4a';
@@ -55,61 +56,99 @@ function flicker(ctx, x, y, r, d, t, k = 1) {
   glow(ctx, x, y, r * f, D.glow ? D.core : '#ffffff', (D.glow ? 0.45 : 0.3) * k);
 }
 
-// ==== Bolt Ward (Shooter): an archer's watch-post lantern, a crossbow on the roof ================
+// ==== Bolt Ward (Shooter): an archer's watch-post lantern; each path grows its own form =========
+// (see bolt-parts.js): a steel-clad, bannered ballista post; a bolt battery with outriggers; a dark
+// hunter's spire with a glowing eye, a hawk and orbiting marks.
+const L_ROOF = -15;
 const bolt = {
   body(ctx, P, d) {
     const { might, many, craft, mt } = P;
-    plinth(ctx, 24, P, d, WOOD);
-    // a rack of bolts on the side
-    rrect(ctx, 8, -10, 5, 15, 1.5); ink(ctx, '#5a3a22', 1.3, 8, 13);
-    for (let i = 0; i < (many && mt >= 2 ? 4 : 3); i++) { const y = -12 - (i % 2) * 1.5, x = 9 + i * 1.2; line(ctx, [[x, -9], [x, y]], WOOD, 0.8); poly(ctx, [[x - 1.4, y + 2.2], [x, y - 0.6], [x + 1.4, y + 2.2]]); flat(ctx, might && mt >= 2 ? STEEL : '#e9eef6', 0.7); }
-    rrect(ctx, -9, -15, 18, 22, 2); ink(ctx, GREEN_IRON, 2, -9, 9);
-    rrect(ctx, -9.5, -15.5, 19, 2.6, 1); flat(ctx, GREEN_TRIM, 1);
-    rrect(ctx, -9.5, 4, 19, 2.6, 1); flat(ctx, GREEN_TRIM, 1);
-    pane(ctx, 0, -5, 10, 14, d);
-    line(ctx, [[0, -12], [0, 2]], GREEN_IRON, 0.9); line(ctx, [[-5, -5], [5, -5]], GREEN_IRON, 0.9);   // arrow-slit cross
-    if (might && mt >= 2) for (const y of [-11, 1]) { rrect(ctx, -10, y - 1.5, 20, 3, 1); flat(ctx, STEEL, 1.2); }
-    if (might && mt >= 3) for (const x of [-11, 11]) { poly(ctx, [[x, 7], [x * 1.25, 7], [x, -8]]); ink(ctx, STEEL, 1.4, -13, 13); }
-    if (craft && mt >= 2) { ctx.beginPath(); ctx.ellipse(0, -5, 5.5, 3.4, 0, 0, TAU); flat(ctx, '#ffffff', 1.4); circle(ctx, 1, -5, 2.1); flat(ctx, INK, 0); }
-    if (craft && mt >= 3) { rrect(ctx, -9.5, -15, 19, 4, 1.5); flat(ctx, '#25401f', 1.2); }   // a dark hood over the post
-    roof(ctx, 0, -15, 23, 7, '#6a3a2a');
-    line(ctx, [[-10, -15], [-10, -28]], WOOD, 1);   // the pennant pole (the flag flutters live)
-    if (P.mt >= 4) crown(ctx, 0, -21, d);           // on the roof's peak, behind the crossbow
-    return P.mt >= 4 && might ? -38 : -34;
-  },
-  back(ctx, P, st, d) { if (P.mt >= 4) groundAura(ctx, d, st.time, 20); },
-  front(ctx, P, st, d) {
-    const { might, many, craft, mt } = P;
-    flicker(ctx, 0, -5, 11 + mt, d, st.time + (st.id || 0));
-    const w = Math.sin(st.time * 6 + (st.id || 0)) * 1.5;   // the pennant flutters
-    ctx.beginPath(); ctx.moveTo(-10, -28); ctx.quadraticCurveTo(-5, -27 + w, -1, -26 + w * 0.6); ctx.quadraticCurveTo(-5, -25 - w * 0.4, -10, -23.5); ctx.closePath();
-    flat(ctx, mt >= 4 ? '#e9eef6' : GREEN_TRIM, 1.1);
-    if (might) crossbow(ctx, 0, -24, st.ang, mt >= 4 ? 1.7 : mt >= 2 ? 1.25 : 1, mt >= 3, st.recoil);
-    else if (many && mt >= 3) {
-      const spin = st.time * (mt >= 4 ? 18 : 10);
-      ctx.save(); ctx.translate(0, -25); aimPlane(ctx, st.ang);
-      for (let i = 0; i < 4; i++) { const off = Math.sin(spin + (i / 4) * TAU) * 5; rrect(ctx, -6 - st.recoil * 2, off - 1.4, 18, 2.8, 1); flat(ctx, STEEL, 1); }
-      rrect(ctx, -8, -7, 9, 14, 2.5); flat(ctx, BRONZE, 1.6); ctx.restore();
-    } else if (many && mt >= 2) { crossbow(ctx, -5, -23, st.ang, 0.9, false, st.recoil); crossbow(ctx, 5, -23, st.ang, 0.9, false, st.recoil); }
-    else crossbow(ctx, 0, -23, st.ang, 1, false, st.recoil);
-    if (many && mt >= 4) { crossbow(ctx, -12, -18, st.ang, 0.75, false, st.recoil); crossbow(ctx, 12, -18, st.ang, 0.75, false, st.recoil); }
-    if (might && mt >= 4) glow(ctx, Math.cos(st.ang) * 18, -24 + Math.sin(st.ang) * 18 * FORE, 9 + Math.sin(st.time * 8) * 1.5, '#ffffff', 0.55);
-    const g = (st.time * 0.7 + (st.id || 0) * 0.3) % 2.2;
-    if (g < 0.25) twinkle(ctx, Math.cos(st.ang) * 12, -23 + Math.sin(st.ang) * 12 * FORE, 2.4, 1 - g * 4);
-    if (craft && mt >= 4) { // the hunter's mark floats beside the post, turning
-      const x = -16, y = -27 + Math.sin(st.time * 2.4) * 1.2;
-      glow(ctx, x, y, 11, '#ffffff', 0.5);
-      ctx.save(); ctx.translate(x, y); ctx.scale(Math.cos(st.time * 1.6), 1);
-      poly(ctx, [[0, -5], [4, 0], [0, 5], [-4, 0]]); flat(ctx, '#ffffff', 1.4); ctx.restore();
-      circle(ctx, x, y, 7); ctx.strokeStyle = INK; ctx.lineWidth = 1.4; ctx.stroke();
+    plinth(ctx, might && mt >= 3 ? 28 : many && mt >= 4 ? 30 : 24, P, d, mt >= 4 && might ? '#5a5f70' : WOOD);
+    // bolt racks: one, and a second from Quick Draw; outrigger arms carry crossbows on Storm of Bolts
+    const racks = many && mt >= 1 ? 2 : 1;
+    for (let r = 0; r < racks; r++) {
+      const x = r ? -13 : 8;
+      rrect(ctx, x, -10, 5, 15, 1.5); ink(ctx, '#5a3a22', 1.3, x, x + 5);
+      const n = many ? Math.min(5, 3 + mt) : 3;
+      for (let i = 0; i < n; i++) { const y = -12 - (i % 2) * 1.5, bx = x + 0.8 + i * (3.4 / (n - 1)); line(ctx, [[bx, -9], [bx, y]], WOOD, 0.8); poly(ctx, [[bx - 1.3, y + 2.2], [bx, y - 0.6], [bx + 1.3, y + 2.2]]); flat(ctx, might && mt >= 1 ? STEEL : SILVER, 0.6); }
     }
+    if (many && mt >= 4) for (const s of [-1, 1]) { line(ctx, [[s * 9, -10], [s * 17, -16]], BRASS, 1.6); circle(ctx, s * 17, -16, 1.8); flat(ctx, BRASS, 0.8); }
+    // the housing: a green watch-post; Might clads it in riveted steel (T3) with gold trim (T4)
+    const steel = might && mt >= 3, hc = steel ? '#6a7488' : craft && mt >= 4 ? NIGHT2 : GREEN_IRON;
+    const trim = steel ? (mt >= 4 ? GOLD : STEEL) : craft && mt >= 4 ? SILVER : GREEN_TRIM;
+    rrect(ctx, -9, -15, 18, 22, 2); ink(ctx, hc, 2, -9, 9);
+    rrect(ctx, -9.5, -15.5, 19, 2.6, 1); flat(ctx, trim, 1);
+    rrect(ctx, -9.5, 4, 19, 2.6, 1); flat(ctx, trim, 1);
+    if (steel) for (const [x, y] of [[-7, -12], [7, -12], [-7, 2], [7, 2]]) { circle(ctx, x, y, 0.9); ctx.fillStyle = '#e0e6f0'; ctx.fill(); }
+    if (might && mt >= 1) for (const [x, y] of [[-9, -15], [9, -15], [-9, 7], [9, 7]]) { rrect(ctx, x - 1.8, y - 1.8, 3.6, 3.6, 0.8); flat(ctx, STEEL, 0.9); }   // steel corner caps
+    if (might && mt >= 2 && !steel) for (const y of [-11, 1]) { rrect(ctx, -10, y - 1.5, 20, 3, 1); flat(ctx, STEEL, 1.2); }
+    if (steel) for (const x of [-11, 11]) { poly(ctx, [[x, 7], [x * 1.3, 7], [x, -9]]); ink(ctx, mt >= 4 ? '#8a7a5a' : STEEL2, 1.4, -14, 14); }
+    // the window: silver light; Hunter's Mark turns it into a lens, then an eye
+    pane(ctx, 0, -5, 10, 14, d);
+    if (craft && mt >= 1) { circle(ctx, 0, -5, 4.4); ctx.strokeStyle = INK; ctx.lineWidth = 2.4; ctx.stroke(); ctx.strokeStyle = BRASS; ctx.lineWidth = 1.2; ctx.stroke(); }
+    if (craft && mt >= 2) { ctx.beginPath(); ctx.ellipse(0, -5, 4.6, 2.8, 0, 0, TAU); flat(ctx, '#ffffff', 1.2); }
+    else { line(ctx, [[0, -12], [0, 2]], hc, 0.9); line(ctx, [[-5, -5], [5, -5]], hc, 0.9); }
+    if (craft && mt >= 2) { // a hood awning over the window; from T3 a dark drape over the whole post
+      ctx.beginPath(); ctx.moveTo(-10.5, -13); ctx.quadraticCurveTo(0, -18, 10.5, -13); ctx.lineTo(8, -9); ctx.quadraticCurveTo(0, -12, -8, -9); ctx.closePath(); ink(ctx, mt >= 4 ? NIGHT : GREEN2, 1.3, -10, 10);
+      if (mt >= 3) for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * 10.5, -13); ctx.quadraticCurveTo(s * 13, -2, s * 11.5, 7); ctx.lineTo(s * 8.5, 7); ctx.quadraticCurveTo(s * 10, -3, s * 8, -9); ctx.closePath(); ink(ctx, mt >= 4 ? NIGHT : GREEN2, 1.2, -13, 13); }
+    }
+    // the roof: peaked; a ballista platform (Might T3) with crenellations (T4); a dark spire (Craft T4)
+    if (steel) {
+      rrect(ctx, -11, L_ROOF - 4, 22, 4, 1); ink(ctx, mt >= 4 ? '#8a7a5a' : '#5a6478', 1.6, -11, 11);
+      if (mt >= 4) for (const x of [-10, -4, 2, 8]) { rrect(ctx, x, L_ROOF - 8, 3, 4, 0.6); ink(ctx, '#8a7a5a', 1.1, x, x + 3); }
+      tripod(ctx, 0, L_ROOF - 6, 0.8, mt >= 4);
+    } else if (craft && mt >= 4) { poly(ctx, [[-11, L_ROOF], [11, L_ROOF], [0, L_ROOF - 13]]); ink(ctx, NIGHT, 2, -11, 11); line(ctx, [[0, L_ROOF - 13], [0, L_ROOF]], SILVER, 0.6); }
+    else roof(ctx, 0, L_ROOF, 23, 7, '#6a3a2a');
+    if (!(craft && mt >= 3) && !steel) line(ctx, [[-10, L_ROOF], [-10, L_ROOF - 13]], WOOD, 1);   // pennant pole
+    if (steel && mt >= 4) banner(ctx, -16, -30, 9);
+    if (mt >= 4) crown(ctx, steel ? -16 : 0, steel ? -31 : craft ? L_ROOF - 12 : L_ROOF - 6, d, 1.05);
+    return steel && mt >= 4 ? -40 : craft && mt >= 4 ? -36 : -34;
+  },
+  back(ctx, P, st, d) { if (P.mt >= 4) { if (P.craft) sigil(ctx, st.time, 24); else groundAura(ctx, d, st.time, 24); } },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, steel = might && mt >= 3;
+    flicker(ctx, 0, -5, 11 + mt * 1.5, d, st.time + (st.id || 0));
+    if (craft && mt === 1) twinkle(ctx, -2, -7, 2.2, Math.sin(st.time * 2.5) * 1.5 - 0.3);
+    if (!(craft && mt >= 3) && !steel) { // the pennant flutters
+      const w = Math.sin(st.time * 6 + (st.id || 0)) * 1.5;
+      ctx.beginPath(); ctx.moveTo(-10, L_ROOF - 13); ctx.quadraticCurveTo(-5, L_ROOF - 12 + w, -1, L_ROOF - 11 + w * 0.6); ctx.quadraticCurveTo(-5, L_ROOF - 10 - w * 0.4, -10, L_ROOF - 8.5); ctx.closePath();
+      flat(ctx, many && mt >= 2 ? BRASS : GREEN_TRIM, 1.1);
+    }
+    if (craft && mt >= 2) { // the eye's pupil tracks the target; it glows at T4
+      const ax = Math.cos(st.ang), ay = Math.sin(st.ang) * 0.6;
+      circle(ctx, ax * 2, -5 + ay * 1.2, 1.8); ctx.fillStyle = INK; ctx.fill();
+      if (mt >= 4) glow(ctx, 0, -5, 9, '#ffffff', 0.6 + Math.sin(st.time * 4) * 0.15);
+    }
+    if (steel) ballista(ctx, 0, L_ROOF - 7, st.ang, mt >= 4 ? 1.1 : 0.9, mt >= 4, mt >= 4, st.time, st.recoil);
+    else if (might) crossbowX(ctx, 0, L_ROOF - 9, st.ang, 1 + mt * 0.2, { heavy: mt >= 1, winch: mt >= 1, recoil: st.recoil });
+    else if (many && mt >= 3) {
+      repeater(ctx, 0, L_ROOF - 10, st.ang, mt >= 4 ? 1.15 : 1, st.time, mt >= 4, st.recoil);
+      if (mt >= 4) for (const s of [-1, 1]) crossbowX(ctx, s * 17, -19, st.ang, 0.75, { recoil: st.recoil });
+    } else if (many && mt >= 2) { crossbowX(ctx, -5, L_ROOF - 8, st.ang, 0.9, { recoil: st.recoil }); crossbowX(ctx, 5, L_ROOF - 8, st.ang, 0.9, { recoil: st.recoil }); }
+    else crossbowX(ctx, 0, L_ROOF - 8, st.ang, 1, { recoil: st.recoil });
+    const g = (st.time * 0.7 + (st.id || 0) * 0.3) % 2.2;
+    if (g < 0.25) { const m = this.muzzle(P, st.ang, TMP_L); twinkle(ctx, m[0], m[1], 2.4, 1 - g * 4); }
+    if (craft && mt >= 3) {
+      if (mt >= 4) {
+        hawk(ctx, -12 + Math.cos(st.time * 1.2) * 6, -35 + Math.sin(st.time * 2.4) * 2, 0.9, st.time, true);
+        for (let i = 0; i < 3; i++) { const a = st.time * 1.1 + (i / 3) * TAU; mark(ctx, Math.cos(a) * 16, -8 + Math.sin(a) * 6, 3.4, st.time + i, 0.8); }
+      } else { hawk(ctx, 9.5, L_ROOF - 3, 0.85, st.time, false); mark(ctx, -15, -24, 5, st.time); }
+    }
+    if (might && mt >= 4) risingMotes(ctx, st.time, 4, -8, 8, L_ROOF - 6, 14, '#ffffff', 1.4, 1.2, st.id || 0);
+    if (many && mt >= 4) risingMotes(ctx, st.time, 3, -16, 16, 4, 8, '#ffcf4a', 1.2, 0.9, st.id || 0);
   },
   muzzle(P, ang, out) {
-    const s = P.might ? (P.mt >= 4 ? 1.7 : P.mt >= 2 ? 1.25 : 1) : 1;
-    out[0] = Math.cos(ang) * 12 * s; out[1] = (P.might ? -24 : P.many && P.mt >= 3 ? -25 : -23) + Math.sin(ang) * 12 * s * FORE;
-    return out;
+    const { might, many, mt } = P, c = Math.cos(ang), s = Math.sin(ang) * FORE;
+    let x = 0, y, L;
+    if (might && mt >= 3) { y = L_ROOF - 7; L = BALLISTA_TIP * (mt >= 4 ? 1.1 : 0.9); }
+    else if (might) { y = L_ROOF - 9; L = 12 * (1 + mt * 0.2); }
+    else if (many && mt >= 3) { y = L_ROOF - 10; L = REPEATER_TIP * (mt >= 4 ? 1.15 : 1); }
+    else if (many && mt >= 2) { x = c >= 0 ? 5 : -5; y = L_ROOF - 8; L = 12 * 0.9; }
+    else { y = L_ROOF - 8; L = 12; }
+    out[0] = x + c * L; out[1] = y + s * L; return out;
   },
 };
+const TMP_L = [0, 0];
 
 // ==== Rime Spire (Pulser): a frosted globe lantern hung with icicles ============================
 const RIME_SPARKS = [[-8, -18], [7, -10], [-4, -6], [9, -19], [0, -25]];

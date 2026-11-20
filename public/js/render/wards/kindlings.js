@@ -4,10 +4,10 @@
 // eye on a mast). Same interface as lanterns.js (body / back / front / muzzle), plus
 // `breathe: true` for a slow idle squash. The Longeye is the Lantern body with a Kindling eye.
 import { DMG, INK, TAU, circle, poly, rrect, star, ink, flat, line, glow, notches, pips, glyph, aim, FORE, shade, crown, groundAura, twinkle, risingMotes, brows } from './kit.js';
-import { crossbow, longeyeArt, roof, BRASS } from './lanterns.js';
+import { longeyeArt, roof } from './lanterns.js';
+import { crossbowX, tripod, ballista, repeater, hawk, mark, banner, sigil, quiver, BALLISTA_TIP, REPEATER_TIP, STEEL as STEEL_B, STEEL2, GOLD, LEATHER, BRASS, GREEN, GREEN2, NIGHT, NIGHT2, SILVER } from './bolt-parts.js';
 
-export const WAX = '#f3e4c6', WAX2 = '#e2cfa8', WOOD = '#7a5236', BRONZE = '#c8963a', STEEL = '#b8c2d2';
-const LEATHER = '#8a5a32', GREEN = '#4f8a3c', GREEN2 = '#2f5a28';
+export const WAX = '#f3e4c6', WAX2 = '#e2cfa8', WOOD = '#7a5236', BRONZE = '#c8963a', STEEL = STEEL_B;
 const EMBER = '#ff7a3a', EMBER2 = '#ffb070', CHAR = '#3a1a14';
 const ICE = '#9fe6ff', ICE2 = '#3fb0dc';
 
@@ -56,90 +56,122 @@ export function tuft(ctx, x, y, size, d, t = 0, lean = 0) {
 
 export function badge(ctx, x, y, r, d) { const D = DMG[d]; circle(ctx, x, y, r); flat(ctx, D.core, 1.2); glyph(ctx, D.glyph, x, y, r * 0.95, D.glow ? shade(D.deep, -0.3) : INK); }
 
-// ==== Bolt Ward: a hardy little archer (green tunic, leather, a quiver of bolts) ==================
-// MIGHT puts it in steel, MANY brings archer friends and more bolts, CRAFT hoods and cloaks it.
-function archerBody(ctx, x, y, s) {
+// ==== Bolt Ward: a hardy little archer; each path grows its own form (see bolt-parts.js) ==========
+// The archer's body, dressed per path and tier (static, cached).
+function archer(ctx, x, P) {
+  const { might, many, craft, mt } = P;
+  ctx.save(); ctx.translate(x, 0);
+  if (craft && mt >= 3) { // the hunter's cloak, long and dark, silver-trimmed at T4
+    ctx.beginPath(); ctx.moveTo(-7, -10); ctx.quadraticCurveTo(-14, 0, -12, 10); ctx.lineTo(12, 10); ctx.quadraticCurveTo(14, 0, 7, -10); ctx.closePath();
+    ink(ctx, mt >= 4 ? NIGHT : GREEN2, 1.6, -13, 13);
+    if (mt >= 4) { ctx.beginPath(); ctx.moveTo(-12, 10); ctx.lineTo(12, 10); ctx.strokeStyle = SILVER; ctx.lineWidth = 1.3; ctx.stroke(); }
+  }
+  rrect(ctx, -7.5, -14, 15, 23, 6.5); ink(ctx, WAX, 2, -7.5, 7.5);
+  ctx.beginPath(); ctx.moveTo(-8, -4); ctx.lineTo(-2.5, -4); ctx.lineTo(0, -1); ctx.lineTo(2.5, -4); ctx.lineTo(8, -4); ctx.lineTo(8.4, 9); ctx.quadraticCurveTo(0, 11, -8.4, 9); ctx.closePath();
+  ink(ctx, craft && mt >= 4 ? NIGHT2 : GREEN, 1.8, -8, 8);
+  rrect(ctx, -8.2, 3, 16.4, 2.6, 1); flat(ctx, LEATHER, 1);
+  rrect(ctx, -1.6, 2.7, 3.2, 3.2, 0.6); flat(ctx, might && mt >= 4 ? GOLD : BRASS, 0.9);
+  // MIGHT: a steel bracer, then a pauldron, then a breastplate, then gold-trimmed armour
+  if (might && mt >= 1) { rrect(ctx, 4.5, -1.5, 5, 3.6, 1.2); ink(ctx, STEEL, 1.1, 4.5, 9.5); }
+  if (might && mt >= 2) { ctx.beginPath(); ctx.ellipse(6.5, -4, 4.4, 3.3, 0.3, 0, TAU); ink(ctx, STEEL, 1.4, 3, 11); }
+  if (might && mt >= 3) {
+    ctx.beginPath(); ctx.ellipse(-6.5, -4, 4.4, 3.3, -0.3, 0, TAU); ink(ctx, STEEL, 1.4, -11, -3);
+    rrect(ctx, -6, -4, 12, 8, 3); ink(ctx, STEEL, 1.5, -6, 6); glyph(ctx, 'arrow', 0, 0, 3, '#5a6478');
+    if (mt >= 4) { rrect(ctx, -6, 2.6, 12, 1.6, 0.6); flat(ctx, GOLD, 0.8); for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(s * 6.5, -4, 4.4, 3.3, s * 0.3, Math.PI, TAU); ctx.strokeStyle = GOLD; ctx.lineWidth = 1.2; ctx.stroke(); } }
+  }
+  // MANY: a bandolier of bolts across the chest
+  if (many && mt >= 1) { line(ctx, [[-7, -4], [6, 8]], LEATHER, 2.4); for (let i = 0; i < (mt >= 3 ? 4 : 3); i++) { const u = 0.15 + i * 0.22; poly(ctx, [[-7 + 13 * u - 1.3, -4 + 12 * u], [-7 + 13 * u, -4 + 12 * u - 3], [-7 + 13 * u + 1.3, -4 + 12 * u]]); flat(ctx, SILVER, 0.7); } }
+  // CRAFT: a hood and mark charm (T2), a mask (T3), a sharp-peaked night cowl (T4)
+  if (craft && mt >= 4) {
+    ctx.beginPath(); ctx.moveTo(-8.8, -1); ctx.quadraticCurveTo(-10, -12, -4, -16.5); ctx.quadraticCurveTo(-1, -19, 1.5, -22.5);
+    ctx.quadraticCurveTo(3.5, -18, 6, -15.5); ctx.quadraticCurveTo(10, -11, 8.8, -1); ctx.lineTo(5, -4); ctx.quadraticCurveTo(0, -12, -5, -4); ctx.closePath();
+    ink(ctx, NIGHT, 1.6, -9, 9);
+    ctx.beginPath(); ctx.moveTo(-5, -4); ctx.quadraticCurveTo(0, -12, 5, -4); ctx.strokeStyle = SILVER; ctx.lineWidth = 1; ctx.stroke();
+  } else if (craft && mt >= 2) {
+    ctx.beginPath(); ctx.moveTo(-8.5, -2); ctx.quadraticCurveTo(-9.5, -16, 0, -17); ctx.quadraticCurveTo(9.5, -16, 8.5, -2); ctx.lineTo(5, -4); ctx.quadraticCurveTo(0, -12, -5, -4); ctx.closePath();
+    ink(ctx, GREEN2, 1.6, -9, 9);
+  }
+  if (craft && mt >= 2) { poly(ctx, [[0, 0.5], [1.6, 2.6], [0, 4.7], [-1.6, 2.6]]); flat(ctx, '#ffffff', 0.8); }
+  if (craft && mt === 3) { rrect(ctx, -7, -8.4, 14, 4.6, 2); flat(ctx, '#1a1a20', 0.8); }
+  if (!(craft && mt >= 2)) { // a headband and silver feather; a plumed steel helm on Siege Lance
+    if (might && mt >= 4) {
+      ctx.beginPath(); ctx.moveTo(-8, -9); ctx.quadraticCurveTo(-8, -17, 0, -17.5); ctx.quadraticCurveTo(8, -17, 8, -9); ctx.closePath(); ink(ctx, STEEL, 1.6, -8, 8);
+      rrect(ctx, -8.4, -10.5, 16.8, 2.2, 1); flat(ctx, GOLD, 0.9);
+      ctx.beginPath(); ctx.moveTo(-2, -17); ctx.quadraticCurveTo(-10, -24, -15, -19); ctx.quadraticCurveTo(-9, -19, -2, -14); flat(ctx, '#d84a3a', 1.1);
+    } else {
+      rrect(ctx, -7.7, -11.5, 15.4, 2.4, 1); flat(ctx, might && mt >= 2 ? STEEL : LEATHER, 1);
+      ctx.beginPath(); ctx.moveTo(5.5, -10.5); ctx.quadraticCurveTo(11, -13, 12.5, -19); ctx.quadraticCurveTo(8, -16, 5.5, -10.5); flat(ctx, SILVER, 1.1);
+    }
+  }
+  if (craft && mt === 1) { circle(ctx, 3.6, -6, 4.2); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke(); ctx.strokeStyle = BRASS; ctx.lineWidth = 1.6; ctx.stroke(); line(ctx, [[7.6, -5], [9, 2]], BRASS, 0.8); }
+  ctx.restore();
+}
+// A little archer friend (Twin-shot T3+), drawn live in front of the battery so it never hides.
+function helper(ctx, x, y, s, st, d) {
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   rrect(ctx, -6, -14, 12, 15, 5.5); ink(ctx, WAX, 1.8, -6, 6);
   rrect(ctx, -6.4, -5.5, 12.8, 7.5, 3); ink(ctx, GREEN, 1.5, -6, 6);
   rrect(ctx, -6.4, -1, 12.8, 2, 0.8); flat(ctx, LEATHER, 0.9);
-  ctx.restore();
-}
-function archerFace(ctx, x, y, s, st, d) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-  eyes(ctx, 0, -9, st, { sep: 2.8, r: 2.3, brow: 'stern' });
+  rrect(ctx, -6.2, -11.2, 12.4, 2, 0.8); flat(ctx, LEATHER, 0.8);
+  eyes(ctx, 0, -8, st, { sep: 2.8, r: 2.3, brow: 'stern' });
   tuft(ctx, 0, -13.5, 0.75, d, st.time + x);
   ctx.restore();
+  crossbowX(ctx, x + 2 * s / 0.66, y - 3, st.ang, s * 0.95, { recoil: st.recoil });
 }
-function quiver(ctx, x, y, n, heavy) {
-  for (let i = 0; i < n; i++) { // bolts sticking out of the top
-    const bx = x + 1.2 + (n > 1 ? i * (3.6 / (n - 1)) : 1.8), by = y - 5 - (i % 2) * 1.5;
-    line(ctx, [[bx, y + 1], [bx, by]], WOOD, 0.8);
-    poly(ctx, [[bx - 1.6, by + 2.6], [bx, by - 0.6], [bx + 1.6, by + 2.6]]); flat(ctx, heavy ? STEEL : '#f0f0f0', 0.8);
-  }
-  rrect(ctx, x, y, 6, 15, 2); ink(ctx, LEATHER, 1.4, x, x + 6);
-  rrect(ctx, x - 0.3, y + 2, 6.6, 1.6, 0.6); flat(ctx, BRONZE, 0.7);
-}
-const MINIS = (P) => (P.many && P.mt >= 4 ? [[-12, 9], [12, 9]] : P.many && P.mt >= 2 ? [[-12, 9]] : []);
+const HELPERS = (P) => (P.many && P.mt >= 4 ? [[-16, 10], [16, 10]] : P.many && P.mt >= 3 ? [[-15, 10]] : []);
+const BOLT_AX = (P) => (P.might && P.mt >= 3 ? -4 : 0);
 const bolt = {
   breathe: true,
   body(ctx, P, d) {
-    const { might, many, craft, mt } = P;
-    hearthstone(ctx, 26, P, d);
-    if (craft && mt >= 3) { // a long hunter's cloak behind
-      ctx.beginPath(); ctx.moveTo(-7, -9); ctx.quadraticCurveTo(-13, 0, -11, 10); ctx.lineTo(11, 10); ctx.quadraticCurveTo(13, 0, 7, -9); ctx.closePath();
-      ink(ctx, mt >= 4 ? '#25401f' : GREEN2, 1.6, -12, 12);
-    }
-    quiver(ctx, -12.5, -15, many && mt >= 3 ? 5 : mt >= 2 ? 4 : 3, might && mt >= 2);
-    if (many && mt >= 3) quiver(ctx, 7, -14, 4, false);
-    for (const [x, y] of MINIS(P)) archerBody(ctx, x, y, 0.66);
-    rrect(ctx, -7.5, -14, 15, 23, 6.5); ink(ctx, WAX, 2, -7.5, 7.5);
-    // tunic, belt and buckle
-    ctx.beginPath(); ctx.moveTo(-8, -4); ctx.lineTo(-2.5, -4); ctx.lineTo(0, -1); ctx.lineTo(2.5, -4); ctx.lineTo(8, -4); ctx.lineTo(8.4, 9); ctx.quadraticCurveTo(0, 11, -8.4, 9); ctx.closePath();
-    ink(ctx, GREEN, 1.8, -8, 8);
-    rrect(ctx, -8.2, 3, 16.4, 2.6, 1); flat(ctx, LEATHER, 1);
-    rrect(ctx, -1.6, 2.7, 3.2, 3.2, 0.6); flat(ctx, BRONZE, 0.9);
-    if (might && mt >= 2) { ctx.beginPath(); ctx.ellipse(6.5, -4, 4.2, 3.2, 0.3, 0, TAU); ink(ctx, STEEL, 1.4, 3, 10); }
-    if (might && mt >= 3) {
-      ctx.beginPath(); ctx.ellipse(-6.5, -4, 4.2, 3.2, -0.3, 0, TAU); ink(ctx, STEEL, 1.4, -10, -3);
-      rrect(ctx, -5.5, -3.5, 11, 6.5, 2.5); ink(ctx, STEEL, 1.4, -5.5, 5.5); glyph(ctx, 'arrow', 0, -0.3, 2.6, '#5a6478');
-    }
-    if (craft && mt >= 2) { // hunter's hood
-      ctx.beginPath(); ctx.moveTo(-8.5, -2); ctx.quadraticCurveTo(-9.5, -16, 0, -17); ctx.quadraticCurveTo(9.5, -16, 8.5, -2); ctx.lineTo(5, -4); ctx.quadraticCurveTo(0, -12, -5, -4); ctx.closePath();
-      ink(ctx, mt >= 4 ? '#25401f' : GREEN2, 1.6, -9, 9);
-    } else { // headband with a silver feather
-      rrect(ctx, -7.7, -11.5, 15.4, 2.4, 1); flat(ctx, might && mt >= 4 ? STEEL : LEATHER, 1);
-      ctx.beginPath(); ctx.moveTo(5.5, -10.5); ctx.quadraticCurveTo(11, -13, 12.5, -19); ctx.quadraticCurveTo(8, -16, 5.5, -10.5); flat(ctx, '#e9eef6', 1.1);
-      line(ctx, [[6.5, -11], [11.5, -17.5]], '#9aa4b8', 0.4);
-    }
-    const top = -27 - (might && mt >= 4 ? 3 : 0);
-    if (mt >= 4) crown(ctx, 0, top - 2, d);
-    return top - 9;
+    const { might, many, craft, mt } = P, ax = BOLT_AX(P);
+    hearthstone(ctx, might && mt >= 3 ? 32 : many && mt >= 3 ? 34 : 26, P, d);
+    if (might && mt >= 3) for (const x of [-15, 15]) { poly(ctx, [[x - 1.4, 11], [x + 1.4, 11], [x, 4]]); flat(ctx, mt >= 4 ? GOLD : STEEL2, 0.9); }   // anchoring stakes
+    if (many && mt >= 4) for (const x of [-7, 7]) { rrect(ctx, x - 3.5, 6, 7, 5, 1); ink(ctx, '#6a4a2a', 1.1, x - 3.5, x + 3.5); }                // ammo crates
+    quiver(ctx, ax - 12.5, -15, many ? Math.min(6, 3 + mt) : mt >= 2 ? 4 : 3, might && mt >= 1 ? STEEL : '#f0f0f0');
+    if (many && mt >= 1 && mt < 4) quiver(ctx, 7, -14, 3 + mt, '#f0f0f0');
+    if (might && mt >= 4) banner(ctx, -17, -36, 10);
+    archer(ctx, ax, P);
+    if (might && mt >= 3) tripod(ctx, 7, 3, 1, mt >= 4);
+    if (mt >= 4) crown(ctx, ax, craft ? -31.5 : -30, d, 1.1);
+    return craft && mt >= 4 ? -43 : -39;
   },
-  back(ctx, P, st, d) { if (P.mt >= 4) groundAura(ctx, d, st.time, 20); },
+  back(ctx, P, st, d) { if (P.mt >= 4) { if (P.craft) sigil(ctx, st.time, 24); else groundAura(ctx, d, st.time, 24); } },
   front(ctx, P, st, d) {
-    const { might, craft, mt } = P;
-    for (const [x, y] of MINIS(P)) { archerFace(ctx, x, y, 0.66, st, d); crossbow(ctx, x + 2, y - 3, st.ang, 0.62, false, st.recoil); }
-    eyes(ctx, 0, -6, st, { lid: craft && mt >= 2, brow: craft && mt >= 2 ? null : 'stern' });
-    tuft(ctx, 0, -14, might && mt >= 4 ? 1.25 : 1, d, st.time);
-    const s = might ? (mt >= 4 ? 1.6 : mt >= 2 ? 1.3 : 1) : 1;
-    crossbow(ctx, 4, 2, st.ang, s, might && mt >= 3, st.recoil);
-    // a glint runs along the bolt now and then
-    const g = (st.time * 0.7 + (st.id || 0) * 0.3) % 2.2;
-    if (g < 0.25) twinkle(ctx, 4 + Math.cos(st.ang) * 11 * s, 2 + Math.sin(st.ang) * 11 * s * FORE, 2.4, 1 - g * 4);
-    if (craft && mt >= 4) {
-      const x = -14, y = -22 + Math.sin(st.time * 2.4) * 1.2;
-      glow(ctx, x, y, 11, '#ffffff', 0.5);
-      ctx.save(); ctx.translate(x, y); ctx.scale(Math.cos(st.time * 1.6), 1);
-      poly(ctx, [[0, -4.5], [3.6, 0], [0, 4.5], [-3.6, 0]]); flat(ctx, '#ffffff', 1.3); ctx.restore();
-      circle(ctx, x, y, 6.5); ctx.strokeStyle = INK; ctx.lineWidth = 1.3; ctx.stroke();
+    const { might, many, craft, mt } = P, ax = BOLT_AX(P);
+    eyes(ctx, ax, -6, st, { lid: craft && mt >= 2 && mt < 4, brow: craft && mt >= 2 ? null : 'stern' });
+    if (craft && mt >= 4) for (const s of [-1, 1]) glow(ctx, ax + s * 3.6, -6, 4.5, '#ffffff', 0.8 + Math.sin(st.time * 3) * 0.15);
+    if (craft && mt === 1) twinkle(ctx, 2.4, -7.4, 2.2, Math.sin(st.time * 2.5) * 1.5 - 0.3);
+    tuft(ctx, ax + (craft && mt >= 4 ? 1.5 : 0), craft && mt >= 4 ? -21.5 : -14 - (might && mt >= 4 ? 3 : 0), 1 + mt * 0.06, d, st.time);
+    // the weapon: a crossbow (with a winch on Might), twin crossbows, a repeater or battery, or a ballista
+    if (might && mt >= 3) ballista(ctx, 7, 1, st.ang, mt >= 4 ? 1.15 : 0.95, mt >= 4, mt >= 4, st.time, st.recoil);
+    else if (might) crossbowX(ctx, ax + 4, 2, st.ang, 1 + mt * 0.2, { heavy: mt >= 1, winch: mt >= 1, recoil: st.recoil });
+    else if (many && mt >= 3) repeater(ctx, 2, 1, st.ang, mt >= 4 ? 1.15 : 1, st.time, mt >= 4, st.recoil);
+    else if (many && mt >= 2) { crossbowX(ctx, -9, 1, st.ang, 0.95, { recoil: st.recoil }); crossbowX(ctx, 9, 1, st.ang, 0.95, { recoil: st.recoil }); }
+    else crossbowX(ctx, ax + 4, 2, st.ang, 1, { recoil: st.recoil });
+    for (const [x, y] of HELPERS(P)) helper(ctx, x, y, 0.66, st, d);
+    const g = (st.time * 0.7 + (st.id || 0) * 0.3) % 2.2;   // a glint runs along the loaded bolt now and then
+    if (g < 0.25) { const m = this.muzzle(P, st.ang, TMP_B); twinkle(ctx, m[0], m[1], 2.4, 1 - g * 4); }
+    if (craft && mt >= 3) { // Hunting Party: a hawk on the shoulder; Death Sentence: aloft, and marks orbit
+      if (mt >= 4) {
+        hawk(ctx, -10 + Math.cos(st.time * 1.2) * 6, -29 + Math.sin(st.time * 2.4) * 2, 0.9, st.time, true);
+        for (let i = 0; i < 3; i++) { const a = st.time * 1.1 + (i / 3) * TAU; mark(ctx, Math.cos(a) * 15, -6 + Math.sin(a) * 6, 3.4, st.time + i, 0.8); }
+      } else { hawk(ctx, -7.5, -15, 0.85, st.time, false); mark(ctx, 12, -20, 5, st.time); }
     }
+    if (might && mt >= 4) risingMotes(ctx, st.time, 4, 2, 16, -2, 14, '#ffffff', 1.4, 1.2, st.id || 0);
+    if (many && mt >= 4) risingMotes(ctx, st.time, 3, -16, 16, 6, 8, '#ffcf4a', 1.2, 0.9, st.id || 0);
   },
   muzzle(P, ang, out) {
-    const s = P.might ? (P.mt >= 4 ? 1.6 : P.mt >= 2 ? 1.3 : 1) : 1;
-    out[0] = 4 + Math.cos(ang) * 12 * s; out[1] = 2 + Math.sin(ang) * 12 * s * FORE; return out;
+    const { might, many, mt } = P, c = Math.cos(ang), s = Math.sin(ang) * FORE;
+    let x, y, L;
+    if (might && mt >= 3) { const k = mt >= 4 ? 1.15 : 0.95; x = 7; y = 1; L = BALLISTA_TIP * k; }
+    else if (might) { x = BOLT_AX(P) + 4; y = 2; L = 12 * (1 + mt * 0.2); }
+    else if (many && mt >= 3) { x = 2; y = 1; L = REPEATER_TIP * (mt >= 4 ? 1.15 : 1); }
+    else if (many && mt >= 2) { x = c >= 0 ? 9 : -9; y = 1; L = 12 * 0.95; }
+    else { x = 4; y = 2; L = 12; }
+    out[0] = x + c * L; out[1] = y + s * L; return out;
   },
 };
+const TMP_B = [0, 0];
 
 // ==== Rime Spire: a frosted ghost of ice, icicles hanging from its skirt =========================
 const RIME_SPARKS = [[-7, -12], [6, -9], [-3, 1], [8, 2], [-9, -3], [2, -15]];
