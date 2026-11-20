@@ -2,7 +2,7 @@
 import { TOWERS } from '../data/towers.js';
 import { RULES } from '../data/rules.js';
 import { applySlow } from './enemies.js';
-import { mark } from './projectiles.js';
+import { mark, addZone } from './projectiles.js';
 
 const TAU = Math.PI * 2;
 
@@ -586,7 +586,7 @@ function wyrm(game, t, s) {
   const pts = [];
   for (let k = 0; k <= s.wyrmLen; k += 56) {
     path.posAt(t.pathNear + 20 - k, aim, 0);
-    game.zones.push({ x: aim.x, y: aim.y, r: 38, dps: s.wyrmDps, t: s.wyrmDur, tick: k * 0.002, scorch: 0, src: t, type: 'fire', fire: true });
+    addZone(game, { x: aim.x, y: aim.y, r: 38, dps: s.wyrmDps, t: s.wyrmDur, tick: k * 0.002, scorch: 0, src: t, type: 'fire', fire: true });
     pts.push(aim.x, aim.y);
   }
   game.emit('wyrm', { x: t.x, y: t.y, pts });

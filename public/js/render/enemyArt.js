@@ -671,12 +671,12 @@ function drawCrowdEnemy(ctx, e, x, y, r, quality) {
         g.closePath(); g.fill(); g.stroke();
       }), -R, -R, R * 2, R * 2);
     }
-    if (e.stunT > 0 && !(e.rootT > 0)) {
-      ctx.fillStyle = '#fff36b';
-      for (let i = 0; i < 3; i++) {
-        const a = e.wob * 2 + (i / 3) * TAU;
-        ctx.fillRect(Math.cos(a) * (r + 3) - 2, Math.sin(a) * (r + 3) * 0.5 - r - 2, 4, 4);
-      }
+    if (e.stunT > 0 && !(e.rootT > 0)) {   // stun stars: one of six cached frames (crowds are often stunned en masse)
+      const k = Math.floor((((e.wob * 2) % TAU + TAU) % TAU) / TAU * 6) % 6, R = r * 1.6 + 8;
+      ctx.drawImage(overlay(`sn${Math.round(r)}|${k}`, R, (g) => {
+        g.fillStyle = '#fff36b';
+        for (let i = 0; i < 3; i++) { const a = (k / 6) * TAU + (i / 3) * TAU; g.fillRect(Math.cos(a) * (r + 3) - 2, Math.sin(a) * (r + 3) * 0.5 - r - 2, 4, 4); }
+      }), -R, -R, R * 2, R * 2);
     }
   }
   queueBar(e, x, y, r);

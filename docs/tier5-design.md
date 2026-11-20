@@ -147,7 +147,7 @@ which the panel shows on hover or Shift.
 
 | Path | Tier 5 | Identity | Signature mechanic | Second form |
 |---|---|---|---|---|
-| Great Brazier | **Dragon's Hoard** (18,000) | A dragon's hoard. | Cap 25,000, grows 35% a wave, and **cash-outs of 5,000 or more pay 25% extra**. | Heaps of gold, a chest and a small gold dragon curled on the brazier. |
+| Great Brazier | **Dragon's Hoard** (18,000) | A dragon's hoard. | Cap 20,000, grows 30% a wave, and **cash-outs of 5,000 or more pay 20% extra**. | Heaps of gold, a chest and a small gold dragon curled on the brazier. |
 | Gleaners | **Ember Tide** (17,000) | Embers from everywhere. | 250% of bounties from every kill on the map at full rate. **Empties itself into your gold at every wave clear.** | Streams of embers spiralling in. |
 | Hearthwarm | **Second Heartfire** (19,000) | A second heart. | Always warm: wards in range get +50% speed and +35% damage. **When an enemy gets through, it pays 40 embers per life** instead of you (a last-stand save). | A rose heart-flame floating beside it. |
 

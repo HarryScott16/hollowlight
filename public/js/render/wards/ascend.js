@@ -7,7 +7,7 @@
 //   - a floating five-point diadem with a white-hot core, the only pure white on an idle ward (the
 //     channel the visual system kept back for tier 5), drawn last, above the head.
 // See docs/tier5-design.md for what each form is, and docs/upgrade-visuals-research.md 2.5.
-import { TAU, INK, DMG, circle, poly, rrect, star, ink, flat, line, glow, rgba, shade, twinkle, DETAIL, FACE } from './kit.js';
+import { TAU, INK, DMG, circle, poly, rrect, star, ink, flat, line, glow, rgba, shade, twinkle, DETAIL, FACE, newCanvas } from './kit.js';
 import { GOLD, IRON, IRON2, BRASS, COPPER, cloud, zap, orb, iceCrystal, iceBlade, snowCloud, sunDisc, shard, drum, pennant, coins, chest, moths, crescent, heartGrill, emberWisp, torchFlame, runeCircle, chainRing, briar, lampSeed, beam as lightBeam, smokePuffs, lavaCracks, warhorn, tube } from './parts.js';
 import { STEEL, SILVER, hawk, mark, banner } from './bolt-parts.js';
 
@@ -430,7 +430,32 @@ const FORMS = {
 function form(type, P) { const f = FORMS[type]; return f ? f[P.main] : null; }
 export function hasAscension(type) { return !!FORMS[type]; }
 export function ascendBehind(ctx, type, P, d, skin) { const f = form(type, P); if (f && f.behind) f.behind(ctx, d, SKIN5[skin] || SKIN5.kindling); }
+// In crowds (DETAIL.q < 2) the sigil and the moving parts of the form are one cached still image:
+// one drawImage per refresh instead of dozens of calls.
+const stills = new Map();
+const SX = -44, SY = -56, SW = 88, SH = 78, SK = 2;   // ward units covered by a still, and its px per unit
+const STILL_ST = { time: 0.7, ang: 0.6, recoil: 0, pulse: 0, fire: 0, pop: 0, id: 0 };
+function still(type, P, d, skin) {
+  const key = `${skin}|${type}|${P.main}`;
+  let c = stills.get(key);
+  if (c !== undefined) return c;
+  c = newCanvas();
+  if (c) {
+    c.width = SW * SK; c.height = SH * SK;
+    const g = c.getContext('2d');
+    g.setTransform(SK, 0, 0, SK, -SX * SK, -SY * SK);
+    const q = DETAIL.q; DETAIL.q = 2;
+    sigil5(g, d, STILL_ST.time, type === 'snare' ? 32 : 27);
+    const f = form(type, P);
+    if (f && f.back) f.back(g, STILL_ST, d, SKIN5[skin] || SKIN5.kindling);
+    DETAIL.q = q;
+  }
+  stills.set(key, c);
+  return c;
+}
+export function clearAscendCache() { stills.clear(); }
 export function ascendBack(ctx, type, P, st, d, skin) {
+  if (DETAIL.q < 2) { const c = still(type, P, d, skin); if (c) { ctx.drawImage(c, SX, SY, SW, SH); return; } }
   const f = form(type, P);
   sigil5(ctx, d, st.time, type === 'snare' ? 32 : 27);
   if (f && f.back) f.back(ctx, st, d, SKIN5[skin] || SKIN5.kindling);
@@ -438,7 +463,7 @@ export function ascendBack(ctx, type, P, st, d, skin) {
 // top: the top of the ward's body (ward units), for the diadem.
 export function ascendFront(ctx, type, P, st, d, skin, top) {
   const f = form(type, P);
-  if (f && f.front) f.front(ctx, st, d, SKIN5[skin] || SKIN5.kindling);
+  if (f && f.front && DETAIL.q >= 2) f.front(ctx, st, d, SKIN5[skin] || SKIN5.kindling);
   if (FACE.skip) return;
   if (type === 'snare') { diadem(ctx, 0, 1, d, st.time, 0.8); return; }
   diadem(ctx, 0, top + 3, d, st.time);

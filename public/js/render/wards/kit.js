@@ -76,6 +76,7 @@ export function line(ctx, pts, col, w) {
 const glowCache = new Map();
 let makeCanvas = null;
 export function setCanvasFactory(f) { makeCanvas = f; glowCache.clear(); }
+export function newCanvas() { return makeCanvas ? makeCanvas() : null; }
 function glowSprite(color) {
   let c = glowCache.get(color);
   if (c) return c;

@@ -8,7 +8,7 @@
 import { KINDLINGS } from './wards/kindlings.js';
 import { LANTERNS } from './wards/lanterns.js';
 import { mainPath, WARD_DMG, DMG, setCanvasFactory, shadow } from './wards/kit.js';
-import { ascendBehind, ascendBack, ascendFront } from './wards/ascend.js';
+import { ascendBehind, ascendBack, ascendFront, clearAscendCache } from './wards/ascend.js';
 
 export const SKINS = { kindling: { name: 'Kindlings', art: KINDLINGS }, lantern: { name: 'Lanterns', art: LANTERNS } };
 let skin = 'kindling';
@@ -21,7 +21,7 @@ export function skinFromQuery(search) {
 }
 export function getSkin() { return skin; }
 export function skinName() { return SKINS[skin].name; }
-export function setSkin(name) { if (SKINS[name] && name !== skin) { skin = name; sprites.clear(); } }
+export function setSkin(name) { if (SKINS[name] && name !== skin) { skin = name; sprites.clear(); clearAscendCache(); } }
 export function nextSkin() { const keys = Object.keys(SKINS); setSkin(keys[(keys.indexOf(skin) + 1) % keys.length]); return skin; }
 
 // Ward units -> map pixels. Wards grow with every tier on their main path, so a tier 4 is clearly
@@ -58,7 +58,7 @@ let makeCanvas = () => null, pxScale = 1;
 export function initWardArt(factory, scale) {
   makeCanvas = factory; pxScale = scale;
   setCanvasFactory(factory);
-  sprites.clear(); live.clear();
+  sprites.clear(); live.clear(); clearAscendCache();
 }
 function sprite(type, art, P) {
   const key = `${type}|${P.tiers[0]}${P.tiers[1]}${P.tiers[2]}`;

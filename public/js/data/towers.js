@@ -459,7 +459,7 @@ const TIER5 = {
     { name: 'Dawnbringer', blurb: "A great torch: nearby wards fight much harder, and marked deaths spread the mark.", cost: 18000, desc: 'Wards within 180 of its post attack 45% faster and deal 30% more. Marked Gloom that die mark everything within 80 (up to 10 a second). x2 damage.', mul: { damage: 2 }, set: { torchRate: 0.45, torchDmg: 0.3, torchRange: 180, markBurst: 80, markBurstRate: 10 } },
   ],
   vault: [
-    { name: "Dragon's Hoard", blurb: "A dragon's hoard: a vast cap, fast growth, and big cash-outs pay extra.", cost: 18000, desc: 'Cap 25,000. Grows 35% a wave. Cashing out 5,000 or more pays 25% extra.', set: { cap: 25000, growth: 0.35, hoardBonus: 0.25, hoardMin: 5000 } },
+    { name: "Dragon's Hoard", blurb: "A dragon's hoard: a vast cap, fast growth, and big cash-outs pay extra.", cost: 18000, desc: 'Cap 20,000. Grows 30% a wave. Cashing out 5,000 or more pays 20% extra.', set: { cap: 20000, growth: 0.3, hoardBonus: 0.2, hoardMin: 5000 } },
     { name: 'Ember Tide', blurb: "Embers flow from every kill at full rate, and it pays out every wave.", cost: 17000, desc: 'Gathers 250% of bounties from every kill on the map, at full rate. +4,000 cap. Empties into your gold at each wave clear.', add: { cap: 4000 }, set: { glean: 2.5, gleanFull: true, autoCash: true } },
     { name: 'Second Heartfire', blurb: "Always warm, and it guards the Heartfire with its embers.", cost: 19000, desc: 'Always warm: wards in range attack 50% faster and deal 35% more. When an enemy gets through, it pays 40 embers for each life instead of you.', set: { warmRate: 0.5, warmDmg: 0.35, warmAt: 0, guard: 40 } },
   ],

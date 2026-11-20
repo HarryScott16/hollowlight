@@ -11,6 +11,8 @@ const SEED = seedArg ? Number(seedArg.slice(7)) : 1;
 const only = process.argv.slice(2).find((a) => !a.startsWith('-'));
 // --endless: keep playing generated waves after a win, up to wave 60.
 const ENDLESS = process.argv.includes('--endless');
+// --no-t5: never buy a tier 5 (to measure what the tier 5s add).
+const NO_T5 = process.argv.includes('--no-t5');
 const ENDLESS_CAP = Number((process.argv.find((a) => a.startsWith("--cap=")) || "--cap=60").slice(6));
 
 // order: towers bought in this rotation. paths: [main, minor] path index per tower type.
@@ -306,6 +308,7 @@ function spend(game, strat, spots, state) {
       const order = strat.strict ? [t.tiers[plan[0]] < 4 && upgradeInfo(t, plan[0]).ok ? plan[0] : plan[1] !== undefined && upgradeInfo(t, plan[1]).ok ? plan[1] : plan[0]] : plan;
       for (const pi of order) {
         if (pi === undefined || (strat.tierCap !== undefined && t.tiers[pi] >= strat.tierCap)) continue;
+        if (NO_T5 && t.tiers[pi] >= 4) continue;
         const v = upgradeValue(game, t, pi, strat);
         if (!v) continue;
         // A tier 5 is saved for only when it's about a wave and a half away (a player doesn't

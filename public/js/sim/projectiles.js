@@ -157,9 +157,7 @@ export function explode(game, x, y, s, src, sub, kind = 'shell') {
   }
   game.emit('explosion', { x, y, r, sub, kind });
   if (sub) return;
-  if (s.poolDps) {
-    game.zones.push({ x, y, r: r * (s.poolRadiusMul || 1) * 0.9, dps: s.poolDps, t: s.poolDur, tick: 0, scorch: s.scorch || 0, magma: s.magma || 0, src });
-  }
+  if (s.poolDps) addZone(game, { x, y, r: r * (s.poolRadiusMul || 1) * 0.9, dps: s.poolDps, t: s.poolDur, tick: 0, scorch: s.scorch || 0, magma: s.magma || 0, src });
   for (let i = 0; i < (s.cluster || 0); i++) {
     const a = game.rand() * 6.283, d = r * (0.5 + game.rand() * 0.7);
     game.projectiles.push({
@@ -208,6 +206,19 @@ export function updateProjectiles(game, dt) {
   let w = 0;
   for (let i = 0; i < list.length; i++) if (!list[i].dead) list[w++] = list[i];
   list.length = w;
+}
+
+// A pool landing mostly on top of one from the same ward refreshes that one instead (overlapping
+// pools don't stack anyway: an enemy burns in one pool per tick), so the ground stays cheap to draw.
+export function addZone(game, z) {
+  for (const o of game.zones) {
+    if (o.src === z.src && o.type === z.type && (o.x - z.x) ** 2 + (o.y - z.y) ** 2 < (o.r * 0.6) ** 2 && o.r >= z.r * 0.9) {
+      o.t = Math.max(o.t, z.t);
+      return o;
+    }
+  }
+  game.zones.push(z);
+  return z;
 }
 
 const ZONE_TICK = 0.25;

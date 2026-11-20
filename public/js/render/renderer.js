@@ -960,9 +960,12 @@ export class Renderer {
     const mm = this._mm || (this._mm = new Map());
     mm.clear();
     ctx.beginPath();
-    for (let i = 0; i < es.length; i++) {
+    // A False Moon can hold 80 flyers: in crowds only the first few threads are drawn.
+    let n = this.quality < 2 ? 16 : 60;
+    for (let i = 0; i < es.length && n > 0; i++) {
       const e = es[i];
       if (!(e.lureT > 0) || !e.lure || e.lure.sold) continue;
+      n--;
       let m = mm.get(e.lure.id);
       if (!m) { const o = wardMuzzle(e.lure, 0, [0, 0]); m = [o[0], o[1]]; mm.set(e.lure.id, m); }
       ctx.moveTo(m[0], m[1]); ctx.lineTo(e.x, e.y);
