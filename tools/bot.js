@@ -302,12 +302,16 @@ function spend(game, strat, spots, state) {
       const plan = strat.paths2 && strat.paths2[t.type] && game.towers.find((o) => o.type === t.type) !== t ? strat.paths2[t.type] : strat.paths[t.type];
       if (!plan) continue;
       // strict: follow the plan's main path first, the minor path only once it can't go further.
-      const order = strat.strict ? [upgradeInfo(t, plan[0]).ok ? plan[0] : plan[1]] : plan;
+      // (main to tier 4, then the minor path, then the main path's tier 5)
+      const order = strat.strict ? [t.tiers[plan[0]] < 4 && upgradeInfo(t, plan[0]).ok ? plan[0] : plan[1] !== undefined && upgradeInfo(t, plan[1]).ok ? plan[1] : plan[0]] : plan;
       for (const pi of order) {
         if (pi === undefined || (strat.tierCap !== undefined && t.tiers[pi] >= strat.tierCap)) continue;
         const v = upgradeValue(game, t, pi, strat);
         if (!v) continue;
-        if (v.cost <= game.gold + lastIncome && (!pick || v.value > pick.value)) pick = v;
+        // A tier 5 is saved for only when it's about a wave and a half away (a player doesn't
+        // starve a mid-game defence for a capstone).
+        const reach = t.tiers[pi] === 4 ? Math.min(lastIncome, (game.income[game.wave - 2] || 300) * 1.5) : lastIncome;
+        if (v.cost <= game.gold + reach && (!pick || v.value > pick.value)) pick = v;
         if (v.cost <= game.gold && (!now || v.value > now.value)) now = v;
       }
     }
