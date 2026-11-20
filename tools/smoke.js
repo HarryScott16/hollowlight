@@ -14,6 +14,9 @@ function anything(name = 'stub') {
       if (k === Symbol.iterator) return function* () {};
       if (k === Symbol.toPrimitive) return () => 0;
       if (k === 'then') return undefined;
+      // elements remember their event listeners, so the test can click and drag through the real UI
+      if (k === 'addEventListener') return (type, cb) => { ((t.on ||= {})[type] ||= []).push(cb); };
+      if (k === 'fire') return (type, ev) => { for (const cb of (t.on && t.on[type]) || []) cb(ev); };
       if (k in overrides) return overrides[k];
       if (!t.cache) t.cache = {};
       if (!(k in t.cache)) t.cache[k] = anything(`${name}.${String(k)}`);
@@ -68,7 +71,8 @@ for (const cb of listeners.pointerdown || []) cb({}); // starts the (stub) audio
 
 ui.setSpeed(3);
 game.gold = 1e7;
-import { TOWER_ORDER as order } from '../public/js/data/towers.js';
+import { TOWER_ORDER as order, WARD_KEYS } from '../public/js/data/towers.js';
+import { ABILITIES } from '../public/js/data/abilities.js';
 // Every ward type, near the path, three times (so each path's tier 3/4 art and effects get drawn).
 const cands = [];
 for (let y = 40; y < 700; y += 24) for (let x = 40; x < 1100; x += 24) if (game.map.buildable(x, y)) cands.push([x, y]);
@@ -147,6 +151,69 @@ frames(30);
 ui.select(game.towers[1]);
 ui.sellSelected();
 frames(30);
+// Every ward, through the real UI: placed by click and by drag from the shop, every path upgraded
+// (all three as main path, across three wards of the type), its R action and its ability by key.
+// A frame error is caught by the game loop (which keeps running) and counted: any one fails here.
+{
+  game.lives = 1e6; game.gold = 1e8;
+  const canvas = document.getElementById('game');
+  const ev = (x, y, extra) => ({ clientX: x, clientY: y, button: 0, shiftKey: false, detail: 1, preventDefault() {}, ...extra });
+  const keyDown = (key) => { for (const cb of listeners.keydown || []) cb({ key, shiftKey: false, preventDefault() {} }); };
+  const p = game.map.path;
+  const spotFor = (type, n) => {
+    if (TOWERS[type].onPath) { const i = Math.round((200 + n * 90) / p.step); return [p.xs[i] + 3, p.ys[i] - 2]; }
+    for (let k = 0; k < cands.length; k++) { const [x, y] = cands[(k * 37 + n * 11) % cands.length]; if (game.canPlace(type, x, y)) return [x, y]; }
+    return null;
+  };
+  const check = (what) => {
+    frames(4);
+    const fe = window.hollowlight.frameErrors || 0;
+    if (fe) { console.error(`frame error after: ${what}`); errors += fe; window.hollowlight.frameErrors = 0; }
+  };
+  // clear the board so there's room
+  for (const t of game.towers.slice()) game.sell(t);
+  for (const type of order) {
+    const n0 = game.towers.length;
+    const btn = ui.shopButtons[type];
+    // 1. click the shop button, hover the map (the placement preview draws), click to place
+    let at = spotFor(type, 0);
+    btn.fire('pointerdown', ev(0, 0)); btn.fire('click', ev(0, 0)); for (const cb of listeners.pointerup || []) cb(ev(0, 0));
+    canvas.fire('pointermove', ev(at[0], at[1])); check(`${type}: placement preview`);
+    canvas.fire('pointerdown', ev(at[0], at[1])); canvas.fire('pointerup', ev(at[0], at[1])); for (const cb of listeners.pointerup || []) cb(ev(at[0], at[1]));
+    check(`${type}: placed by click`);
+    // 2. drag from the shop button and drop on the map
+    at = spotFor(type, 1);
+    btn.fire('pointerdown', ev(0, 0)); canvas.fire('pointermove', ev(at[0], at[1])); check(`${type}: dragging`);
+    canvas.fire('pointerup', ev(at[0], at[1])); for (const cb of listeners.pointerup || []) cb(ev(at[0], at[1]));
+    check(`${type}: placed by drag`);
+    // 3. a third, so each path gets to be the main one
+    at = spotFor(type, 2); keyDown(WARD_KEYS[order.indexOf(type)]); canvas.fire('pointermove', ev(at[0], at[1])); canvas.fire('pointerdown', ev(at[0], at[1]));
+    check(`${type}: placed by key`);
+    const mine = game.towers.slice(n0);
+    if (mine.length !== 3) { console.error(`${type}: expected 3 placed (click, drag, key), got ${mine.length}`); errors++; }
+    mine.forEach((t, i) => {
+      ui.select(t); check(`${type}: selected`);
+      for (let k = 0; k < 4; k++) keyDown('qwe'[i]);
+      for (let k = 0; k < 2; k++) keyDown('qwe'[(i + 1) % 3]);
+      check(`${type} ${t.tiers.join('')}: upgraded`);
+      if (t.tiers[i] !== 4) { console.error(`${type}: path ${i} didn't reach tier 4 (${t.tiers.join('')})`); errors++; }
+      keyDown('r');   // the ward's own action
+      if (t.def.kind === 'wander') { canvas.fire('pointermove', ev(560, 380)); check(`${type}: choosing a post`); canvas.fire('pointerdown', ev(560, 380)); }
+      check(`${type}: R action`);
+    });
+    if (!game.canStartWave) for (let k = 0; k < 600 && !game.clear; k++) frames(30);
+    game.startWave(); frames(240);
+    for (const t of mine) t.abilityCd = 0;
+    keyDown(ABILITIES[type].key.toLowerCase());
+    check(`${type}: ability ${ABILITIES[type].name}`);
+    keyDown('l'); check(`${type}: other skin`); keyDown('l');
+    for (const t of mine) { ui.select(t); ui.sellSelected(); }
+    check(`${type}: sold`);
+  }
+  console.log(`all ${order.length} wards: click, drag, key, every path to tier 4, R and ability`);
+}
+
+errors += window.hollowlight.frameErrors || 0;
 console.log(`wave ${game.wave}  endless ${game.endless}  over ${game.over}  lives ${game.lives}  pops ${game.pops}  errors ${errors}`);
 ui.restart();
 frames(30);

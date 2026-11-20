@@ -22,7 +22,29 @@ const ui = new UI(game, renderer, canvas, sound);
 let last = performance.now();
 let acc = 0;
 
+// An error in one frame must never stop the loop (the map would freeze while the side panel keeps
+// working). Each part of the frame is guarded on its own, so a drawing bug can't stop the
+// simulation; errors are logged clearly (the first time each one happens, then every 300th) and
+// counted in window.hollowlight.frameErrors (tools/smoke.js fails on any).
+const seen = new Map();
+let frameErrors = 0;
+function guard(part, fn) {
+  try { fn(); } catch (err) {
+    frameErrors++;
+    if (window.hollowlight) window.hollowlight.frameErrors = frameErrors;
+    const key = `${part}: ${err && err.message}`, n = (seen.get(key) || 0) + 1;
+    seen.set(key, n);
+    if (n === 1 || n % 300 === 0) console.error(`[Hollowlight] error in the ${part} (frame kept running${n > 1 ? `, seen ${n} times` : ''}):`, err);
+    if (part === 'drawing') renderer.recover();
+  }
+}
+
 function frame(now) {
+  requestAnimationFrame(frame);   // first, so nothing below can stop the loop
+  guard('frame', () => step(now));
+}
+
+function step(now) {
   const real = Math.min(0.1, (now - last) / 1000);
   last = now;
   const running = !ui.paused && !game.over;
@@ -30,7 +52,7 @@ function frame(now) {
   // Hit-stop: the simulation holds for a beat on big moments while effects keep playing.
   if (renderer.hitStop > 0) {
     renderer.hitStop -= real;
-  } else if (running) {
+  } else if (running) guard('simulation', () => {
     acc += real * ui.speed;
     let n = 0;
     const t0 = performance.now();
@@ -41,16 +63,15 @@ function frame(now) {
     renderer.mark('sim', t0);
     renderer.perf.steps += n; renderer.addPerf('steps', n);
     if (n === MAX_STEPS) acc = 0;
-  }
+  });
   const tu = performance.now();
-  ui.update();
+  guard('interface', () => ui.update());
   renderer.mark('ui', tu);
-  renderer.draw(ui.paused ? 0 : real * (game.over ? 1 : ui.speed), ui);
-  requestAnimationFrame(frame);
+  guard('drawing', () => renderer.draw(ui.paused ? 0 : real * (game.over ? 1 : ui.speed), ui));
 }
 
 renderer.resize();
 requestAnimationFrame(frame);
 
 // Handy for debugging and balance checks from the browser console.
-window.hollowlight = { game, ui };
+window.hollowlight = { game, ui, frameErrors: 0 };

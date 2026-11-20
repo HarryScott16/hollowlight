@@ -540,6 +540,14 @@ export class Renderer {
   // perf.acc is the overlay's half-second window; perf.sum keeps running totals for tools/perf.mjs.
   addPerf(name, ms) { const P = this.perf; P.acc[name] = (P.acc[name] || 0) + ms; P.sum[name] = (P.sum[name] || 0) + ms; }
 
+  // After an error part-way through a frame: put the canvas state back so the next frame draws cleanly.
+  recover() {
+    const c = this.ctx;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+    c.setLineDash([]); c.lineCap = 'butt'; c.lineJoin = 'miter';
+    for (let i = 0; i < 8; i++) c.restore();   // any save() left open (extra restores are harmless)
+  }
+
   draw(dt, ui) {
     let pt = performance.now();
     this.consume();
@@ -590,7 +598,7 @@ export class Renderer {
     const sel = ui.selected;
     if (sel && sel.stats.global) this.mapWide(ctx);
     else if (sel && sel.def.kind === 'snare') this.snareReach(ctx, sel);
-    else if (sel && sel.def.kind === 'wander') this.wanderReach(ctx, sel, sel.hx, sel.hy, sel.stats, true);
+    else if (sel && sel.def.kind === 'wander') this.wanderReach(ctx, sel.hx, sel.hy, sel.stats, true);
     else if (sel) {
       this.rangeCircle(ctx, sel.x, sel.y, sel.stats.range, true, sel.stats.minRange);
       if (ui.previewRange && Math.abs(ui.previewRange - sel.stats.range) > 1) {
@@ -607,7 +615,7 @@ export class Renderer {
       if (ui.mouse.inside) {
         ctx.strokeStyle = ok ? 'rgba(216,184,255,0.8)' : 'rgba(255,80,80,0.8)'; ctx.lineWidth = 2; ctx.setLineDash([4, 6]);
         ctx.beginPath(); ctx.moveTo(t.hx, t.hy); ctx.lineTo(ui.mouse.x, ui.mouse.y); ctx.stroke(); ctx.setLineDash([]);
-        this.wanderReach(ctx, t, ui.mouse.x, ui.mouse.y, t.stats, ok);
+        this.wanderReach(ctx, ui.mouse.x, ui.mouse.y, t.stats, ok);
       }
     }
 
@@ -860,7 +868,8 @@ export class Renderer {
     if (s.rootRadius) this.rangeCircle(ctx, t.x, t.y, s.rootRadius, true);
   }
   // A Wandering Light: where it roams (dashed, round its post) and what it can reach from there.
-  wanderReach(ctx, t, hx, hy, s, ok) {
+  // `s` is its stats (a placed ward) or the base stats (the placement preview): only `s` is read.
+  wanderReach(ctx, hx, hy, s, ok) {
     this.rangeCircle(ctx, hx, hy, s.range + s.leash, ok);
     ctx.strokeStyle = ok ? 'rgba(216,184,255,0.9)' : 'rgba(255,90,90,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([3, 5]);
     ctx.beginPath(); ctx.arc(hx, hy, s.leash, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
@@ -869,7 +878,7 @@ export class Renderer {
     ctx.strokeStyle = '#d8b8ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 9, 0, TAU); ctx.stroke();
     ctx.beginPath(); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i * 2 * TAU) / 5; if (i) ctx.lineTo(Math.cos(a) * 7, Math.sin(a) * 7); else ctx.moveTo(Math.cos(a) * 7, Math.sin(a) * 7); } ctx.closePath(); ctx.stroke();
     ctx.restore();
-    if (t.def.torchRange !== undefined || s.torchRate) { ctx.strokeStyle = 'rgba(255,126,182,0.5)'; ctx.setLineDash([5, 7]); ctx.beginPath(); ctx.arc(hx, hy, s.torchRange, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+    if (s.torchRate) { ctx.strokeStyle = 'rgba(255,126,182,0.5)'; ctx.setLineDash([5, 7]); ctx.beginPath(); ctx.arc(hx, hy, s.torchRange, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
   }
 
   drawWardAt(ctx, t, dt) {
@@ -1400,7 +1409,7 @@ export class Renderer {
     const { x, y } = ui.mouse;
     if (def.onPath) { this.drawSnarePlacement(ctx, ui, def); return; }
     const ok = this.game.canPlace(ui.placing, x, y) && this.game.gold >= def.cost;
-    if (def.kind === 'wander') this.wanderReach(ctx, def, x, y, def.base, ok);
+    if (def.kind === 'wander') this.wanderReach(ctx, x, y, def.base, ok);
     else if (def.base.global) {
       this.mapWide(ctx);
       this.rangeCircle(ctx, x, y, 26, ok);   // just the footprint

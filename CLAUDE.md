@@ -1,7 +1,11 @@
 # Hollowlight (tower defence)
 
 Canvas game, no dependencies and no build step. `npm start` serves `public/` on :3001.
-Checks: `node tools/smoke.js` (browser code against a stub DOM), `node tools/bot.js` (balance).
+Checks: `node tools/smoke.js` (browser code against a stub DOM; it also places every ward by click, drag
+and key through the real UI handlers, upgrades every path, and uses its R action and ability),
+`node tools/bot.js` (balance). The frame loop in `main.js` guards the simulation, interface and drawing
+separately: an error is logged as `[Hollowlight] error in the ...` and counted in
+`window.hollowlight.frameErrors`, and the loop keeps running (smoke.js fails on any).
 Test mode for checking art: `?test=1` or Shift+T (unlimited gold and lives, wave jumping; `ui/testmode.js`).
 Keys: wards 1-9, 0, -, = (shop order); Q W E upgrade; R the selected ward's action (cash out an Ember
 Vault, move a Wandering Light's post); abilities A S D F G H J K, then Z C V B; X the Flare.

@@ -30,8 +30,9 @@ export async function startGame({ realClock = false, dpr = Number(process.env.DP
   const overrides = { clientWidth: 1200, clientHeight: 800, width: 1120, height: 720, left: 0, top: 0, offsetWidth: 100, measureText: () => ({ width: 50 }), getChannelData: () => new Float32Array(16) };
 
   const game = createCanvas(10, 10);
+  const canvasListeners = {};
   Object.assign(game, {
-    style: {}, classList: { toggle() {}, add() {}, remove() {} }, addEventListener() {},
+    style: {}, classList: { toggle() {}, add() {}, remove() {} }, addEventListener: (type, cb) => { (canvasListeners[type] ||= []).push(cb); },
     parentElement: { clientWidth: 1136, clientHeight: 736 },
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 1120, height: 720 }),
   });
@@ -55,8 +56,14 @@ export async function startGame({ realClock = false, dpr = Number(process.env.DP
   if (query) globalThis.location = { search: query };
   const frames = (n, dtMs = 16.7) => { for (let i = 0; i < n; i++) { now += dtMs; const cb = frameCb; frameCb = null; cb(now); } };
   const key = (k) => { for (const cb of listeners.keydown || []) cb({ key: k, shiftKey: false, preventDefault() {} }); };
+  // Pointer events on the game canvas, in map coordinates (the stub canvas is 1120 x 720 on screen).
+  const pointer = (type, x, y, { button = 0, shiftKey = false } = {}) => {
+    const ev = { clientX: x, clientY: y, button, shiftKey, preventDefault() {} };
+    for (const cb of canvasListeners[type] || []) cb(ev);
+    if (type === 'pointerup') for (const cb of listeners.pointerup || []) cb(ev);
+  };
 
   await import('../public/js/main.js');
   const { game: g, ui } = globalThis.window.hollowlight;
-  return { createCanvas, canvas: game, g, ui, frames, key, listeners };
+  return { createCanvas, canvas: game, g, ui, frames, key, listeners, pointer };
 }

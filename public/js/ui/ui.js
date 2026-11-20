@@ -189,7 +189,18 @@ export class UI {
       drawWardIcon(c, type);
       this.shopIcons[type] = c;
       b.append(el('span', 'key', WARD_KEYS[i]), c, el('span', 'cost', String(def.cost)));
-      b.addEventListener('click', () => this.setPlacing(this.placing === type ? null : type));
+      // Click a ward, then click the map (Shift keeps placing); or drag it from here onto the map.
+      b.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== undefined && ev.button !== 0) return;
+        this.dragFrom = type;
+        if (this.placing !== type) { this.setPlacing(type); this.justPicked = true; } else this.justPicked = false;
+      });
+      b.addEventListener('click', (ev) => {
+        // a keyboard press on the button (no pointer) toggles; a pointer click was handled on pointerdown
+        if (ev && ev.detail === 0) { this.setPlacing(this.placing === type ? null : type); return; }
+        if (!this.justPicked && this.placing === type) this.setPlacing(null);
+        this.justPicked = false;
+      });
       b.addEventListener('pointerenter', () => this.showShopInfo(type));
       b.addEventListener('pointerleave', () => this.showShopInfo(this.placing));
       list.append(b);
@@ -371,6 +382,15 @@ export class UI {
       c.classList.toggle('hover-tower', !this.placing && !!this.wardAt(this.mouse.x, this.mouse.y));
     });
     c.addEventListener('pointerleave', () => { this.mouse.inside = false; });
+    // Dropping a ward dragged from the shop: place it where the pointer is released.
+    c.addEventListener('pointerup', (ev) => {
+      const type = this.dragFrom;
+      this.dragFrom = null;
+      if (!type || this.placing !== type) return;
+      this.toMap(ev);
+      const t = this.game.place(type, this.mouse.x, this.mouse.y);
+      if (t && !ev.shiftKey) { this.setPlacing(null); this.select(t); }
+    });
     c.addEventListener('pointerdown', (ev) => {
       this.toMap(ev);
       this.mouse.inside = true;
@@ -398,6 +418,7 @@ export class UI {
     window.addEventListener('keydown', (ev) => { if (ev.key === 'Shift') details(true); });
     window.addEventListener('keyup', (ev) => { if (ev.key === 'Shift') details(false); });
     window.addEventListener('blur', () => details(false));
+    window.addEventListener('pointerup', () => { this.dragFrom = null; });   // released anywhere else: stay in click-to-place
     window.addEventListener('keydown', (ev) => {
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
       if (ev.target && ev.target.type === 'number') return;   // typing in test mode's wave box
