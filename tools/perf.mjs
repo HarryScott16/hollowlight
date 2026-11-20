@@ -41,13 +41,17 @@ r.drawWardAt = ((orig) => function (c, t, dt) { const c0 = calls; orig.call(r, c
 r.drawGhosts = ((orig) => function (c, l) { const c0 = calls; orig.call(r, c, l); callSum.ghostCalls = (callSum.ghostCalls || 0) + (calls - c0); })(r.drawGhosts);
 g.gold = 1e9;
 // The defence: a few mid-tier wards (far too few for the wave), or a full tier 4 defence.
-const types = ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon'];
+const types = process.env.WARDS === '8' ? ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon']
+  : ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon', 'snare', 'moth', 'wander', 'vault'];
 const spots = [];
 for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map.buildable(x, y) && g.map.path.distTo?.(x, y) < 70) spots.push([x, y]);
 if (!spots.length) for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map.buildable(x, y)) spots.push([x, y]);
 const want = DEF === 'full' ? 22 : 5;
 for (let i = 0, k = 0; i < spots.length && k < want; i += 5) {
-  const t = g.place(types[k % 8], spots[i][0], spots[i][1]);
+  const type = types[k % types.length];
+  let t;
+  if (type === 'snare') { const p = g.map.path, j = Math.round((250 + k * 40) / p.step); t = g.place(type, p.xs[j], p.ys[j]); }
+  else t = g.place(type, spots[i][0], spots[i][1]);
   if (!t) continue;
   ui.select(t);
   const main = k % 3;

@@ -1133,6 +1133,12 @@ export class Renderer {
   drawStar(ctx, p, x, y) {
     const g = Math.hypot(p.vx, p.vy) || 1, ux = p.vx / g, uy = p.vy / g;
     const big = p.comet, r = big ? 6.5 : 4 + (p.s.starRadius >= 45 ? 1.2 : 0), tail = big ? 34 : 14;
+    if (this.quality < 2) { // crowds: a tail and a plain star (a handful of calls)
+      ctx.strokeStyle = 'rgba(176,107,255,0.45)'; ctx.lineWidth = r * 1.4; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x - ux * tail, y - uy * tail); ctx.lineTo(x, y); ctx.stroke();
+      ctx.fillStyle = big ? '#e8d4ff' : ARCANE; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.8, y + r * 0.6); ctx.lineTo(x - r * 0.8, y + r * 0.6); ctx.closePath(); ctx.fill();
+      return;
+    }
     ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = big ? 'rgba(176,107,255,0.5)' : 'rgba(176,107,255,0.35)'; ctx.lineWidth = r * 1.6; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(x - ux * tail, y - uy * tail); ctx.lineTo(x, y); ctx.stroke();
