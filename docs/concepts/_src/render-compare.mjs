@@ -8,7 +8,7 @@ import { dirname, resolve } from 'node:path';
 import { createCanvas, turf, text, greyscale, save, panel } from './sheet.mjs';
 import { ST } from './wardsheets.mjs';
 import { WARDS, DIRECTIONS } from './render-directions.mjs';
-import { drawTower } from '../../../public/js/render/towerArt.js';
+import { drawTower } from './legacy-towerArt.js';
 import { DMG, INK, TAU, glyph, poly, circle, rrect } from './kit.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));

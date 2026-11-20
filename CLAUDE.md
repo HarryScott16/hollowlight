@@ -8,7 +8,8 @@ It lives only in the UI layer and must never touch the simulation, the bots or b
 ## Art rules
 
 The ward design system is in `docs/visual-design-system.md`; the code is in
-`public/js/render/wardArt.js` and `public/js/render/wards/`.
+`public/js/render/wardArt.js` and `public/js/render/wards/` (`kindlings.js` and `lanterns.js` hold
+every ward for each skin; `bolt-parts.js` and `parts.js` hold props both skins share).
 
 - **Two complete skins, always.** Kindlings (`wards/kindlings.js`) is the active skin, and
   Lanterns (`wards/lanterns.js`) is a fully maintained second skin. Every ward, tier, path,

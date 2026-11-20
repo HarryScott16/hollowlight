@@ -198,16 +198,20 @@ export class Renderer {
           if (!f.sub) this.shake = Math.max(this.shake, big ? 7 : f.r > 70 ? 4 : 1.8);
           break;
         }
-        case 'arc':
+        case 'arc': {
           S.zap();
+          // the first jump leaves the Coil's drawn orb (or prong tip), not its footprint
+          const w = this._at.get(Math.round(f.pts[0]) * 4096 + Math.round(f.pts[1]));
+          if (w && f.pts.length >= 4) { const m = wardMuzzle(w, Math.atan2(f.pts[3] - f.pts[1], f.pts[2] - f.pts[0]), this._m); f.pts[0] = m[0]; f.pts[1] = m[1]; }
           this.arcs.push({ pts: f.pts, life: f.smite ? 0.3 : 0.16, max: f.smite ? 0.3 : 0.16, smite: f.smite });
-          for (let k = 2; k < f.pts.length; k += 2) P.burst(f.pts[k], f.pts[k + 1], 3, { color: '#b8f6ff', speed: 140, life: 0.25, size: 2.4 });
+          for (let k = 2; k < f.pts.length; k += 2) P.burst(f.pts[k], f.pts[k + 1], 3, { color: '#e0c8ff', speed: 140, life: 0.25, size: 2.4 });
           break;
+        }
         case 'smite':
           S.boom(false);
-          this.bolts.push({ x: f.x, y: f.y, life: 0.35, max: 0.35 });
-          this.ring(f.x, f.y, 6, f.r, 0.35, '#fff1a0', 5, 'rgba(255,230,120,0.5)', true);
-          P.burst(f.x, f.y, 30, { color: '#ffe9a8', speed: 260, life: 0.5, size: 3.2 });
+          this.bolts.push({ x: f.x, y: f.y, life: 0.35, max: 0.35, color: DMG.arcane.core });
+          this.ring(f.x, f.y, 6, f.r, 0.35, '#e8d4ff', 5, 'rgba(176,107,255,0.4)', true);
+          P.burst(f.x, f.y, 30, { color: '#d8b8ff', speed: 260, life: 0.5, size: 3.2 });
           this.shake = Math.max(this.shake, 6);
           break;
         case 'pulse':
@@ -524,7 +528,7 @@ export class Renderer {
       // A Beacon's boost: a small golden chevron over the ward
       if (t.aura) {
         const y = wardTop(t) - 5 + Math.sin(this.time * 4 + t.id) * 1.5;
-        ctx.fillStyle = game.rally ? '#fff1a0' : '#ffd23a';
+        ctx.fillStyle = game.rally ? '#ffd0e6' : DMG.hearth.core;   // a Beacon's boost, in Hearth pink
         ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(t.x - 5, y + 3); ctx.lineTo(t.x, y - 2); ctx.lineTo(t.x + 5, y + 3); ctx.lineTo(t.x + 5, y + 6); ctx.lineTo(t.x, y + 1); ctx.lineTo(t.x - 5, y + 6); ctx.closePath();
         ctx.fill(); ctx.stroke();
@@ -747,13 +751,13 @@ export class Renderer {
       const r = t.stats.range;
       const p = (this.time * 0.35 + t.id * 0.13) % 1;
       ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = 'rgba(255,220,110,0.05)';
+      ctx.fillStyle = 'rgba(255,126,182,0.05)';   // Hearth: the support colour
       ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, TAU); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = `rgba(255,214,110,${0.35 * (1 - p)})`;
+      ctx.strokeStyle = `rgba(255,126,182,${0.4 * (1 - p)})`;
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(t.x, t.y, r * (0.3 + p * 0.7), 0, TAU); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,214,110,0.3)';
+      ctx.strokeStyle = 'rgba(255,126,182,0.35)';
       ctx.setLineDash([5, 7]);
       ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, TAU); ctx.stroke();
       ctx.setLineDash([]);
@@ -771,13 +775,13 @@ export class Renderer {
         if (!e || !e.alive) continue;
         const k = (b.charge - 1) / Math.max(1, s.maxCharge - 1);
         const flick = 0.85 + Math.sin(this.time * 40 + t.id) * 0.15;
-        const sx = t.x, sy = t.y - 8;
+        const m = wardMuzzle(t, Math.atan2(e.y - t.y, e.x - t.x), this._m), sx = m[0], sy = m[1];   // from the drawn lens or crystal
         ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = sun ? `rgba(255,190,60,${0.45 * flick})` : `rgba(200,140,255,${(0.25 + k * 0.35) * flick})`;
+        ctx.strokeStyle = sun ? `rgba(255,190,60,${0.5 * flick})` : `rgba(255,224,58,${(0.25 + k * 0.35) * flick})`;
         ctx.lineWidth = (4 + k * 9) * (sun ? 1.4 : 1);
         ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(e.x, e.y); ctx.stroke();
         ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = sun ? '#fff6c0' : k > 0.6 ? '#fff3b0' : '#f3e6ff';
+        ctx.strokeStyle = sun ? '#ffffff' : k > 0.6 ? '#fffbe0' : '#fff3b0';
         ctx.lineWidth = 1.5 + k * 2.5;
         ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(e.x, e.y); ctx.stroke();
         ctx.globalCompositeOperation = 'lighter';
@@ -887,15 +891,18 @@ export class Renderer {
       } else {
         const u = Math.min(1, p.t / p.flight);
         const lift = Math.sin(u * Math.PI) * (p.sub ? 22 : 64);
+        // shells leave the mortar's drawn mouth; that offset fades out over the flight
+        if (p._ox === undefined) { const w = p.src, m = w && !p.sub ? wardMuzzle(w, Math.atan2(p.ty - p.sy, p.tx - p.sx), this._m) : null; p._ox = m ? m[0] - p.sx : 0; p._oy = m ? m[1] - p.sy : 0; }
+        const ox = p._ox * (1 - u), oy = p._oy * (1 - u);
         ctx.fillStyle = 'rgba(10,40,30,0.35)';
         ctx.beginPath(); ctx.ellipse(p.x, p.y, 5, 3, 0, 0, TAU); ctx.fill();
         const r = (p.sub ? 3.2 : 5) + lift * 0.035;
         ctx.fillStyle = INK;
-        ctx.beginPath(); ctx.arc(p.x, p.y - lift, r + 1.2, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x + ox, p.y - lift + oy, r + 1.2, 0, TAU); ctx.fill();
         ctx.fillStyle = p.s.poolDps ? '#ff5a1a' : '#4a4050';
-        ctx.beginPath(); ctx.arc(p.x, p.y - lift, r, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#ffd23a';
-        ctx.beginPath(); ctx.arc(p.x - r * 0.3, p.y - lift - r * 0.3, r * 0.4, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x + ox, p.y - lift + oy, r, 0, TAU); ctx.fill();
+        ctx.fillStyle = DMG.blast.core;   // the Blast colour: a lit fuse
+        ctx.beginPath(); ctx.arc(p.x + ox - r * 0.3, p.y - lift + oy - r * 0.3, r * 0.4, 0, TAU); ctx.fill();
         if (!p.sub) {
           ctx.strokeStyle = `rgba(255,80,40,${0.3 + u * 0.6})`;
           ctx.lineWidth = 2;
@@ -953,7 +960,7 @@ export class Renderer {
       }
       ctx.globalAlpha = Math.min(1, (a.life / a.max) * 1.6);
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = a.smite ? 'rgba(255,220,90,0.8)' : 'rgba(60,200,255,0.75)';
+      ctx.strokeStyle = a.smite ? 'rgba(220,180,255,0.85)' : 'rgba(176,107,255,0.75)';
       ctx.lineWidth = a.smite ? 10 : 7;
       ctx.stroke();
       ctx.globalCompositeOperation = 'source-over';

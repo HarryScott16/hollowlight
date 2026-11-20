@@ -5,11 +5,9 @@
 // tier, path, projectile and effect must exist in both (see CLAUDE.md). Switch with ?skin=lantern
 // or ?skin=kindling in the URL, or the hidden L key.
 //
-// Wards not yet converted fall back to the old top-down art in towerArt.js.
 import { KINDLINGS } from './wards/kindlings.js';
 import { LANTERNS } from './wards/lanterns.js';
 import { mainPath, WARD_DMG, DMG, setCanvasFactory, shadow } from './wards/kit.js';
-import { drawTower as drawOld, towerScale as oldScale } from './towerArt.js';
 
 export const SKINS = { kindling: { name: 'Kindlings', art: KINDLINGS }, lantern: { name: 'Lanterns', art: LANTERNS } };
 let skin = 'kindling';
@@ -74,7 +72,7 @@ function sprite(type, art, P) {
 // t: { type, tiers, x, y, id }. st: { ang, recoil, time, pulse, fire, pop, tx, ty, id }.
 export function drawWard(ctx, t, st) {
   const art = artFor(t.type);
-  if (!art) { ctx.save(); ctx.translate(t.x, t.y); drawOld(ctx, t.type, t.tiers, st); ctx.restore(); return; }
+  if (!art) return;
   const P = pathInfo(t.tiers), d = WARD_DMG[t.type];
   const sp = sprite(t.type, art, P);
   const pop = st.pop || 0, S = wardScale(t.tiers) * (1 + pop * 0.3);
@@ -98,7 +96,7 @@ export function drawWard(ctx, t, st) {
 const TMP = [0, 0];
 export function wardMuzzle(t, ang, out) {
   const art = artFor(t.type);
-  if (!art) { const r = 16 * oldScale(t.tiers); out[0] = t.x + Math.cos(ang) * r; out[1] = t.y + Math.sin(ang) * r; return out; }
+  if (!art) { out[0] = t.x; out[1] = t.y; return out; }
   art.muzzle(pathInfo(t.tiers), ang, TMP);
   const S = wardScale(t.tiers);
   out[0] = t.x + TMP[0] * S; out[1] = t.y + (TMP[1] - PLINTH_Y) * S;
@@ -109,7 +107,7 @@ export function wardSpouts(t, ang) { const art = artFor(t.type); return art && a
 // Map y of the top of a ward (for markers floating over it).
 export function wardTop(t) {
   const art = artFor(t.type);
-  if (!art) return t.y - 26 * oldScale(t.tiers);
+  if (!art) return t.y - 30;
   return t.y + (sprite(t.type, art, pathInfo(t.tiers)).top - PLINTH_Y) * wardScale(t.tiers);
 }
 // Screen box of a ward's body (map units): where enemies behind it need to show through.
@@ -128,13 +126,7 @@ export function drawWardIcon(canvas, type, tiers = [0, 0, 0]) {
   const ctx = canvas.getContext('2d');
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!art) {
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    const s = canvas.width / (52 * Math.max(1, oldScale(tiers) * (Math.max(...tiers) >= 3 ? 1.25 : 1)));
-    ctx.scale(s, s);
-    drawOld(ctx, type, tiers, ICON_ST);
-    return;
-  }
+  if (!art) return;
   const P = pathInfo(tiers), d = WARD_DMG[type];
   // Fit the ward (from its top down to the ground line at y = 14) into the icon.
   const s = Math.min(canvas.width / 42, canvas.height / (P.mt >= 3 ? 62 : 50));

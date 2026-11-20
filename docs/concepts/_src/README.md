@@ -1,6 +1,6 @@
 # Concept render scripts
 
-Headless renders for the ward readability study ([../../visual-design-system.md](../../visual-design-system.md)). These are documentation tools, not game code: nothing here is imported by the game, and the game's `package.json` is unchanged. The scripts import the game's real art (`public/js/render/towerArt.js`, `enemyArt.js`) and data, read-only.
+Headless renders for the ward readability study ([../../visual-design-system.md](../../visual-design-system.md)). These are documentation tools, not game code: nothing here is imported by the game, and the game's `package.json` is unchanged. The scripts import the game's art and data read-only (`public/js/render/`), and `legacy-towerArt.js`, the original top-down tower art from before the 2026-11 overhaul, for the "current art" comparisons.
 
 ## Run
 

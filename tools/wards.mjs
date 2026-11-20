@@ -22,7 +22,9 @@ const CAPS = [46, 50, 56, 62, 68];   // by main-path tier (the Longeye is the ta
 
 const STATES = [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [4, 2, 0], [0, 2, 4], [2, 0, 4]];
 const skins = Object.keys(SKINS);
-const types = [...new Set(skins.flatMap((s) => Object.keys(SKINS[s].art)))];
+// node tools/wards.mjs [out.png] [ward ...]   (default: every ward)
+const only = process.argv.slice(3);
+const types = [...new Set(skins.flatMap((s) => Object.keys(SKINS[s].art)))].filter((t) => !only.length || only.includes(t));
 let bad = 0;
 for (const s of skins) for (const t of types) if (!SKINS[s].art[t]) { console.log(`MISSING: ${t} has no ${SKINS[s].name} art`); bad++; }
 
@@ -30,12 +32,15 @@ for (const s of skins) for (const t of types) if (!SKINS[s].art[t]) { console.lo
 // Body-and-face rule: draw only the live gear (face parts skip themselves via FACE.skip) and measure
 // how much of the ward's body box (art.self) it covers, worst case over eight aim directions.
 const COVER = 0.3;
+// Canvases are reused: @napi-rs/canvas memory is native, and new canvases per render add up fast.
+const COVER_CTX = createCanvas(160, 160).getContext('2d'), HEIGHT_CTX = createCanvas(120, 120).getContext('2d');
 function coverage(art, type, tiers) {
   const P = { ...mainPath(tiers), tiers }, d = WARD_DMG[type], box = art.self(P), Z = 3, N = 160;
   let worst = 0;
   FACE.skip = true;
+  const ctx = COVER_CTX;
   for (let k = 0; k < 8; k++) {
-    const c = createCanvas(N, N), ctx = c.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, N, N);
     ctx.translate(N / 2, N * 0.72); ctx.scale(Z, Z); ctx.translate(0, -11);
     art.front(ctx, P, { ang: (k / 8) * Math.PI * 2, recoil: 0, time: 0.3 + k * 0.4, pulse: 0, fire: 0, pop: 0, id: 1 }, d);
     const px = ctx.getImageData(0, 0, N, N).data;
@@ -51,9 +56,9 @@ function coverage(art, type, tiers) {
 // Worst case over eight aim directions (an aimed part pointing up the screen stands tallest).
 function height(type, tiers) {
   let worst = 0;
-  initWardArt(() => createCanvas(1, 1), 1);
+  const ctx = HEIGHT_CTX;
   for (let k = 0; k < 8; k++) {
-    const c = createCanvas(120, 120), ctx = c.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 120, 120);
     drawWard(ctx, { type, tiers, x: 60, y: 90, id: 1 }, { ang: (k / 8) * Math.PI * 2, recoil: 0, time: 0.3, pulse: 0, fire: 0, pop: 0, id: 1 });
     const px = ctx.getImageData(0, 0, 120, 120).data;
     let top = 120;
@@ -69,25 +74,36 @@ const sheet = createCanvas(W, H), g = sheet.getContext('2d');
 g.fillStyle = '#2f9a74'; g.fillRect(0, 0, W, H);
 g.font = '12px Sans, sans-serif'; g.fillStyle = '#fff';
 STATES.forEach((s, i) => g.fillText(s.join('/'), 90 + i * CW + CW / 2 - 14, 18));
-let row = 0;
-for (const t of types) for (const s of skins) {
-  setSkin(s);
-  const y0 = 30 + row * (CH + LBL);
-  g.fillStyle = '#fff'; g.fillText(`${t}`, 6, y0 + CH / 2); g.fillText(SKINS[s].name, 6, y0 + CH / 2 + 15);
-  STATES.forEach((tiers, i) => {
+// Measure everything at 1x first, then draw the sheet at 2x: one sprite cache per pass and skin.
+const results = new Map();
+for (const s of skins) {
+  setSkin(s); initWardArt(() => createCanvas(1, 1), 1);
+  for (const t of types) {
     const art = SKINS[s].art[t];
-    if (!art.self) { if (!i) { console.log(`NO BODY BOX: ${t} (${SKINS[s].name}) has no self(); can't check the body-and-face rule`); bad++; } }
-    else { const cv = coverage(art, t, tiers); if (cv > COVER) { console.log(`GEAR COVERS BODY: ${t} ${tiers.join('/')} (${SKINS[s].name}) covers ${(cv * 100).toFixed(0)}% of its body box (max ${COVER * 100}%)`); bad++; } }
-    const h = height(t, tiers), cap = CAPS[Math.max(...tiers)];
-    const over = h > cap;
-    if (over) { console.log(`TOO TALL: ${t} ${tiers.join('/')} (${SKINS[s].name}) stands ${h.toFixed(1)} px (cap ${cap})`); bad++; }
-    initWardArt(() => createCanvas(1, 1), Z);
-    g.save(); g.translate(90 + i * CW, y0); g.scale(Z, Z);
-    drawWard(g, { type: t, tiers, x: 35, y: 62, id: i }, { ang: 0.6, recoil: 0, time: 0.3 + i, pulse: 0, fire: 0, pop: 0, id: i });
-    g.restore();
-    g.fillStyle = over ? '#ff6060' : '#d8ffe8'; g.fillText(`${h.toFixed(0)}px`, 90 + i * CW + 4, y0 + CH + 12);
-  });
-  row++;
+    if (!art.self) { console.log(`NO BODY BOX: ${t} (${SKINS[s].name}) has no self(); can't check the body-and-face rule`); bad++; }
+    STATES.forEach((tiers, i) => {
+      if (art.self) { const cv = coverage(art, t, tiers); if (cv > COVER) { console.log(`GEAR COVERS BODY: ${t} ${tiers.join('/')} (${SKINS[s].name}) covers ${(cv * 100).toFixed(0)}% of its body box (max ${COVER * 100}%)`); bad++; } }
+      const h = height(t, tiers), cap = CAPS[Math.max(...tiers)];
+      if (h > cap) { console.log(`TOO TALL: ${t} ${tiers.join('/')} (${SKINS[s].name}) stands ${h.toFixed(1)} px (cap ${cap})`); bad++; }
+      results.set(`${s}|${t}|${i}`, { h, over: h > cap });
+    });
+  }
+}
+let row = 0;
+for (const s of skins) {
+  setSkin(s); initWardArt(() => createCanvas(1, 1), Z);
+  for (const t of types) {
+    const y0 = 30 + row * (CH + LBL);
+    g.fillStyle = '#fff'; g.fillText(`${t}`, 6, y0 + CH / 2); g.fillText(SKINS[s].name, 6, y0 + CH / 2 + 15);
+    STATES.forEach((tiers, i) => {
+      const r = results.get(`${s}|${t}|${i}`);
+      g.save(); g.translate(90 + i * CW, y0); g.scale(Z, Z);
+      drawWard(g, { type: t, tiers, x: 35, y: 62, id: i }, { ang: 0.6, recoil: 0, time: 0.3 + i, pulse: 0, fire: 0, pop: 0, id: i });
+      g.restore();
+      g.fillStyle = r.over ? '#ff6060' : '#d8ffe8'; g.fillText(`${r.h.toFixed(0)}px`, 90 + i * CW + 4, y0 + CH + 12);
+    });
+    row++;
+  }
 }
 writeFileSync(out, sheet.toBuffer('image/png'));
 console.log(`wrote ${out}: ${types.length} wards x ${skins.length} skins${bad ? `, ${bad} problem(s)` : ', all within the cap'}`);

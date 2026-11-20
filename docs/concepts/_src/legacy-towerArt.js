@@ -1,3 +1,5 @@
+// The game's original top-down tower art (before the 2026-11 visual overhaul), kept only so the
+// concept scripts can render the 'current art' comparisons. The game no longer uses it.
 // Tower designs, drawn from shapes at the origin.
 //
 // How upgrades show:
@@ -8,7 +10,7 @@
 //   - tier 4 is a bigger capstone design with an animated aura and rune ring in the path colour
 //
 // st: { ang, recoil (0-1), time, pulse (0-1), tx, ty (target offset or null), pop (0-1 upgrade pop) }
-import { PATH_COLORS } from '../data/towers.js';
+import { PATH_COLORS } from '../../../public/js/data/towers.js';
 
 const TAU = Math.PI * 2;
 const INK = '#1d1030';

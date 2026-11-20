@@ -6,6 +6,7 @@
 import { FACE, gearInFront, DMG, INK, TAU, circle, poly, rrect, star, ink, flat, line, glow, notches, pips, glyph, aim, FORE, shade, crown, groundAura, twinkle, risingMotes, brows } from './kit.js';
 import { longeyeArt, roof } from './lanterns.js';
 import { crossbowX, tripod, ballista, repeater, hawk, mark, banner, sigil, quiver, BALLISTA_TIP, REPEATER_TIP, STEEL as STEEL_B, STEEL2, GOLD, LEATHER, BRASS, GREEN, GREEN2, NIGHT, NIGHT2, SILVER } from './bolt-parts.js';
+import { iceCrystal, iceBlade, snowCloud, scarf, fuelTank, ashCollar, IRON as P_IRON, GOLD as P_GOLD, BRASS as P_BRASS, COPPER, tubeLean, tube, shell, crate, cinderPool, chimney, smokePuffs, lavaCracks, prong, orb, zap, pylon, cloud, gyro, gem, shard, lensRing, sunDisc, starBurst, drum, warhorn, pennant, coins, chest, beam } from './parts.js';
 
 export const WAX = '#f3e4c6', WAX2 = '#e2cfa8', WOOD = '#7a5236', BRONZE = '#c8963a', STEEL = STEEL_B;
 const EMBER = '#ff7a3a', EMBER2 = '#ffb070', CHAR = '#3a1a14';
@@ -205,8 +206,13 @@ const TMP_B = [0, 0];
 
 // ==== Rime Spire: a frosted ghost of ice, icicles hanging from its skirt =========================
 const RIME_SPARKS = [[-7, -12], [6, -9], [-3, 1], [8, 2], [-9, -3], [2, -15]];
+// Deep Freeze: frost spikes on its cap, an ice crust, ice crystals rising behind it (Flash Freeze),
+// then a glacier crown (Absolute Zero). Shatter: shards on its shoulders, spikes, orbiting ice
+// blades, then a storm of them (Winter's Verdict). Blizzard: a scarf, a snow ring, a snow cloud over
+// its head, then a great storm cloud with a wind swirl (Endless Winter).
 const rime = {
   breathe: true,
+  self: () => [-13, -18, 13, 8],
   body(ctx, P, d) {
     const { might, many, craft, mt } = P;
     hearthstone(ctx, 28, P, d, 'snow');
@@ -232,6 +238,8 @@ const rime = {
     ctx.beginPath(); ctx.moveTo(-w * 0.62, -12); ctx.quadraticCurveTo(0, -21, w * 0.62, -12);
     for (let i = 0; i <= 5; i++) ctx.lineTo(w * 0.62 - i * (w * 1.24 / 5), -12 + (i % 2 ? 2.4 : 0.6));
     ctx.closePath(); flat(ctx, '#f4fdff', 1.2);
+    if (might && mt >= 1) for (const [x, h] of [[-5, 4], [0, 6], [5, 4]]) { poly(ctx, [[x - 1.6, -15.5], [x + 1.6, -15.5], [x, -15.5 - h]]); flat(ctx, '#e8fbff', 1); }   // frost spikes on the cap
+    if (many && mt >= 1 && mt < 2) for (const s of [-1, 1]) { poly(ctx, [[s * 9, -6], [s * 14, -11], [s * 12, -3]]); flat(ctx, '#d8f8ff', 1.1); }                  // shards on its shoulders
     // icicles hanging from the skirt (longer with Deep Freeze)
     const L = might ? 4 + mt * 1.2 : 4;
     for (let i = 0; i < 5; i++) {
@@ -241,27 +249,38 @@ const rime = {
     ctx.beginPath(); ctx.ellipse(-6.5, -1.5, 2.2, 1.3, 0, 0, TAU); ctx.ellipse(6.5, -1.5, 2.2, 1.3, 0, 0, TAU); ctx.fillStyle = 'rgba(120,200,255,0.55)'; ctx.fill();
     if (might && mt >= 2) { ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + Math.PI / 6; ctx.lineTo(Math.cos(a) * (w + 4), -4 + Math.sin(a) * (w + 2)); } ctx.closePath(); ctx.strokeStyle = INK; ctx.lineWidth = 4.5; ctx.stroke(); ctx.strokeStyle = '#eafcff'; ctx.lineWidth = 2.5; ctx.stroke(); }
     glyph(ctx, 'flake', 0, 4, 3.5, DMG[d].deep);
+    if (craft && mt >= 1) scarf(ctx, 0, 2.5, w - 1, mt >= 4 ? '#e8f4ff' : '#3a7fd0');
     if (craft && mt >= 2) { ctx.beginPath(); ctx.ellipse(0, -6, w + 9, 5, 0, 0, Math.PI); ctx.strokeStyle = INK; ctx.lineWidth = 5; ctx.stroke(); ctx.strokeStyle = '#eafcff'; ctx.lineWidth = 3; ctx.stroke(); }
     const top = -29 - (many && mt >= 4 ? 4 : 0);
     if (mt >= 4) crown(ctx, 0, top + 1, d);
     return top - 7;
   },
   back(ctx, P, st, d) {
-    if (P.mt >= 4) groundAura(ctx, d, st.time, 24);
+    const { might, many, craft, mt } = P, t = st.time;
+    if (mt >= 4) groundAura(ctx, d, t, 24);
+    if (might && mt >= 3) { // Flash Freeze: ice crystals rise behind it; Absolute Zero: a glacier crown of them
+      const C = mt >= 4 ? [[-20, 10, 6, 24, -0.3], [20, 10, 6, 24, 0.3], [-11, 6, 7, 32, -0.12], [11, 6, 7, 32, 0.12], [0, 2, 8, 36, 0]] : [[-18, 9, 6, 24, -0.22], [18, 9, 6, 24, 0.22]];
+      for (const [x, y, cw, ch, l] of C) iceCrystal(ctx, x, y, cw, ch, l);
+    }
+    if (many && mt >= 3) for (let i = 0; i < (mt >= 4 ? 6 : 3); i++) { const a = t * (mt >= 4 ? 1.8 : 1.3) + (i / (mt >= 4 ? 6 : 3)) * TAU; if (Math.sin(a) < 0) iceBlade(ctx, Math.cos(a) * 18, -1 + Math.sin(a) * 6, a + Math.PI / 2, mt >= 4 ? 1.3 : 1); }
+    if (craft && mt >= 3) snowCloud(ctx, 0, mt >= 4 ? -28 : -27, mt >= 4 ? 19 : 14, t, mt >= 4 ? 9 : 5);
     // cold mist rolling off the base
     const ga = ctx.globalAlpha;
     for (let i = 0; i < 3; i++) {
-      const u = (st.time * 0.4 + i / 3) % 1, s = i % 2 ? 1 : -1;
+      const u = (t * 0.4 + i / 3) % 1, s = i % 2 ? 1 : -1;
       ctx.globalAlpha = ga * 0.35 * (1 - u); ctx.fillStyle = '#e8fbff';
       ctx.beginPath(); ctx.ellipse(s * (6 + u * 14), 11 + u * 2, 4 + u * 5, 1.6 + u * 1.4, 0, 0, TAU); ctx.fill();
     }
     ctx.globalAlpha = ga;
   },
   front(ctx, P, st, d) {
-    const { might, many, craft, mt } = P, w = might && mt >= 3 ? 15 : 13, p = st.pulse || 0;
-    glow(ctx, 0, -4, w + 7 + p * 16 + Math.sin(st.time * 3) * 1.5, DMG[d].core, 0.3 + p * 0.55);
-    eyes(ctx, 0, -4, st, { sep: 4.2, r: 3, brow: 'soft', iris: '#2a7fb0' });
-    tuft(ctx, 0, -17, 0.9 + (mt >= 4 ? 0.15 : 0), d, st.time);
+    const { might, many, craft, mt } = P, w = might && mt >= 3 ? 15 : 13, p = st.pulse || 0, t = st.time;
+    glow(ctx, 0, -4, w + 7 + p * 16 + Math.sin(t * 3) * 1.5, DMG[d].core, 0.3 + p * 0.55);
+    if (many && mt >= 3) for (let i = 0; i < (mt >= 4 ? 6 : 3); i++) { const a = t * (mt >= 4 ? 1.8 : 1.3) + (i / (mt >= 4 ? 6 : 3)) * TAU; if (Math.sin(a) >= 0) iceBlade(ctx, Math.cos(a) * 18, -1 + Math.sin(a) * 6, a + Math.PI / 2, mt >= 4 ? 1.3 : 1); }
+    if (craft && mt >= 4) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(232,251,255,0.6)'; ctx.lineWidth = 1.4; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.ellipse(0, 10, 18 + i * 3, 5 + i, 0, t * 2 + i * 2, t * 2 + i * 2 + 1.6); ctx.stroke(); } ctx.restore(); }
+    eyes(ctx, 0, -4, st, { sep: 4.2, r: 3, brow: 'soft', iris: might && mt >= 4 ? '#0a4fb0' : '#2a7fb0' });
+    if (might && mt >= 4 && !FACE.skip) for (const s of [-1, 1]) glow(ctx, s * 4.2, -4, 4, DMG[d].core, 0.7);
+    tuft(ctx, 0, -17, 0.9 + (mt >= 4 ? 0.15 : 0), d, t);
     for (let i = 0; i < RIME_SPARKS.length; i++) { const [x, y] = RIME_SPARKS[i]; twinkle(ctx, x * w / 13, y, 1.8, Math.sin(st.time * 3 + i * 1.9) * 1.4 - 0.4); }
     if (many && mt >= 2) twinkle(ctx, 0, -4 - w - (mt >= 4 ? 10 : 7), 2.6, Math.sin(st.time * 2.2) * 1.2);
     if (craft && mt >= 4) for (let i = 0; i < 6; i++) { const a = st.time * 1.4 + (i / 6) * TAU; star(ctx, Math.cos(a) * (w + 9), -6 + Math.sin(a) * 5, 3, 1.2, 6, a); flat(ctx, '#ffffff', 0.8); }
@@ -303,7 +322,7 @@ function heads(P, ang) {
   return [ang];
 }
 const NECK = [1, -9];
-function head(ctx, a, s, st, d, main, ash) {
+function head(ctx, a, s, st, d, main, ash, plate) {
   const A = aim(a), flip = Math.cos(A.a) < 0;
   ctx.save(); ctx.translate(NECK[0], NECK[1]); ctx.rotate(A.a); if (flip) ctx.scale(1, -1); ctx.scale(s, s);
   ctx.beginPath(); ctx.moveTo(-2, -3.5); ctx.lineTo(6, -3); ctx.lineTo(6, 3); ctx.lineTo(-2, 3.5); ctx.closePath(); flat(ctx, '#d8542a', 1.6);
@@ -311,6 +330,7 @@ function head(ctx, a, s, st, d, main, ash) {
   ctx.beginPath(); ctx.ellipse(9, 0, 7.5, 5.6, 0, 0, TAU); flat(ctx, ash ? '#c2502a' : EMBER, 1.8);
   ctx.beginPath(); ctx.ellipse(9.5, 2.2, 5.5, 2.6, 0, 0, Math.PI); ctx.fillStyle = EMBER2; ctx.fill();
   ctx.beginPath(); ctx.moveTo(12, 1); ctx.lineTo(16.5, -0.5); ctx.lineTo(16.5, 3.5); ctx.closePath(); flat(ctx, '#4a0c0a', 1.2);
+  if (plate) { rrect(ctx, 11, -4.2, 3.6, 8.4, 1.2); flat(ctx, '#7a8090', 1.1); rrect(ctx, 15.5, -2, 2.6, 6, 0.8); flat(ctx, P_BRASS, 0.9); }   // Firehose: an iron jaw plate and brass nozzle
   const ex = 8, ey = -2.4, blink = main && ((st.time + (st.id || 0) * 1.7) % 4.3) < 0.11;
   if (blink) line(ctx, [[ex - 2.4, ey], [ex + 2.4, ey]], '#3a2a40', 0.8);
   else {
@@ -320,11 +340,19 @@ function head(ctx, a, s, st, d, main, ash) {
   }
   ctx.restore();
 }
+// Pyre: hotter coals, flames on its back, a crest of spikes and flame (T3), then white-hot Wildfire.
+// Dragon's Breath: a bellows sack, two heads, an iron jaw and a fuel tank (Firehose), then three
+// heads breathing all round. Ash: soot, smoke, a mane of choking ash (T3), then the Ashen Brand.
 const censer = {
   breathe: true,
+  self: (P) => [-11, -11, 9, 8],
   body(ctx, P, d) {
-    const { might, craft, mt } = P, ash = craft && mt >= 2;
+    const { might, many, craft, mt } = P, ash = craft && mt >= 2;
     hearthstone(ctx, 26, P, d, 'coals');
+    if (might && mt >= 1) for (let i = 0; i < 5; i++) { circle(ctx, -9 + i * 4.5, 10.5 - (i % 2), 1.6); ctx.fillStyle = '#ffd27a'; ctx.fill(); }   // hotter coals
+    if (many && mt >= 3) fuelTank(ctx, -12, 0, 1.1);
+    if (many && mt >= 1 && mt < 3) { ctx.beginPath(); ctx.ellipse(-11, -3, 4, 3, -0.5, 0, TAU); ink(ctx, '#8a5a32', 1.2, -15, -7); line(ctx, [[-8, -5], [-5, -7]], '#6a4a2a', 1); }   // a bellows sack
+    if (craft && mt >= 3) ashCollar(ctx, 1, -9, 9);
     // tail, ending in a charred, glowing tip
     ctx.beginPath(); ctx.moveTo(-6, 6); ctx.quadraticCurveTo(-16, 6, -17, -2); ctx.quadraticCurveTo(-13, 2, -8, 1); ctx.strokeStyle = INK; ctx.lineWidth = 5; ctx.stroke(); ctx.strokeStyle = '#d8542a'; ctx.lineWidth = 3; ctx.stroke();
     circle(ctx, -17, -2.5, 2.4); flat(ctx, CHAR, 1.1);
@@ -341,6 +369,8 @@ const censer = {
       line(ctx, [[x - r * 0.6, y], [x, y - r * 0.2], [x + r * 0.5, y + r * 0.3]], '#ffb347', 0.6);
     }
     for (const x of [-6, 3]) { ctx.beginPath(); ctx.ellipse(x, 8, 2.8, 1.7, 0, 0, TAU); flat(ctx, '#d8542a', 1.1); }
+    if (craft && mt === 1) for (const [x, y] of [[-6, 1], [4, -3], [-2, -7]]) { circle(ctx, x, y, 1.6); ctx.fillStyle = 'rgba(40,30,36,0.7)'; ctx.fill(); }   // soot
+    if (might && mt >= 3) for (let i = 0; i < 3; i++) { const x = -7 + i * 4; ctx.beginPath(); ctx.moveTo(x - 2, -R + 1); ctx.quadraticCurveTo(x - 1, -R - 5, x + 0.5, -R - 7 - (i % 2) * 2); ctx.quadraticCurveTo(x + 2, -R - 3, x + 2, -R + 1); ctx.closePath(); flat(ctx, mt >= 4 ? '#fff0c0' : '#ffb347', 1); }   // a flame crest
     badge(ctx, -2, 3, 3.2, d);
     if (craft && mt >= 4) { ctx.strokeStyle = '#2a1018'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(-7, -7); ctx.lineTo(-3.5, -1); ctx.lineTo(-10.5, -1); ctx.closePath(); ctx.stroke(); }
     const top = -27 - (might && mt >= 4 ? 4 : 0);
@@ -350,14 +380,14 @@ const censer = {
   back(ctx, P, st, d) {
     if (P.mt >= 4) groundAura(ctx, d, st.time, 22);
     const hs = heads(P, st.ang), ash = P.craft && P.mt >= 2;
-    for (let i = 0; i < hs.length; i++) if (Math.sin(hs[i]) < -0.2) head(ctx, hs[i], i ? 0.82 : 1, st, d, i === 0, ash);
+    if (!FACE.skip) for (let i = 0; i < hs.length; i++) if (Math.sin(hs[i]) < -0.2) head(ctx, hs[i], i ? 0.82 : 1, st, d, i === 0, ash, P.many && P.mt >= 3);   // its heads are its face
   },
   front(ctx, P, st, d) {
     const { might, craft, mt } = P, f = st.fire || 0, R = might && mt >= 3 ? 11 : 9.5, ash = craft && mt >= 2;
     // the cracks breathe with heat, brighter while it pours fire
     glow(ctx, -2, -3, R * 1.4, '#ff6a2a', 0.18 + f * 0.25 + Math.sin(st.time * 4) * 0.06);
     glow(ctx, -17, -2.5, 5 + Math.sin(st.time * 9) * 1, '#ff8a3a', 0.8);                  // the tail tip smoulders
-    if (might && mt >= 2) { // flames along its back
+    if (might && mt >= 2 && !FACE.skip) { // flames along its back (its own fire, not gear)
       const n = mt >= 4 ? 5 : 3;
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < n; i++) {
@@ -368,7 +398,9 @@ const censer = {
       ctx.restore();
     }
     const hs = heads(P, st.ang);
-    for (let i = 0; i < hs.length; i++) if (Math.sin(hs[i]) >= -0.2) head(ctx, hs[i], i ? 0.82 : 1, st, d, i === 0, ash);
+    if (P.many && mt >= 3) line(ctx, [[-10, -3], [-4, -8], [0, -9]], '#6a4a2a', 1.2);   // the hose from the tank
+    if (might && mt >= 4) glow(ctx, -1, -2, 14, '#fff0c0', 0.25 + Math.sin(st.time * 5) * 0.08);   // Wildfire: it burns white-hot
+    if (!FACE.skip) for (let i = 0; i < hs.length; i++) if (Math.sin(hs[i]) >= -0.2) head(ctx, hs[i], i ? 0.82 : 1, st, d, i === 0, ash, P.many && P.mt >= 3);
     if (f > 0.05) for (const a of hs) { const m = this.muzzle(P, a, TMP); glow(ctx, m[0], m[1], 6 + f * 6, '#ffb070', 0.6 * f); }
     tuft(ctx, 1, -9 - R * 0.95 + 2, 0.85 + (mt >= 4 ? 0.2 : 0), d, st.time, 2);
     risingMotes(ctx, st.time, mt >= 4 ? 7 : 4, -10, 8, -6, 22, '#ffb347', 1.5, 1.3, st.id || 0);   // embers
@@ -383,4 +415,241 @@ const censer = {
 };
 const TMP = [0, 0];
 
-export const KINDLINGS = { bolt, rime, longeye, censer };
+// ==== Mortar Kiln: a fat clay-brick kindling with a mortar tube on its back ======================
+// Big Shells: a bigger tube, shells, an armoured howitzer, a gold Cataclysm. Rapid Loader: a shell
+// belt, a long barrel, a rack of three with a loader, a battery of six with two. Cinder: hot shells,
+// a cinder pool, a furnace body with a chimney, a blazing Inferno. Tubes always sit behind the body.
+const CLAY = '#c4683a', CLAY2 = '#e0905a';
+function mortarTubes(P) { // [x, y, width, length] of each tube, back row first
+  const { might, many, mt } = P;
+  if (many && mt >= 4) return [[-10, -8, 5, 16], [0, -10, 5, 17], [10, -8, 5, 16], [-14, -3, 5.5, 14], [14, -3, 5.5, 14], [5, -6, 5.5, 15]];
+  if (many && mt >= 3) return [[-8, -6, 5.5, 15], [2, -8, 5.5, 16], [11, -6, 5.5, 15]];
+  if (might && mt >= 3) return [[6, -6, mt >= 4 ? 12 : 10, mt >= 4 ? 19 : 17]];
+  return [[7, -6, might ? 7 + mt : 7, many && mt >= 2 ? 19 : 15]];
+}
+const kMortar = {
+  breathe: true,
+  self: () => [-13, -11, 13, 10],
+  body(ctx, P, d) {
+    const { might, many, craft, mt } = P;
+    hearthstone(ctx, 32, P, d);
+    if (might && mt >= 3) lavaCracks(ctx, [[[-13, 12], [-9, 10], [-6, 12]], [[8, 12], [12, 10], [15, 12]]], mt >= 4 ? '#ffb347' : '#2a2024', 0.8);
+    if (craft && mt >= 2) cinderPool(ctx, -9, 11.5, 6, 0);
+    if (might && mt >= 2) { shell(ctx, -15, 7, 3.4); shell(ctx, -11.5, 8.5, 3.4); }
+    if (many && mt >= 4) { crate(ctx, -13, 6); crate(ctx, 13, 6); }
+    if (craft && mt >= 3) chimney(ctx, -9, -5, mt >= 4 ? 17 : 14);
+    // the body: a round clay kiln-spirit with brick seams
+    ctx.beginPath(); ctx.ellipse(0, 0, 13, 11, 0, 0, TAU);
+    const g = ctx.createLinearGradient(-13, -11, 13, 11); g.addColorStop(0, CLAY2); g.addColorStop(0.55, craft && mt >= 4 ? '#b0401e' : CLAY); g.addColorStop(1, '#8a3e22');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.2; ctx.stroke();
+    ctx.save(); ctx.beginPath(); ctx.ellipse(0, 0, 13, 11, 0, 0, TAU); ctx.clip();
+    ctx.strokeStyle = 'rgba(80,30,16,0.45)'; ctx.lineWidth = 0.8;
+    for (const y of [3, 7]) { ctx.beginPath(); ctx.moveTo(-13, y); ctx.lineTo(13, y); ctx.stroke(); for (let x = -12 + (y % 2) * 3; x < 13; x += 6) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 4); ctx.stroke(); } }
+    ctx.restore();
+    ctx.beginPath(); ctx.ellipse(-4, -6, 4, 2.2, -0.4, 0, TAU); ctx.fillStyle = 'rgba(255,220,190,0.5)'; ctx.fill();
+    if (many && mt >= 1) { line(ctx, [[-11, -5], [9, 7]], '#6a4a2a', 2.2); for (let i = 0; i < 3; i++) shell(ctx, -6 + i * 6, -2 + i * 3.6, 1.6); }
+    if (might && mt >= 3) for (const y of [-3, 4]) { ctx.save(); ctx.beginPath(); ctx.ellipse(0, 0, 13, 11, 0, 0, TAU); ctx.clip(); rrect(ctx, -14, y, 28, 2.8, 1); flat(ctx, mt >= 4 ? GOLD : '#7a8090', 1); ctx.restore(); }
+    if (craft && mt >= 3) { rrect(ctx, -4, 2, 8, 5, 1.5); flat(ctx, '#2a1410', 1.1); for (let i = 0; i < 3; i++) line(ctx, [[-2.5 + i * 2.5, 2.6], [-2.5 + i * 2.5, 6.4]], '#ff9a3a', 0.6); }
+    if (craft && mt >= 2) lavaCracks(ctx, [[[-11, -2], [-8, 1], [-9, 5]], [[10, -3], [8, 1], [11, 4]]], mt >= 4 ? '#ffe08a' : '#ff9a3a', 0.7);
+    badge(ctx, 8, 5, 3, d);
+    if (mt >= 4) crown(ctx, 0, -22, d, 1.05);
+    return -38;
+  },
+  back(ctx, P, st, d) {
+    const { might, craft, mt } = P, lean = tubeLean(st.ang);
+    if (mt >= 4) groundAura(ctx, d, st.time, 24);
+    if (craft && mt >= 3) smokePuffs(ctx, -9, mt >= 4 ? -22 : -19, 3, st.time);
+    for (const [x, y, w, L] of mortarTubes(P)) tube(ctx, x, y - st.recoil * 1.5, lean, w, L, { fill: might && mt >= 3 ? '#4a4f60' : '#5a5f70', bands: might ? Math.min(3, 1 + (mt >= 2) + (mt >= 3)) : 1, gold: might && mt >= 4, hot: craft ? Math.min(1, mt * 0.3) : 0 });
+  },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P;
+    if (craft && mt >= 2) glow(ctx, -9, 11.5, 8 + Math.sin(st.time * 3) * 1, '#ff7a2a', 0.5);
+    if (craft && mt >= 3) glow(ctx, 0, 4.5, 7, '#ff9a3a', 0.4 + Math.sin(st.time * 5) * 0.15);
+    if (might && mt >= 4) for (const x of [-10, 12]) glow(ctx, x, 11.5, 5, '#ffb347', 0.4 + Math.sin(st.time * 4 + x) * 0.2);
+    if (many && mt >= 3) { // loader helpers carrying shells
+      for (const [x, y] of many && mt >= 4 ? [[-19, 10], [19, 10]] : [[-18, 10]]) {
+        ctx.save(); ctx.translate(x, y); ctx.scale(0.62, 0.62);
+        ctx.beginPath(); ctx.ellipse(0, -6, 7, 7.5, 0, 0, TAU); ink(ctx, CLAY, 1.6, -7, 7);
+        eyes(ctx, 0, -8, st, { sep: 2.6, r: 2.2, brow: 'stern' }); tuft(ctx, 0, -13, 0.7, d, st.time + x);
+        ctx.restore(); shell(ctx, x + (x < 0 ? 4 : -4), y - 3, 2.4);
+      }
+    }
+    if (craft && mt >= 4) { // the Inferno: flames ring its head, embers fly
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 5; i++) { const x = -8 + i * 4, hh = 8 * (0.7 + 0.3 * Math.sin(st.time * 11 + i * 1.9)); ctx.fillStyle = i % 2 ? 'rgba(255,170,50,0.85)' : 'rgba(255,90,40,0.85)'; ctx.beginPath(); ctx.ellipse(x, -9 - hh * 0.4, 2.4, hh * 0.55, (i - 2) * 0.15, 0, TAU); ctx.fill(); }
+      ctx.restore();
+      risingMotes(ctx, st.time, 6, -12, 12, -8, 20, '#ffb347', 1.5, 1.2, st.id || 0);
+    }
+    eyes(ctx, -1, -2, st, { sep: 4.2, r: 3, brow: 'stern' });
+    tuft(ctx, -1, -10.5, 0.85 + mt * 0.05, d, st.time);
+  },
+  muzzle(P, ang, out) { const t = mortarTubes(P), [x, y, w, L] = t[Math.floor(t.length / 2)], lean = tubeLean(ang); out[0] = x + Math.sin(lean) * L; out[1] = y - Math.cos(lean) * L; return out; },
+};
+
+// ==== Storm Coil: a slim storm-blue kindling with copper coils and copper antlers ===============
+// Overcharge: bigger orbs, a floating orb, a Thunderhead cloud, then Smite (a storm cloud with a
+// great orb and bolts). Forking: more prongs, forked antlers, tesla pylons beside it, then a ring of
+// four (Maelstrom). Static: a capacitor jar, crackling static, gyroscope rings, then an Ion Storm.
+const STORM = '#7d86b8';
+function coilTips(P) { // antler tips (orbs)
+  const { many, mt } = P;
+  if (many && mt >= 2) return [[-11, -21], [-5, -25], [5, -25], [11, -21]];
+  if (many && mt >= 1) return [[-10, -21], [0, -26], [10, -21]];
+  return [[-9, -22], [9, -22]];
+}
+const COIL_ORB = (P) => (P.might && P.mt >= 3 ? [0, -27] : [0, -21]);
+function coilPylons(P) { const { many, mt } = P; return many && mt >= 4 ? [[-12, 4, 'b'], [12, 4, 'b'], [-19, 11, 'f'], [19, 11, 'f']] : many && mt >= 3 ? [[-17, 10, 'f'], [17, 10, 'f']] : []; }
+const kCoil = {
+  breathe: true,
+  self: () => [-8, -14, 8, 8],
+  body(ctx, P, d) {
+    const { might, many, craft, mt } = P;
+    hearthstone(ctx, many && mt >= 3 ? 34 : 26, P, d);
+    for (const [x0, y0] of coilTips(P)) prong(ctx, Math.sign(x0) * 3 || 0, -12, x0, y0 + 2, might && mt >= 2 ? 3.2 : 2.6);
+    if (craft && mt >= 1) { rrect(ctx, 7, 0, 5, 7, 1.5); ctx.fillStyle = 'rgba(200,180,255,0.35)'; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.stroke(); rrect(ctx, 7.6, -1.6, 3.8, 2, 0.6); flat(ctx, COPPER, 0.8); }
+    rrect(ctx, -8, -14, 16, 22, 7);
+    const g = ctx.createLinearGradient(-8, -14, 8, 8); g.addColorStop(0, '#b4bce0'); g.addColorStop(0.5, STORM); g.addColorStop(1, '#4a5280');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+    for (const y of mt >= 2 && might ? [-3, 1, 5] : [-1, 4]) { ctx.beginPath(); ctx.ellipse(0, y, 8.6, 2, 0, 0, Math.PI); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke(); ctx.strokeStyle = COPPER; ctx.lineWidth = 1.6; ctx.stroke(); }
+    badge(ctx, 0, 6.5, 2.4, d);
+    if (mt >= 4) crown(ctx, 0, might ? -31 : -27, d, 1.05);
+    return -40;
+  },
+  back(ctx, P, st, d) {
+    const { might, many, craft, mt } = P;
+    if (mt >= 4) groundAura(ctx, d, st.time, 24);
+    if (might && mt >= 3) cloud(ctx, 0, -28, mt >= 4 ? 20 : 16, mt >= 4);
+    for (const [x, y, side] of coilPylons(P)) if (side === 'b') pylon(ctx, x, y, 16, d);
+    if (craft && mt >= 3) for (let i = 0; i < (mt >= 4 ? 3 : 2); i++) gyro(ctx, 0, 5, 15 + i * 2.5, 3.4 + i * 0.8, Math.sin(st.time * (i % 2 ? -1.4 : 1.1) * 0.5 + i) * 0.16, 'back', i === 2 ? COPPER : P_BRASS, 1.2);
+  },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, tips = coilTips(P), t = st.time;
+    for (const [x, y] of tips) orb(ctx, x, y, might && mt >= 1 ? 3 : 2.4, d, t + x);
+    for (let i = 0; i < tips.length - 1; i++) zap(ctx, tips[i][0], tips[i][1], tips[i + 1][0], tips[i + 1][1], t, 2.5);
+    if (might && mt >= 2) { // the charged orb above, in a cloud from T3; bolts fork down at T4
+      const [ox, oy] = COIL_ORB(P), R = mt >= 4 ? 6 : mt >= 3 ? 5 : 3.6;
+      orb(ctx, ox, oy, R, d, t, 1.2);
+      for (const [x, y] of [tips[0], tips[tips.length - 1]]) zap(ctx, ox, oy, x, y, t + x, 3);
+      if (mt >= 4 && ((t * 2.3) % 1) < 0.35) { zap(ctx, -9, -27, -15, -12, t, 4, '#ffffff', 1.6); zap(ctx, 9, -27, 16, -10, t + 1, 4, '#ffffff', 1.6); }
+    }
+    for (const [x, y, side] of coilPylons(P)) {
+      const tip = side === 'f' ? pylon(ctx, x, y, 14, d) : [x, y - 18];
+      orb(ctx, tip[0], tip[1], 2.2, d, t + x);
+      const near = tips[x < 0 ? 0 : tips.length - 1]; zap(ctx, tip[0], tip[1], near[0], near[1], t + y, 3);
+    }
+    if (many && mt >= 4) { const pl = coilPylons(P); zap(ctx, pl[2][0], pl[2][1] - 16, pl[0][0], pl[0][1] - 18, t, 3); zap(ctx, pl[3][0], pl[3][1] - 16, pl[1][0], pl[1][1] - 18, t + 2, 3); }
+    if (craft && mt >= 1) glow(ctx, 9.5, 3.5, 5, DMG[d].core, 0.5 + Math.sin(t * 6) * 0.2);
+    if (craft && mt >= 2 && ((t * 1.7) % 1) < 0.3) { zap(ctx, -8, -8, -12, -13, t, 1.5, '#e8d4ff', 0.9); zap(ctx, 8, -4, 12, -8, t + 1, 1.5, '#e8d4ff', 0.9); }
+    if (craft && mt >= 3) for (let i = 0; i < (mt >= 4 ? 3 : 2); i++) gyro(ctx, 0, 5, 15 + i * 2.5, 3.4 + i * 0.8, Math.sin(st.time * (i % 2 ? -1.4 : 1.1) * 0.5 + i) * 0.16, 'front', i === 2 ? COPPER : P_BRASS, 1.2);
+    if (craft && mt >= 4) for (let i = 0; i < 4; i++) { const a = t * 2 + (i / 4) * TAU; orb(ctx, Math.cos(a) * 19, 4 + Math.sin(a) * 5, 1.6, d, t + i, 0.7); }
+    eyes(ctx, 0, -6, st, { sep: 3.6, r: 2.8, brow: 'soft', iris: '#8a4ad8' });
+    tuft(ctx, 0, -14, 0.85 + mt * 0.05, d, t);
+  },
+  muzzle(P, ang, out) { if (P.might && P.mt >= 2) { const o = COIL_ORB(P); out[0] = o[0]; out[1] = o[1]; } else { const tips = coilTips(P), tp = tips[Math.cos(ang) >= 0 ? tips.length - 1 : 0]; out[0] = tp[0]; out[1] = tp[1]; } return out; },
+};
+
+// ==== Prism: a floating crystal kindling over a crystal pedestal ================================
+// Focus: a polished facet, a gold band, a great lens in a gold ring beside it, then Sunspear (a
+// turning sun disc behind it). Refraction: shards that orbit it, 1, 2, a ring of 4, then a
+// Kaleidoscope of 6 with a ring of light. Afterglow: an inner glow, a halo, a pulsing star behind
+// it, then a Supernova. The beam leaves the lens (Focus T3+) or the crystal's tip.
+const PRISM_Y = -10;
+function prismShards(P) { const { many, mt } = P; return many ? [0, 1, 2, 2, 4, 6][mt + 1] || 0 : 0; }
+const PRISM_LENS = [12, -16];
+const kPrism = {
+  breathe: true,
+  self: () => [-9, -24, 9, 2],
+  body(ctx, P, d) {
+    const { might, many, craft, mt } = P;
+    hearthstone(ctx, 26, P, d);
+    poly(ctx, [[-5, 10], [5, 10], [3, 4], [-3, 4]]); ink(ctx, '#c8b070', 1.4, -5, 5);   // the pedestal
+    const s = 1 + (might ? mt * 0.05 : 0);
+    gem(ctx, 0, PRISM_Y, 9 * s, 14 * s, d, craft && mt >= 4 ? '#fff6c0' : undefined);
+    if (might && mt >= 2) { ctx.beginPath(); ctx.moveTo(-8.4 * s, PRISM_Y - 2); ctx.lineTo(8.4 * s, PRISM_Y - 2); ctx.strokeStyle = INK; ctx.lineWidth = 3.4; ctx.stroke(); ctx.strokeStyle = P_GOLD; ctx.lineWidth = 1.8; ctx.stroke(); }
+    if (might && mt >= 3) { line(ctx, [[8, PRISM_Y - 4], [PRISM_LENS[0] - 2, PRISM_LENS[1] + 2]], P_GOLD, 1); }
+    for (const x of [-1, 1]) { circle(ctx, x * 11 * s, PRISM_Y + 4, 2); flat(ctx, WAX, 1.1); }    // little floating hands
+    if (mt >= 4) crown(ctx, 0, -26 * s, d, 1);
+    return -36;
+  },
+  back(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time, n = prismShards(P);
+    if (mt >= 4 && !craft) groundAura(ctx, d, t, 24);
+    if (might && mt >= 4) sunDisc(ctx, 0, PRISM_Y - 6, 13, t, 14);
+    if (craft && mt >= 3) starBurst(ctx, 0, PRISM_Y - 2, mt >= 4 ? 19 : 14, t, 1);
+    if (craft && mt >= 4) for (let i = 0; i < 2; i++) { const u = (t * 0.6 + i * 0.5) % 1; ctx.globalAlpha = 1 - u; ctx.strokeStyle = '#fff6c0'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(0, 11, 8 + u * 20, 3 + u * 7, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; }
+    for (let i = 0; i < n; i++) { const a = t * 1.2 + (i / n) * TAU; if (Math.sin(a) < 0) shard(ctx, Math.cos(a) * 15, PRISM_Y + Math.sin(a) * 5, mt >= 4 ? 1.2 : 1, a); }
+  },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time, n = prismShards(P), D = DMG[d];
+    glow(ctx, 0, PRISM_Y, 14 + mt * 2, D.core, 0.35 + (craft ? mt * 0.08 : 0) + Math.sin(t * 6) * 0.05);
+    if (might && mt === 1) twinkle(ctx, -3, PRISM_Y - 7, 2.6, Math.sin(t * 2.5) * 1.5 - 0.2);
+    if (might && mt >= 3) { lensRing(ctx, PRISM_LENS[0], PRISM_LENS[1], mt >= 4 ? 6.5 : 5.5); glow(ctx, PRISM_LENS[0], PRISM_LENS[1], 8, D.core, 0.4 + Math.sin(t * 4) * 0.1); }
+    if (many && mt >= 4) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(255,240,170,0.55)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.ellipse(0, PRISM_Y, 17, 6, 0, 0, Math.PI); ctx.stroke(); ctx.restore(); }
+    for (let i = 0; i < n; i++) { const a = t * 1.2 + (i / n) * TAU; if (Math.sin(a) >= 0) shard(ctx, Math.cos(a) * 15, PRISM_Y + Math.sin(a) * 5, mt >= 4 ? 1.2 : 1, a); }
+    if (craft && mt >= 2) { ctx.beginPath(); ctx.ellipse(0, PRISM_Y - 17, 6, 2, 0, 0, TAU); ctx.strokeStyle = INK; ctx.lineWidth = 3.2; ctx.stroke(); ctx.strokeStyle = '#fff3a0'; ctx.lineWidth = 1.6; ctx.stroke(); }
+    eyes(ctx, 0, PRISM_Y + 1, st, { sep: 3.4, r: 2.6, brow: 'soft' });
+  },
+  muzzle(P, ang, out) { if (P.might && P.mt >= 3) { out[0] = PRISM_LENS[0]; out[1] = PRISM_LENS[1]; } else { out[0] = 0; out[1] = PRISM_Y - 12; } return out; },
+};
+
+// ==== Beacon: a rose-wax kindling holding up a banner pole with a lamp ==========================
+// War Drum: a small drum at its hip, drumsticks and war paint, a great drum it beats, then a
+// warhorn on a stand and war banners. Lighthouse: a brighter lamp, a taller lamp-cage, a lighthouse
+// lamp with a sweeping beam, then Pharos's twin beams. Tithe: a coin pouch, a pile of coins, a
+// coffer, then a golden hearth throwing up coins. Gear stands beside the kindling, never over it.
+const ROSE = '#f6c8d8', ROSE2 = '#e8a8c0';
+const B_POLE_X = 7;
+const B_LAMP = (P) => (P.many && P.mt >= 3 ? [B_POLE_X, -31] : P.many && P.mt >= 2 ? [B_POLE_X, -30] : [B_POLE_X, -27]);
+const kBeacon = {
+  breathe: true,
+  self: () => [-8, -13, 6, 9],
+  body(ctx, P, d) {
+    const { might, many, craft, mt } = P, L = B_LAMP(P);
+    hearthstone(ctx, might && mt >= 3 || craft && mt >= 3 ? 34 : 28, P, d);
+    if (might && mt >= 4) for (const x of [-16, -11]) { line(ctx, [[x, 10], [x, -24]], '#6a4a2a', 1.1); }
+    if (might && mt >= 3) drum(ctx, -15, 4, 6, mt >= 4);
+    if (might && mt >= 4) warhorn(ctx, 16, 1, 0.9);
+    if (craft && mt >= 2 && mt < 3) coins(ctx, -14, 9, 4);
+    if (craft && mt >= 3) chest(ctx, -14, 10, mt >= 4 ? 12 : 10, mt >= 4);
+    rrect(ctx, B_POLE_X - 1.6, L[1] + 3, 3.2, 12 - L[1], 1.2); ink(ctx, WOOD, 1.3, B_POLE_X - 1.6, B_POLE_X + 1.6);   // the pole
+    // the banner
+    ctx.beginPath(); ctx.moveTo(B_POLE_X + 1.6, L[1] + 6); ctx.lineTo(B_POLE_X + 14, L[1] + 8); ctx.lineTo(B_POLE_X + 10, L[1] + 12); ctx.lineTo(B_POLE_X + 14, L[1] + 16); ctx.lineTo(B_POLE_X + 1.6, L[1] + 17); ctx.closePath();
+    ink(ctx, DMG[d].deep, 1.4, B_POLE_X, B_POLE_X + 14); glyph(ctx, 'heart', B_POLE_X + 6.5, L[1] + 11.5, 3.4, '#ffd0e6');
+    if (many && mt >= 2) { rrect(ctx, L[0] - 4.5, L[1] - 1, 9, 9, 2); ink(ctx, '#5a4a5a', 1.4, L[0] - 4.5, L[0] + 4.5); }   // a lamp-cage
+    if (many && mt >= 3) { poly(ctx, [[L[0] - 6, L[1] - 1], [L[0] + 6, L[1] - 1], [L[0], L[1] - 6]]); ink(ctx, '#8a3a4a', 1.4, L[0] - 6, L[0] + 6); }
+    rrect(ctx, -7, -12, 14, 21, 6.5); ink(ctx, ROSE, 2, -7, 7);
+    if (might && mt >= 2) for (const y of [-3, 0]) line(ctx, [[-6, y], [-2, y + 1]], '#c03a5a', 0.9);   // war paint
+    if (craft && mt >= 1) { ctx.beginPath(); ctx.ellipse(-6, 5, 3, 3.6, 0, 0, TAU); flat(ctx, '#b0805a', 1.1); line(ctx, [[-8, 2], [-4, 2]], DMG[d].core, 0.8); }   // coin pouch
+    if (craft && mt >= 4) { ctx.beginPath(); ctx.moveTo(-7, -4); ctx.quadraticCurveTo(-12, 4, -9, 9); ctx.lineTo(7, 9); ctx.quadraticCurveTo(9, 2, 7, -4); ctx.closePath(); ctx.fillStyle = 'rgba(255,207,74,0.35)'; ctx.fill(); }
+    circle(ctx, B_POLE_X - 0.5, -1, 2.4); flat(ctx, ROSE, 1.2);   // the hand on the pole
+    if (mt >= 4) crown(ctx, -1, -13, d, 0.95);
+    return -40;
+  },
+  back(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time, L = B_LAMP(P);
+    if (mt >= 4) groundAura(ctx, d, t, 24);
+    if (many && mt >= 3) { beam(ctx, L[0], L[1] + 2, t * 1.2, 34, 7, 0.22); if (mt >= 4) beam(ctx, L[0], L[1] + 2, t * 1.2 + Math.PI, 34, 7, 0.22); }
+  },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time, L = B_LAMP(P), beat = Math.max(0, Math.sin(t * 6)) ** 4;
+    if (might && mt >= 4) { pennant(ctx, -16, 10, -24, DMG[d].core, t); pennant(ctx, -11, 10, -21, '#c03a5a', t + 1); }
+    if (might && mt >= 1 && mt < 3) { ctx.beginPath(); ctx.ellipse(-8, 6, 3.6, 3, 0, 0, TAU); flat(ctx, '#a0482a', 1.1); }
+    if (might && mt >= 2) line(ctx, [[-9, -2 - beat * 3], [-14, mt >= 3 ? -1 - beat * 4 : 3]], '#8a5a32', 1);   // a drumstick, beating
+    if (might && mt >= 3) glow(ctx, -15, 2, 8 + beat * 6, DMG[d].core, 0.25 + beat * 0.3);
+    if (craft && mt >= 3) { glow(ctx, -14, 4, mt >= 4 ? 12 : 8, '#ffcf4a', 0.45 + Math.sin(t * 3) * 0.1); risingMotes(ctx, t, mt >= 4 ? 6 : 3, -19, -9, 3, 14, '#ffcf4a', 1.6, 1.1, st.id || 0); }
+    const r = many ? 4.2 + mt * 0.5 : 4.2 + (craft && mt >= 4 ? 1 : 0);
+    glow(ctx, L[0], L[1] + 3, r * 3.5 * (0.9 + beat * 0.2), DMG[d].core, 0.6);
+    circle(ctx, L[0], L[1] + 3, r); flat(ctx, DMG[d].core, 1.5);
+    circle(ctx, L[0] - 1, L[1] + 2, r * 0.4); ctx.fillStyle = '#fff'; ctx.fill();
+    if (many && mt >= 2) { // the lighthouse: a cage round the lamp, then a red cap over it
+      for (const dx of [-r * 0.55, 0, r * 0.55]) line(ctx, [[L[0] + dx, L[1] + 3 - r], [L[0] + dx, L[1] + 3 + r]], '#3a3040', 0.6);
+      rrect(ctx, L[0] - r - 1, L[1] + 3 + r - 1, r * 2 + 2, 2.4, 1); flat(ctx, '#5a4a5a', 1);
+      if (mt >= 3) { poly(ctx, [[L[0] - r - 2, L[1] + 3 - r], [L[0] + r + 2, L[1] + 3 - r], [L[0], L[1] - r - 3]]); ink(ctx, '#c03a5a', 1.4, L[0] - r, L[0] + r); }
+    }
+    eyes(ctx, -1, -5, st, { sep: 3.4, r: 2.6, brow: 'soft' });
+    tuft(ctx, -1, -12, 0.8, d, t);
+  },
+  muzzle(P, ang, out) { const L = B_LAMP(P); out[0] = L[0]; out[1] = L[1] + 3; return out; },
+};
+
+export const KINDLINGS = { bolt, mortar: kMortar, rime, coil: kCoil, longeye, censer, prism: kPrism, beacon: kBeacon };

@@ -68,9 +68,9 @@ g.gold = 1e7;
 // Wards along the bottom straight of the path (y = 580): a row behind it and a row in front,
 // in mixed tiers, plus base wards by the vertical stretch at x = 480 for comparison.
 const builds = [
-  [150, 538, 'bolt', [4, 2, 0]], [205, 538, 'censer', [4, 0, 2]], [262, 538, 'rime', [0, 2, 4]], [330, 538, 'longeye', [4, 2, 0]], [385, 538, 'censer', [0, 4, 0]], [440, 538, 'bolt', [0, 4, 2]],
-  [160, 624, 'rime', [4, 2, 0]], [215, 624, 'longeye', [0, 2, 4]], [270, 624, 'bolt', [2, 0, 4]], [325, 624, 'censer', [0, 2, 4]], [380, 624, 'rime', [0, 4, 0]], [435, 624, 'longeye', [0, 4, 2]],
-  [436, 330, 'bolt', [0, 0, 0]], [526, 330, 'censer', [0, 0, 0]], [436, 400, 'rime', [0, 0, 0]], [526, 400, 'longeye', [0, 0, 0]],
+  [150, 538, 'bolt', [0, 4, 2]], [205, 538, 'mortar', [4, 0, 2]], [262, 538, 'coil', [0, 4, 0]], [330, 538, 'longeye', [4, 2, 0]], [385, 538, 'prism', [0, 0, 4]], [440, 538, 'beacon', [0, 4, 0]],
+  [160, 624, 'rime', [0, 0, 4]], [215, 624, 'censer', [0, 4, 2]], [270, 624, 'mortar', [0, 4, 0]], [325, 624, 'coil', [4, 2, 0]], [380, 624, 'prism', [4, 0, 2]], [435, 624, 'bolt', [4, 2, 0]],
+  [436, 330, 'mortar', [0, 0, 0]], [526, 330, 'coil', [0, 0, 0]], [436, 400, 'prism', [0, 0, 0]], [526, 400, 'beacon', [0, 0, 0]],
 ];
 for (const [x, y, type, tiers] of builds) {
   let t = null;

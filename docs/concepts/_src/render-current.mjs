@@ -1,10 +1,10 @@
-// Renders the game's CURRENT ward art (public/js/render/towerArt.js, unmodified) into docs/concepts/current/.
+// Renders the game's ORIGINAL ward art (legacy-towerArt.js, from before the 2026-11 overhaul) into docs/concepts/current/.
 // Also writes blend-pairs.png: the specific pairs that read as the same ward at high tiers.
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { renderSet, ST } from './wardsheets.mjs';
 import { createCanvas, turf, text, greyscale, save, panel } from './sheet.mjs';
-import { drawTower } from '../../../public/js/render/towerArt.js';
+import { drawTower } from './legacy-towerArt.js';
 import { TOWERS, TOWER_ORDER } from '../../../public/js/data/towers.js';
 
 const here = dirname(fileURLToPath(import.meta.url));

@@ -9,7 +9,7 @@ import { dirname, resolve } from 'node:path';
 import { createCanvas, text, save, panel } from './sheet.mjs';
 import { ST } from './wardsheets.mjs';
 import { DIRECTIONS, WARDS } from './render-directions.mjs';
-import { drawTower } from '../../../public/js/render/towerArt.js';
+import { drawTower } from './legacy-towerArt.js';
 import { drawEnemy } from '../../../public/js/render/enemyArt.js';
 import { ENEMIES } from '../../../public/js/data/enemies.js';
 import { RULES } from '../../../public/js/data/rules.js';
