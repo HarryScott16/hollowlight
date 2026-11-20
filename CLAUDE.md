@@ -3,6 +3,8 @@
 Canvas game, no dependencies and no build step. `npm start` serves `public/` on :3001.
 Checks: `node tools/smoke.js` (browser code against a stub DOM), `node tools/bot.js` (balance).
 Test mode for checking art: `?test=1` or Shift+T (unlimited gold and lives, wave jumping; `ui/testmode.js`).
+Keys: wards 1-9, 0, -, = (shop order); Q W E upgrade; R the selected ward's action (cash out an Ember
+Vault, move a Wandering Light's post); abilities A S D F G H J K, then Z C V B; X the Flare.
 It lives only in the UI layer and must never touch the simulation, the bots or balance.
 
 ## Performance
@@ -34,7 +36,11 @@ every ward for each skin; `bolt-parts.js` and `parts.js` hold props both skins s
   or change art in only one skin. If something truly can't differ between skins (a shared
   projectile or effect), put it in shared code so both skins get it.
 - The Longeye in the Kindlings skin is the Lantern body with a Kindling eye (`longeyeArt` in
-  `lanterns.js`, reused by `kindlings.js`).
+  `lanterns.js`, reused by `kindlings.js`). The Thornlight Snare's grate is shared too (`snareArt`
+  in `parts.js`): each skin supplies only what looks up out of it.
+- Twelve wards. The Snare is `flat` (drawn with the ground, before enemies, no ghosts); the
+  Wandering Light `float`s (no plinth: a hovering rune-disc carries its notches) and a Swarm's
+  extra lights are drawn as wards of their own (`Renderer.lightWard`).
 - Wards are upright (three-quarter view) and grow with every tier on their main path, so a tier 4
   is clearly bigger and more imposing than a tier 0 (about x1.35). Height caps (checked by
   `tools/wards.mjs`): about 46 px for a base ward, 68 px for a tier 4. Enemies behind a ward show

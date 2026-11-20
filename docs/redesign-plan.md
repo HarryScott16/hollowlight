@@ -1,3 +1,243 @@
+# Morning summary (overnight 2026-11-20 → 21)
+
+Everything is on `redesign` in four commits (`a3356ce`, `52df143`, `bcf11b6`, `76a74df`), plus this
+doc and `CLAUDE.md`. Nothing was merged. Port 3000 and `~/projects/test-game` weren't touched, and the
+gallery on 3002 is still running.
+
+## Part 1: performance (`a3356ce`)
+
+The biggest section at waves 80 and 100 was the enemy pass, as expected (5x speed, full tier-4
+defence, measured with `tools/perf.mjs`).
+
+| Canvas calls per frame | Before | After |
+|---|---|---|
+| Wave 80, total | 11,061 | 7,901 |
+| Wave 80, enemies | 4,590 | 2,462 |
+| Wave 80, enemy ms (software canvas) | 137 | 64 |
+| Wave 80, ground (burning zones) | 1,115 | 523 |
+| Wave 100, total | 6,167 | 4,606 |
+| Wave 100, enemies | 2,177 | 1,146 |
+
+What changed:
+- **Enemies drawn as one image.** In crowds (quality below 2), an enemy's body, cracks (four stages)
+  and veil ring are baked into one cached image, and the hit flash uses baked alpha levels. At
+  wave 80 almost every enemy is a veiled, cracked Colossus: that drops from 9-12 calls to 2-3.
+- **No transform reset after each enemy.** The renderer resets it before each ward instead.
+- **Burning zones:** one cached additive glow per zone, plus one batched path for all the rims.
+- **Coil arcs in crowds:** batched by kind and fade level.
+- **Ward live layers in crowds:** refresh every 4th or 6th frame (was every 3rd or 4th).
+- **At full quality (normal crowd sizes), both skins draw exactly as before.**
+- **`perf.mjs` fixes and new options:**
+  - Per-section call counts are now attributed correctly (flyers, health bars and ghosts were
+    landing in the wrong bucket).
+  - "Effects" is split into shots, flames and rings.
+  - New `STATES=1` and `SECTION=enemies,ground,...` diagnostics.
+  - The full defence now uses all 12 wards; `WARDS=8` gives the old set.
+- With 12 wards the full defence costs about the same as with 8 (8,206 vs 7,901 calls at wave 80).
+- What's left is mostly health-bar `rect` calls (two per damaged enemy, batched into one fill per
+  colour) and particles. Both are cheap in a browser.
+- **Please check the real frame rate at wave 80** (` overlay): software-canvas milliseconds don't
+  translate to a browser.
+
+## Part 2: the four new wards (`52df143`, `bcf11b6`, `76a74df`)
+
+All four are built as recorded in `tower-ideas.md` §0. Each has:
+- 3 paths × 4 tiers, with one-line blurbs and exact numbers on hover or Shift;
+- a tier 4 ability;
+- full art in **both** skins, with projectiles and effects.
+
+`tools/wards.mjs` passes for all 12 wards × 2 skins, with no height or body-and-face failures.
+`tools/smoke.js` now places, upgrades and uses all 12 wards, their abilities, keys and R actions,
+in both skins.
+
+**Thornlight Snare** (200, Kinetic): the path trap.
+- **Placement:** built **on the road**. It snaps to the road's centre line under the cursor. While
+  you're placing it, the stretch of road it may go on lights up as a dashed lane, other Snares show
+  the room they need, and "Snares go on the road" appears if the cursor is off the road.
+- **Placement rules:** 60 px apart; not in the first 70 px from the Rift or the last 120 px before
+  the Heartfire; other wards ignore it for spacing.
+- **How it works:** it bites each enemy that steps on it once, spending a charge (20 charges,
+  refilling 3/s, and fully at each wave clear). Flyers pass over it.
+- **Paths:**
+  - **Caltrops:** two layers per bite → armour pierce → Iron Thorns (slow) → Iron Briar.
+  - **Flashmines:** mines are sown on the road upstream of it and burst underfoot → Starfield
+    (16 mines that stun).
+  - **Binding Light:** holds what it bites → Binding Circle (holds the crowd round it) → Lightbound
+    (holds a Heavy for 1.5 s every 5 s: the game's first control answer to Heavy).
+- **Ability:** Briar Bloom (Z): every Snare refills and bites for free for 8 s.
+- **Drawing:** flat, with the ground, so it never hides anything.
+  - **Kindlings:** a spirit peeking up through the grate.
+  - **Lanterns:** a floor-lantern lens.
+
+**Moth Lantern** (250, Radiant): lures flyers.
+- **How it works:** flyers in range leave their route and circle it for a few seconds (5 at once,
+  3 s). While circling, **every ward can hit them**, Mortars and Rimes included. Thin gold threads
+  show who it's holding.
+- **Paths:**
+  - **Bright Lure:** holds more flyers → Moonlure (they take +25%) → Great Lure (40 at once).
+  - **Flypaper:** released flyers are slowed → Flypaper (they stay low and hittable by everything
+    for 6 s; a gold ring marks them) → Glue Trap.
+  - **Moth-trap:** Radiant moths sting the flyers it holds → reveals Veiled → Thousand Moths.
+- **Ability:** Lamplure (C): every flyer on the map is pulled to it.
+
+**Wandering Light** (325, Arcane, Wandlight version): a floating caster.
+- **How it works:**
+  - It floats near its **post**, chasing targets within a leash (80 px).
+  - It casts homing stars that burst on hit, from its wand.
+  - **R** (or the panel button) lets you click a new post anywhere that isn't water.
+  - When it's selected, the leash is shown as a dashed circle round a rune on the ground.
+- **Paths:**
+  - **Hunter:** wand → staff with a wizard's hat → comet.
+  - **Swarm:** 2, then 3 lights, each casting at its own target; at tier 4 each light casts two
+    stars at once.
+  - **Torchbearer:** marks (+% damage taken) → a rose torch that speeds up wards near its post
+    (like a Beacon; doesn't stack with Beacons).
+- **Ability:** Starfall (V).
+
+**Ember Vault** (400, Hearth, Gleaning Brazier version): economy.
+- **How it works:**
+  - Kills in its light add embers: half the bounty, counting at least 0.15 gold a layer so it
+    still matters late.
+  - Embers grow 10% each wave up to its cap (300 at base), and it stops collecting when full.
+  - **R** or the panel button cashes out; selling it pays out its embers too.
+  - The ember heap and the rose flame grow as it fills.
+- **Paths:**
+  - **Great Brazier:** cap and growth.
+  - **Gleaners:** range, then Harvest Moon: embers from every kill, at half rate outside its light.
+  - **Hearthwarm:** while over half full (from tier 3, a quarter full), wards in its light attack
+    faster.
+- **Ability:** Windfall (B): doubles its embers, up to twice the cap.
+
+### Decisions I made (easy to reverse)
+
+- **Keys:**
+  - Wards: 1-9, 0, -, = in shop order.
+  - Abilities: A S D F G H J K for the first eight wards (unchanged), Z C V B for the new four,
+    X for the Flare.
+  - **R** is the selected ward's action (cash out / move post). Shift+R is still restart.
+  - The shop's help line lists all of this.
+- **New wards come after the old eight** in the shop.
+- **Snare bites are per enemy object.** A Brood that sheds on the Snare gets bitten again: "a
+  layer per charge", as designed.
+- **The Wandering Light's targets and leash are measured from its post.** So are Beacon and torch
+  coverage, so moving a light updates the boosts.
+- **Swarm's extra lights are full-size copies of the ward**, not smaller ones (simpler and clearer).
+  Say if you'd like them smaller.
+- **Stars stay Arcane violet on the Torchbearer path**, not rose. Only the torch is rose
+  (support = Hearth), to keep one colour per damage type.
+- **Mines, lure threads, stars and ember wisps are shared by both skins**, per the projectile rule.
+- **No wave changes.** The new wards were already useful against the existing waves: flyers from
+  wave 9, Heavies at the wave 10 boss. Light changes weren't needed, so I left the waves alone, and
+  every old build's result is unchanged.
+
+### Balance and bot results
+
+- **Bot changes:**
+  - Places Snares in the kill zone on the road, Moth Lanterns on the flight route near ground
+    splash, and Vaults among the wards.
+  - Values the new upgrades. A bigger Vault cap only counts once that Vault has actually filled.
+  - Cashes out full Vaults.
+- **New builds:** `strong12`, `strong12B`, `strong12C` (all 12 wards, three path sets),
+  `mixed12` (medium), and two probes: `newWards` and `lazySnare`.
+- **Tuning made along the way:**
+  - **Snare damage was far too low** (1-10 dmg/gold against 50-170 for other wards). Its charges
+    and refill went up, Flashmines are now sown upstream (they'd been landing where nothing was
+    left alive), and the bot's estimate now matches what it actually delivers.
+  - **Wandering Light was too efficient.** Hunter and Swarm reached 170-290 dmg/gold. I trimmed
+    Star Staff, Comet, Wisp Swarm and Starswarm.
+
+New builds, seeds 1 / 2 / 3:
+
+| Build | Group | Seed 1 | Seed 2 | Seed 3 |
+|---|---|---|---|---|
+| strong12 | strong | won, 150/150 | won, 150/150 | won, 150/150 |
+| strong12B | strong | won, 150/150 | won, 150/150 | won, 150/150 |
+| strong12C | strong | won, 150/150 | won, 150/150 | won, 147/150 |
+| mixed12 | medium | won, 75/150 | lost on 40 | lost on 40 |
+
+The full suite on seed 1 (all builds, after the last change) is below. Every old build has exactly
+the same result as before.
+
+| Build | Group | Result | First leak | First / 3rd T4 |
+|---|---|---|---|--- |
+| lazy | lazy | lost on wave 9 | 6 | - |
+| minimal | lazy | lost on wave 9 | 5 | - |
+| lazyTier1 | lazy | lost on wave 10 | 9 | - |
+| lazyNew | probe | lost on wave 5 | 3 | - |
+| mixed | reasonable | **won**, 150/150 (Last Light used) | never | - |
+| mixedAlt | reasonable | lost on wave 39 | 38 | - |
+| focused | reasonable | lost on wave 39 | 38 | - |
+| plateau | plateau | lost on wave 40 | 40 | 16 / 23 |
+| plateauAlt | plateau | **won**, 150/150 | never | 16 / 22 |
+| strong | strong | **won**, 150/150 (Last Light used) | never | 17 / 25 |
+| strongAlt | strong | **won**, 150/150 | never | 17 / 24 |
+| strongThird | strong | **won**, 150/150 | never | 15 / 24 |
+| strongTithe | strong | **won**, 150/150 | never | 15 / 20 |
+| newA | strong | **won**, 150/150 | never | 16 / 25 |
+| newB | strong | **won**, 150/150 | never | 16 / 26 |
+| newC | strong | **won**, 150/150 | never | 17 / 25 |
+| original4 | probe | **won**, 150/150 | never | 15 / 23 |
+| spamNoUpgrades | probe | lost on wave 31 | 30 | - |
+| noDetection | probe | lost on wave 20 | 20 | 15 / - |
+| groundOnly | probe | lost on wave 12 | 9 | - |
+| prismOnly | probe | lost on wave 4 | 3 | - |
+| strong12 | strong | **won**, 150/150 (Last Light used) | never | 15 / 24 |
+| strong12B | strong | **won**, 150/150 | never | 15 / 25 |
+| strong12C | strong | **won**, 150/150 | never | 16 / 25 |
+| mixed12 | reasonable | **won**, 75/150 (Last Light used) | 40 | - |
+| newWards | probe | lost on wave 10 | 10 | - |
+| lazySnare | probe | lost on wave 5 | 4 | - |
+| noMortarCrowd | ban | **won**, 150/150 (Last Light used) | never | 16 / 25 |
+| no-bolt | ban | **won**, 99/150 (Last Light used) | 10 | 18 / 28 |
+| no-mortar | ban | **won**, 146/150 (Last Light used) | 13 | 16 / 25 |
+| no-rime | ban | **won**, 124/150 (Last Light used) | 5 | 14 / 24 |
+| no-coil | ban | **won**, 150/150 | never | 15 / 25 |
+| no-longeye | ban | **won**, 150/150 (Last Light used) | never | 15 / 24 |
+| no-censer | ban | **won**, 150/150 | never | 15 / 24 |
+| no-prism | ban | **won**, 150/150 | never | 15 / 24 |
+| no-beacon | ban | **won**, 150/150 | never | 16 / 24 |
+
+### Needs your eye
+
+1. **The lazy Snare probe (2 Bolts + a Snare, never upgraded) loses on wave 5.** The real lazy
+   builds still lose on 9-10.
+   - A bare Snare is a supplement, not an opener, so I made this a probe rather than tuning for it.
+   - A base buff (more refill) didn't rescue it and made `strong12` worse, so I reverted it.
+2. **`newWards`** (the new wards favoured for every upgrade) loses at the wave 10 boss. That's
+   expected for a build with no boss answer; it's a probe.
+3. **Ember Vault income is modest.** Gleaners added about +2.5k gold over a 40-wave run for
+   `strong12C`. If it should feel richer, raise `glean` or `cap`.
+4. **Strong builds use the Last Light** in some runs (`strong12`, `strong12C`), like `strong` does.
+   It's never lost lives.
+5. **Art to review in both skins:**
+   - the Vault keeper's apron and scarf;
+   - the Moth Lantern's moth wings, and the net on Flypaper;
+   - the Wandering Light's wizard hat at Hunter tier 3;
+   - the Snare's tier 4 forms (Iron Briar spikes, Starfield seeds, Lightbound posts).
+
+### What to try in test mode (`?test=1`, then `?skin=lantern` for the other skin)
+
+1. **Placing a Snare (9):** check the dashed lane, the snap to the road, the red room circles and
+   the off-road text. Take one to each tier 4 and watch the bite flash, the thorns, the Flashmines
+   (and how far they reach when selected), and Lightbound holding a Dreadhulk (the chains overlay).
+2. **Moth Lantern (0) by the flight route, with a Mortar next to it, from wave 9:**
+   - check the circling, the threads, and the Mortar hitting flyers;
+   - on Flypaper tier 3, check the gold ring on flyers it has let go;
+   - use Lamplure (C).
+3. **Wandering Light (-):**
+   - R, then click to move its post, and watch it fly there;
+   - Swarm tier 2-4 lights spreading to separate targets;
+   - stars leaving the wand tip;
+   - the Comet ring;
+   - Starfall (V).
+4. **Ember Vault (=):**
+   - watch the heap and flame grow, then cash out with R (coins and gold text);
+   - Hearthwarm's boost chevrons on nearby wards once it's half full;
+   - Windfall (B).
+5. **The FPS overlay at waves 80 and 100 with a full defence:** jump with `]`.
+
+---
+
 # Hollowlight redesign plan (approved 2026-11-17)
 
 Decisions on approval:
