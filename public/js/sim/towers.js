@@ -25,56 +25,81 @@ export function computeStats(def, tiers) {
 export function estimateDps(kind, s, crowd = true) {
   if (kind === 'bolt') {
     const perBolt = crowd ? Math.min(s.pierce, s.lance ? 10 : 5) + (s.bounces || 0) : 1;
-    return s.damage * s.rate * s.shots * perBolt * (1 + (s.markPct || 0));
+    let d = s.damage * s.rate * s.shots * perBolt * (1 + (s.markPct || 0));
+    if (s.rendEvery) d *= (s.rendEvery - 1 + s.rendMul) / s.rendEvery;
+    if (s.splitKill && crowd) d *= 1.8;
+    if (s.hawkEvery) d += (s.damage * s.hawkMul) / s.hawkEvery * (crowd ? 1.5 : 1);
+    return d;
   }
   if (kind === 'mortar') {
     const hits = crowd ? Math.min(s.maxHits, 5 * (s.radius / 55) ** 2) : 1;
     let d = s.damage * hits * s.shells * (1 + (s.cluster || 0) * (crowd ? 0.3 : 0.1));
     d += (s.burnDps || 0) * (s.burnDur || 0) * hits;
     d += (s.poolDps || 0) * (s.poolDur || 0) * hits * 0.5 * (s.poolRadiusMul || 1);
-    return d * s.rate * (1 + (s.scorch || 0));
+    if (s.quakeEvery) d *= (s.quakeEvery - 1 + s.quakeMul * (crowd ? 2.2 : 1)) / s.quakeEvery;
+    if (s.eruptDmg && crowd) d += (s.eruptDmg * 6 * Math.min(s.eruptRate, 4)) / s.rate;
+    return d * s.rate * (1 + (s.scorch || 0)) * (s.global ? 1.25 : 1);
   }
   if (kind === 'pulse') {
     const hits = crowd ? Math.min(s.maxHits, 5 * (s.range / 105)) : 1;
     let d = s.damage * s.rate * hits;
-    if (crowd && s.shatterDmg) d += Math.min(s.shatterRate, hits * s.rate) * s.shatterDmg * 2;
+    if (crowd && s.shatterDmg) d += Math.min(s.shatterRate, hits * s.rate) * s.shatterDmg * 2 * (s.shatterChain ? 1.6 : 1);
+    if (s.waveEvery) d += (s.damage * (crowd ? 25 : 1)) / s.waveEvery;
+    if (s.freezeHeavy && !crowd) d *= 1.5;
     return d;
   }
   if (kind === 'snipe') {
-    const burst = crowd && s.flakRadius ? 1 + Math.min(s.flakHits, 3 * (s.flakRadius / 45)) * 0.5 : 1;
-    return s.damage * s.rate * s.shots * burst * (crowd ? 1 : s.heavyMul || 1);
+    const burst = crowd && s.flakRadius ? 1 + Math.min(s.flakHits, 3 * (s.flakRadius / 45)) * 0.5 * (1 + (s.shrapnel || 0) * 0.25) : 1;
+    let d = s.damage * s.rate * s.shots * burst * (crowd ? 1 : s.heavyMul || 1);
+    if (s.pctHeavy && !crowd) d *= 1.6;
+    if (s.doom) d *= 1.4;   // Doomed: every ward hits the toughest harder (a share of that)
+    return d;
   }
   if (kind === 'flame') {
     // A continuous stream: damage/s to everything in the cone, plus the burn, which runs while an
     // enemy is in the flame and for burnDur after it leaves.
     const hits = crowd ? 2 + 3 * Math.min(4, s.arc / 0.8) * (s.range / 95) : 1;
     const burn = s.burnDps * (1 + s.burnDur * 0.25) * (crowd ? 1 : s.burnHeavy || 1);
-    return (s.damage + burn) * hits * (1 + (s.searAmp || 0) * 0.5) * (crowd && s.spread ? 1.4 : 1);
+    let d = (s.damage + burn) * hits * (1 + (s.searAmp || 0) * 0.5) * (crowd && s.spread ? 1.4 : 1);
+    if (s.phoenix) d += (s.damage * s.phoenixMul + burn) * (crowd ? 4 : 1);
+    if (s.wyrmEvery) d += (s.wyrmDps * s.wyrmDur * (crowd ? 6 : 1)) / s.wyrmEvery;
+    if (s.pall) d *= 1.3;
+    return d;
   }
   if (kind === 'beam') {
     if (!crowd) return s.damage * s.maxCharge * 0.85;
     const charge = 1 + (s.maxCharge - 1) * (s.keep || 0) * 0.6 + 0.4;
-    return s.damage * charge * s.beams * (1 + (s.burstMul ? 1.5 * s.burstMul : 0));
+    let d = s.damage * charge * s.beams * (1 + (s.burstMul ? 1.5 * s.burstMul : 0));
+    if (s.pierceBeam) d += s.damage * s.maxCharge * s.pierceBeam * 2;
+    if (s.web) d += s.damage * s.maxCharge * s.web * s.beams * 1.2;
+    if (s.sunEvery) d += (s.damage * s.maxCharge * s.sunMul * Math.min(s.sunHits, 15)) / s.sunEvery;
+    return d;
   }
   if (kind === 'snare') {
     // Bites: at most the refill rate, and only as often as enemies walk over it (about 70% of the
     // refill in a busy lane, measured with the bots); mines burst in crowds.
-    let d = s.damage * s.refill * 0.7 * (s.rootDur ? 1.15 : 1);
-    if (s.mineMax) d += (s.mineDmg * (crowd ? Math.min(s.mineHits, 6) : 1)) / s.mineEvery;
+    let d = s.damage * s.refill * 0.7 * (s.rootDur ? 1.15 : 1) * (s.rebite ? 2 : 1);
+    if (s.mineMax) d += (s.mineDmg * (crowd ? Math.min(s.mineHits, 6) : 1)) / s.mineEvery * (s.mineChain ? 1.3 : 1);
+    if (s.sealEvery) d *= 1.3;
     return d;
   }
   if (kind === 'wander') {
     const burst = crowd ? 1 + Math.min(s.starHits, 3 * (s.starRadius / 24)) * s.starMul : 1;
-    return s.damage * s.rate * s.shots * s.lights * burst * (1 + (s.markPct || 0));
+    let d = s.damage * s.rate * s.shots * s.lights * burst * (1 + (s.markPct || 0)) * (s.starBounce ? 1.7 : 1);
+    if (s.skyEvery) d *= (s.skyEvery - 1 + s.skyMul * (crowd ? 2 : 1)) / s.skyEvery;
+    return d;
   }
-  if (kind === 'lure') return (s.lureDps || 0) * Math.min(s.lureMax, crowd ? 6 : 1);
+  if (kind === 'lure') return (s.lureDps || 0) * (Math.min(s.lureMax, crowd ? 6 : 1) + (s.mothAll ? s.mothAll * (crowd ? Math.min(s.mothHits, 10) : 1) : 0));
   if (kind === 'chain') {
     let jumps = 0, f = 1;
     const n = crowd ? Math.min(s.chains, 12) : 1;
     for (let j = 0; j < n; j++) { jumps += f; f *= s.falloff; }
     let d = s.damage * jumps * (crowd ? s.forks : 1);
     if (s.smiteEvery) d += (s.damage * (s.smiteMul - 1) + (crowd ? s.damage * s.smiteMul * 0.5 * 5 : 0)) / s.smiteEvery;
-    return d * s.rate * (1 + (s.chargedPct || 0));
+    d *= s.rate * (1 + (s.chargedPct || 0));
+    if (s.orbEvery && crowd) d += (s.damage * s.orbMul * s.orbHits * 2.5 * (s.orbLife / s.orbEvery)) * 0.4;
+    if (s.field) d += s.damage * s.fieldMul * 4 * (crowd ? Math.min(s.fieldHits, 12) : 1);
+    return d;
   }
   return 0;
 }

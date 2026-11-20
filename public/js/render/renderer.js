@@ -7,7 +7,7 @@ import { Particles } from './particles.js';
 import { FlameFx } from './flames.js';
 import { paintBackground } from './background.js';
 import { drawWard, wardMuzzle, wardTop, wardBox, wardColor, initWardArt, setSkin, skinFromQuery, setWardRefresh, pruneWardCache } from './wardArt.js';
-import { DMG, DETAIL } from './wards/kit.js';
+import { DMG, DETAIL, glow } from './wards/kit.js';
 import { drawEnemy, drawEnemyBody, flushEnemyBars, setEnemyBase, initSprites, ENEMY_COLORS } from './enemyArt.js';
 
 const TAU = Math.PI * 2;
@@ -24,7 +24,7 @@ const noop = () => {};
 const byY = (a, b) => a.y - b.y;
 const GHOST_TIERS = [0, 0, 0];
 // Stand-in when no Sound is attached (and for unknown events).
-const MUTE = { pop: noop, crack: noop, boom: noop, zap: noop, shot: noop, pulse: noop, coin: noop, flare: noop, frost: noop, ability: noop, upgrade: noop, place: noop, sell: noop, wave: noop, leak: noop, streak: noop, bossDown: noop, lastLight: noop, snipe: noop, flame: noop, burst: noop, roar: noop };
+const MUTE = { pop: noop, crack: noop, boom: noop, zap: noop, shot: noop, pulse: noop, coin: noop, flare: noop, frost: noop, ability: noop, upgrade: noop, place: noop, sell: noop, wave: noop, leak: noop, streak: noop, bossDown: noop, lastLight: noop, snipe: noop, flame: noop, burst: noop, roar: noop, ascend: noop };
 
 export class Renderer {
   constructor(canvas, game) {
@@ -79,7 +79,7 @@ export class Renderer {
     this.pops.clear();
     this.multi.clear();
     this.shake = 0;
-    this.banner = this.callout = this.flash = null;
+    this.banner = this.callout = this.flash = this.ascend = null;
     this.coins.length = 0;
     this.hitStop = 0;
     this.game.fx.length = 0;
@@ -199,6 +199,17 @@ export class Renderer {
           break;
         }
         case 'explosion': {
+          if (f.kind === 'quake') { // Worldbreaker: a falling mountain, a crater ring and a long shake
+            S.boom(true);
+            this.ring(f.x, f.y, f.r * 0.2, f.r, 0.6, '#ffd27a', 7, 'rgba(255,150,50,0.5)', true);
+            this.ring(f.x, f.y, f.r * 0.5, f.r * 1.15, 0.9, '#8a7f78', 4, null);
+            this.ring(f.x, f.y, 6, f.r * 0.6, 0.25, '#ffffff', 4, 'rgba(255,255,220,0.8)', true);
+            P.burst(f.x, f.y, 46, { color: '#ffb347', speed: f.r * 3, life: 0.7, size: 4.4 });
+            P.burst(f.x, f.y, 26, { color: '#7a6a60', speed: f.r * 1.8, life: 1.1, size: 5.5, grav: 120 });
+            this.stain(f.x, f.y, f.r * 0.7, '#3a2a24');
+            this.shake = Math.max(this.shake, 10);
+            break;
+          }
           if (f.kind === 'mine') { // a Flashmine: a white flash of thorny light, not a fireball
             S.boom(false);
             this.ring(f.x, f.y, f.r * 0.2, f.r, 0.3, '#ffffff', 3, 'rgba(233,238,246,0.3)', true);
@@ -247,6 +258,53 @@ export class Renderer {
           this.ring(f.x, f.y, 4, f.r, 0.28, '#ffffff', 3, 'rgba(82,230,255,0.4)', true);
           P.burst(f.x, f.y, 14, { color: FROST, speed: 220, life: 0.45, size: 3.4 });
           P.burst(f.x, f.y, 6, { color: '#ffffff', speed: 160, life: 0.35, size: 2.6 });
+          break;
+        // ---- tier 5 signatures --------------------------------------------------------------
+        case 'hawk': // Wild Hunt: the spirit-hawk's dive, a streak of white from the ward to its prey
+          if (this.tracers.length < 60) this.tracers.push({ x: f.x0, y: f.y0, tx: f.x, ty: f.y, life: 0.4, max: 0.4, big: true, spot: false });
+          this.ring(f.x, f.y, 6, f.r, 0.4, '#ffffff', 3, 'rgba(200,226,255,0.18)', true);
+          P.burst(f.x, f.y, 16, { color: '#dfeeff', speed: 220, life: 0.5, size: 3 });
+          break;
+        case 'whiteout': // a frost wave over the whole map
+          S.pulse();
+          this.flash = { color: '220,245,255', t: 0.35, max: 0.35, a: 0.22 };
+          break;
+        case 'erupt': // Magma Heart: a dying Gloom erupts from the magma
+          this.ring(f.x, f.y, 4, f.r, 0.35, '#ffb347', 3, 'rgba(255,90,20,0.4)', true);
+          P.burst(f.x, f.y, 10, { color: '#ff7a2a', speed: 180, life: 0.5, size: 3.4, grav: 160, ang: -Math.PI / 2, spread: 1.2 });
+          break;
+        case 'shrapnel': // shrapnel flies out of a flak burst and bursts again
+          if (this.tracers.length < 60) this.tracers.push({ x: f.x0, y: f.y0, tx: f.x, ty: f.y, life: 0.15, max: 0.15, big: false, spot: false });
+          this.ring(f.x, f.y, 3, f.r, 0.2, KINETIC, 2, 'rgba(233,238,246,0.12)', true);
+          break;
+        case 'wyrm': { // Elder Wyrm: a river of dragonfire poured down the road
+          S.boom(false);
+          for (let k = 0; k < f.pts.length; k += 2) P.burst(f.pts[k], f.pts[k + 1], 5, { color: k % 4 ? '#ff4433' : '#ffb347', speed: 120, life: 0.6, size: 4, grav: -90 });
+          this.shake = Math.max(this.shake, 3);
+          break;
+        }
+        case 'sunflare': // Second Sun: the sun flares over everything in range
+          S.burst();
+          this.ring(f.x, f.y, 10, f.r, 0.45, '#fff3b0', 4, 'rgba(255,224,58,0.22)', true);
+          P.burst(f.x, f.y - 30, 18, { color: '#ffe03a', speed: f.r * 1.8, life: 0.5, size: 3 });
+          break;
+        case 'cry': // Anthem of War: a battle cry rolls out over the wards in its light
+          this.ring(f.x, f.y, 10, f.r, 0.6, HEARTH, 4, null, true);
+          this.ring(f.x, f.y, 6, f.r * 0.7, 0.45, '#ffffff', 2.5, null, true);
+          this.text(f.x, f.y - 56, 'BATTLE CRY', HEARTH, 15, 1.2, 20);
+          break;
+        case 'seal': // Seal of Dawn: a beam from the snare and a ring of runes round what it binds
+          if (this.tracers.length < 60) this.tracers.push({ x: f.x0, y: f.y0, tx: f.x, ty: f.y, life: 0.3, max: 0.3, big: true, spot: false });
+          this.ring(f.x, f.y, f.r * 2.2, f.r, 0.5, '#fff6d0', 4, 'rgba(255,246,208,0.2)', true);
+          P.burst(f.x, f.y, 14, { color: '#fff6d0', speed: 110, life: 0.6, size: 2.6 });
+          break;
+        case 'minelink': // Constellation: a line of light from one bursting mine to the next
+          if (this.tracers.length < 60) this.tracers.push({ x: f.x, y: f.y, tx: f.x2, ty: f.y2, life: 0.25, max: 0.25, big: false, spot: false });
+          break;
+        case 'guard': // Second Heartfire: embers spent to spare the Heartfire
+          this.text(MAP.goal.x, MAP.goal.y - 40, `Shielded ${f.n}`, HEARTH, 15, 1.2);
+          if (this.tracers.length < 60) this.tracers.push({ x: f.x, y: f.y - 20, tx: f.gx, ty: f.gy, life: 0.5, max: 0.5, big: true, spot: false });
+          this.ring(f.gx, f.gy, 10, 60, 0.5, HEARTH, 4, 'rgba(255,126,182,0.2)', true);
           break;
         case 'markburst':
           this.ring(f.x, f.y, 6, f.r, 0.3, KINETIC, 2.5, 'rgba(233,238,246,0.12)');
@@ -300,6 +358,15 @@ export class Renderer {
           P.burst(f.x, f.y, 10, { color: '#ffffff', speed: f.r * 3, life: 0.35, size: 2.6 });
           break;
         case 'starburst':
+          if (f.sky) { // Falling Sky: a star crashes into the crowd
+            S.boom(true);
+            this.ring(f.x, f.y, 6, f.r, 0.6, '#ffffff', 5, 'rgba(176,107,255,0.4)', true);
+            this.ring(f.x, f.y, f.r * 0.5, f.r * 1.1, 0.8, ARCANE, 3, null);
+            P.burst(f.x, f.y, 30, { color: ARCANE, speed: f.r * 3, life: 0.6, size: 3.4 });
+            P.burst(f.x, f.y, 12, { color: '#ffffff', speed: f.r * 2, life: 0.4, size: 2.6 });
+            this.shake = Math.max(this.shake, 6);
+            break;
+          }
           this.ring(f.x, f.y, 3, f.r, f.comet ? 0.4 : 0.25, f.comet ? '#ffffff' : '#e8d4ff', f.comet ? 3.5 : 2, f.comet ? 'rgba(176,107,255,0.35)' : 'rgba(176,107,255,0.18)', true);
           P.burst(f.x, f.y, f.comet ? 14 : 5, { color: ARCANE, speed: f.r * 3, life: 0.35, size: 2.6 });
           if (f.comet) { this.ring(f.x, f.y, f.r * 0.6, f.r * 1.05, 0.7, ARCANE, 2, null); P.burst(f.x, f.y, 6, { color: '#ffffff', speed: f.r * 2, life: 0.3, size: 2.4 }); }
@@ -362,7 +429,7 @@ export class Renderer {
           P.burst(f.x, f.y, 16, { color: '#ffffff', speed: 120, life: 0.45, size: 3 });
           break;
         case 'upgrade':
-          S.upgrade(f.tier >= 3);
+          if (f.tier >= 5) S.ascend(); else S.upgrade(f.tier >= 3);
           this.upgradeFx(f);
           break;
         case 'sell':
@@ -519,7 +586,19 @@ export class Renderer {
     this.ring(f.x, f.y, 4, big ? 50 : 30, 0.25, '#ffffff', 3, 'rgba(255,255,255,0.5)', true);
     P.burst(f.x, f.y, big ? 50 : 26, { color: col, speed: big ? 260 : 170, life: 0.7, size: 3.4 });
     P.burst(f.x, f.y, big ? 30 : 14, { color: '#ffffff', speed: big ? 160 : 110, life: 0.6, size: 2.6, grav: -80 });
-    if (f.tier >= 4) {
+    if (f.tier >= 5) {
+      // tier 5: a towering pillar, a white shockwave, a burst of the ward's colour and white, and
+      // the name across the screen. The ward's lasting ground sigil comes from its art.
+      this.bolts.push({ x: f.x, y: f.y, life: 1.1, max: 1.1, color: '#ffffff' });
+      this.bolts.push({ x: f.x, y: f.y, life: 0.9, max: 0.9, color: col });
+      this.ring(f.x, f.y, 10, 170, 0.9, '#ffffff', 6, null, true);
+      this.ring(f.x, f.y, 6, 120, 0.7, col, 5, null, true);
+      P.burst(f.x, f.y, 110, { color: col, speed: 420, life: 1.3, size: 4.4 });
+      P.burst(f.x, f.y, 60, { color: '#fff4c8', speed: 240, life: 1.4, size: 3, grav: -140 });
+      this.shake = Math.max(this.shake, 12);
+      this.ascend = { x: f.x, y: f.y, t: 1.6, max: 1.6, color: col };
+      this.callout = { text: f.name.toUpperCase(), sub: `Tier 5 · ${w ? w.def.name : ''}`, color: col, t: 3, max: 3, t5: true };
+    } else if (f.tier >= 4) {
       // capstone: a pillar of light and a callout
       this.bolts.push({ x: f.x, y: f.y, life: 0.6, max: 0.6, color: col });
       P.burst(f.x, f.y, 70, { color: col, speed: 340, life: 1.1, size: 4 });
@@ -668,6 +747,7 @@ export class Renderer {
     flushEnemyBars(ctx);
     ctx.setTransform(s, 0, 0, s, sx * s, sy * s);
     this.drawTethers(ctx);
+    this.drawTier5(ctx, dt);
     pt = this.mark('enemies', pt);
 
     for (const t of game.towers) {
@@ -722,6 +802,63 @@ export class Renderer {
     this.drawCallout(ctx, dt);
     this.mark('overlay', pt);
     this.drawFps(ctx);
+  }
+
+  // Tier 5 things that live on the map: ball lightning, the phoenix, Lightweb threads, the
+  // Dawnbreaker's full-charge lance, storm fields and the marks of the Doomed. Few and cheap.
+  drawTier5(ctx, dt) {
+    const g = this.game, T = this.time, lite = this.quality < 2;
+    for (const o of g.orbs) { // Ball Lightning
+      const y = o.y - 10 + Math.sin(T * 6 + o.d) * 2, a = Math.min(1, o.life * 2);
+      ctx.globalAlpha = a;
+      glow(ctx, o.x, y, 18, ARCANE, 0.7);
+      ctx.fillStyle = '#f4ecff'; ctx.beginPath(); ctx.arc(o.x, y, 5, 0, TAU); ctx.fill();
+      if (!lite) { ctx.strokeStyle = '#d8b8ff'; ctx.lineWidth = 1.2; ctx.beginPath(); for (let k = 0; k < 3; k++) { const q = T * 20 + k * 2.1; ctx.moveTo(o.x, y); ctx.lineTo(o.x + Math.cos(q) * 10, y + Math.sin(q) * 10); } ctx.stroke(); }
+      ctx.globalAlpha = 1;
+    }
+    for (const t of g.towers) {
+      const s = t.stats;
+      if (s.phoenix && t.phx) { // the phoenix: a bird of fire sweeping the road
+        const P = t.phx, x = P.x, y = P.y - 22 + Math.sin(T * 3) * 3, dir = P.dir || 1, f = Math.sin(T * 12) * 5;
+        glow(ctx, x, y, 26, '#ff6a2a', 0.65);
+        ctx.fillStyle = '#ff7a2a'; ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+        for (const k of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + k * 10, y - 12 - f, x + k * 20, y - 4 - f); ctx.quadraticCurveTo(x + k * 10, y + 2, x, y + 3); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+        ctx.fillStyle = '#ffd27a'; ctx.beginPath(); ctx.ellipse(x, y, 7, 4, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x + dir * 7, y - 3, 3, 0, TAU); ctx.fill(); ctx.stroke();
+        if (dt > 0 && Math.random() < (lite ? 0.3 : 0.8)) this.parts.burst(x - dir * 8, y + 2, 1, { color: Math.random() < 0.5 ? '#ffb347' : '#ff4433', speed: 40, life: 0.6, size: 3, grav: -40 });
+      }
+      if (s.web && t.beams.length > 1) { // Lightweb: a thread of light from each target to the next
+        ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(255,240,160,${0.45 + Math.sin(T * 20) * 0.1})`; ctx.lineWidth = 2;
+        ctx.beginPath();
+        const n = t.beams.length, max2 = (s.range * 1.6) ** 2;
+        for (let i = 0; i < n; i++) { const a = t.beams[i].e, b = t.beams[(i + 1) % n].e; if (!a || !b || a === b || !a.alive || !b.alive || (a.x - b.x) ** 2 + (a.y - b.y) ** 2 > max2) continue; ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
+        ctx.stroke(); ctx.globalCompositeOperation = 'source-over';
+      }
+      if (s.pierceBeam) for (const b of t.beams) { // Dawnbreaker: the full-charge beam runs on through everything
+        if (!b.e || !b.e.alive || b.charge < s.maxCharge * 0.98) continue;
+        const dx = b.e.x - t.x, dy = b.e.y - t.y, L = Math.hypot(dx, dy) || 1, ex = t.x + (dx / L) * (s.range + 30), ey = t.y + (dy / L) * (s.range + 30);
+        ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(255,224,58,0.35)'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(b.e.x, b.e.y); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 3; ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over'; ctx.lineCap = 'butt';
+      }
+      if (s.field && t.target && !lite) { // Eye of the Storm: a crackling ring at its reach
+        ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(176,107,255,${0.35 + Math.sin(T * 30 + t.id) * 0.15})`; ctx.lineWidth = 2;
+        ctx.setLineDash([3, 9]); ctx.lineDashOffset = -T * 60;
+        ctx.beginPath(); ctx.ellipse(t.x, t.y, s.range, s.range * 0.9, 0, 0, TAU); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+    // the Doomed (Eye of Fate): a small eye over each
+    const now = g.time;
+    let n = 0;
+    for (const e of g.enemies) {
+      if (!(e.doomT > now) || !e.alive || ++n > 12) continue;
+      const y = e.y - e.r - 12;
+      ctx.fillStyle = '#f6f9ff'; ctx.strokeStyle = INK; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.ellipse(e.x, y, 6, 3.2, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#c03040'; ctx.beginPath(); ctx.arc(e.x, y, 1.8, 0, TAU); ctx.fill();
+    }
   }
 
   // Endless Winter slows the whole map: light snow drifts across it while one stands.
@@ -1141,7 +1278,7 @@ export class Renderer {
   // comet (Hunter tier 4, Starfall) is bigger with a long tail. Shared by both skins.
   drawStar(ctx, p, x, y) {
     const g = Math.hypot(p.vx, p.vy) || 1, ux = p.vx / g, uy = p.vy / g;
-    const big = p.comet, r = big ? 6.5 : 4 + (p.s.starRadius >= 45 ? 1.2 : 0), tail = big ? 34 : 14;
+    const big = p.comet || p.sky, r = p.sky ? 10 : big ? 6.5 : 4 + (p.s.starRadius >= 45 ? 1.2 : 0), tail = p.sky ? 56 : big ? 34 : 14;
     if (this.quality < 2) { // crowds: a tail and a plain star (a handful of calls)
       ctx.strokeStyle = 'rgba(176,107,255,0.45)'; ctx.lineWidth = r * 1.4; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(x - ux * tail, y - uy * tail); ctx.lineTo(x, y); ctx.stroke();
@@ -1169,7 +1306,7 @@ export class Renderer {
     for (let i = 0; i < ps.length; i++) {
       const p = ps[i];
       if (p.kind === 'bolt') {
-        const sz = p.s.boltSize || 1;
+        const sz = (p.s.boltSize || 1) * (p.rend ? 1.6 : p.split ? 0.6 : 1);   // Worldpiercer lances; Thousand Bolts splits
         // Bolts leave the crossbow up on the ward and drop to the target's height as they fly: the
         // offset from the footprint to the muzzle fades out over the first flight.
         if (p._ox === undefined && p.star) {
@@ -1373,6 +1510,25 @@ export class Renderer {
     }
     bs.length = w;
     ctx.globalAlpha = 1;
+    // Tier 5: motes of light stream up from the ward while its form changes.
+    const A = this.ascend;
+    if (A) {
+      A.t -= dt;
+      if (A.t <= 0) this.ascend = null;
+      else {
+        const u = 1 - A.t / A.max, a = Math.min(1, A.t / 0.5);
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 14; i++) {
+          const k = (u * 1.6 + i / 14) % 1, x = A.x + Math.sin(i * 2.4 + u * 9) * (10 + 18 * k);
+          ctx.globalAlpha = a * (1 - k);
+          ctx.fillStyle = i % 3 ? A.color : '#ffffff';
+          ctx.fillRect(x - 2, A.y - 10 - k * 110, 4, 7);
+        }
+        ctx.globalAlpha = a * 0.5 * (1 - u);
+        glow(ctx, A.x, A.y - 6, 60 + 30 * u, A.color, 1);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      }
+    }
   }
 
   drawTexts(ctx, dt) {

@@ -183,6 +183,11 @@ export class Sound {
   }
 
   ability() { this.chord([392, 587, 784], 0.5, 0.12, 'square', 0.03); }
+  // Tier 5: a rising fanfare, then a bright held chord.
+  ascend() {
+    this.chord([392, 523, 659], 0.35, 0.09, 'triangle', 0.05);
+    setTimeout(() => this.chord([523, 659, 784, 1047, 1319], 1.2, 0.07, 'triangle', 0.06), 260);
+  }
   upgrade(big) { this.chord(big ? [523, 659, 784, 1047] : [659, 988], big ? 0.6 : 0.3, 0.12, 'triangle', 0.05); }
   place() { if (this.ctx && !this.muted) this.tone('triangle', 330, 520, 0.12, 0.15); }
   sell() { if (this.ctx && !this.muted) { this.tone('sine', 988, 988, 0.08, 0.1); this.tone('sine', 1319, 1319, 0.12, 0.1, 0.06); } }

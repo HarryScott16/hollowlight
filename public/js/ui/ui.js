@@ -143,6 +143,7 @@ function statRows(def, s) {
 const LOCK_TEXT = {
   paths: 'Locked: this ward already has two paths.',
   cap: 'Locked: only one path can go past tier 2.',
+  unique: 'Only one of each tier 5 at a time: another ward of this kind holds it. Click to show it.',
 };
 
 export class UI {
@@ -565,12 +566,13 @@ export class UI {
       const ph = el('div', 'path-head');
       ph.title = path.blurb;   // the identity line is dropped on very short screens: it's here on hover
       const pips = el('span', 'pips');
-      for (let i = 0; i < RULES.maxTier; i++) pips.append(el('span', i < t.tiers[pi] ? 'pip on' : 'pip'));
+      for (let i = 0; i < RULES.maxTier; i++) pips.append(el('span', `pip${i === 4 ? ' t5' : ''}${i < t.tiers[pi] ? ' on' : ''}`));
       ph.append(el('span', null, `${path.name}  [${'QWE'[pi]}]`), pips);
       const identity = el('div', 'path-blurb', path.blurb);
       const b = el('button', 'up-btn');
       b.type = 'button';
       const top = el('span', 'up-top');
+      if (t.tiers[pi] >= 4) b.classList.add('capstone');   // tier 5: the capstone (bought or not)
       if (info.reason === 'max') {
         b.classList.add('maxed');
         top.append(el('span', null, path.tiers[RULES.maxTier - 1].name), el('span', 'up-cost', 'MAX'));
@@ -600,9 +602,14 @@ export class UI {
           b.addEventListener('click', () => this.buyUpgrade(pi));
           b.addEventListener('pointerenter', () => { this.previewRange = next.range || 0; });
           b.addEventListener('pointerleave', () => { this.previewRange = 0; });
-          upButtons.push({ b, cost: info.cost });
+          upButtons.push({ b, cost: info.cost, t5: t.tiers[pi] === 4 });
         } else {
           b.classList.add('locked');
+          // The tier 5 is held by another ward of this kind: the button takes you to it.
+          if (info.reason === 'unique') {
+            const holder = this.game.towers.find((o) => o !== t && o.type === t.type && o.tiers[pi] >= 5);
+            if (holder) { b.classList.add('holder'); b.addEventListener('click', () => this.select(holder)); }
+          }
         }
       }
       box.append(ph, identity, b);
@@ -648,7 +655,11 @@ export class UI {
       refs.dmg.textContent = fmt(t.dmg);
       refs.kills.textContent = String(t.kills);
     }
-    for (const u of refs.upButtons) u.b.classList.toggle('poor', this.game.gold < u.cost);
+    for (const u of refs.upButtons) {
+      u.b.classList.toggle('poor', this.game.gold < u.cost);
+      // A tier 5 shows how much of its price you've saved.
+      if (u.t5) { const f = Math.min(1, this.game.gold / u.cost); if (u.f !== f) { u.f = f; u.b.style.setProperty('--save', `${(f * 100).toFixed(1)}%`); } }
+    }
   }
 
   // ---- wave preview --------------------------------------------------------------------------

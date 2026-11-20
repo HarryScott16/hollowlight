@@ -8,6 +8,7 @@
 import { KINDLINGS } from './wards/kindlings.js';
 import { LANTERNS } from './wards/lanterns.js';
 import { mainPath, WARD_DMG, DMG, setCanvasFactory, shadow } from './wards/kit.js';
+import { ascendBehind, ascendBack, ascendFront } from './wards/ascend.js';
 
 export const SKINS = { kindling: { name: 'Kindlings', art: KINDLINGS }, lantern: { name: 'Lanterns', art: LANTERNS } };
 let skin = 'kindling';
@@ -27,21 +28,29 @@ export function nextSkin() { const keys = Object.keys(SKINS); setSkin(keys[(keys
 // bigger than a tier 0 (about x1.35); tiers on the second path add a little. tools/wards.mjs
 // checks the heights. Enemies behind a ward show through it (see Renderer.drawGhosts).
 const K = 0.86;
-const GROW = [1, 1.06, 1.13, 1.22, 1.35];
+const GROW = [1, 1.06, 1.13, 1.22, 1.35, 1.4];
 export function wardScale(tiers) { const P = mainPath(tiers); return K * (GROW[P.mt] + (P.lvl - P.mt) * 0.02); }
 const PLINTH_Y = 11;   // ward units: the plinth centre sits on the ward's map position
 
 const pcache = new Map();
 function pathInfo(tiers) {
-  const key = tiers[0] * 25 + tiers[1] * 5 + tiers[2];
+  const key = tiers[0] * 36 + tiers[1] * 6 + tiers[2];
   let P = pcache.get(key);
-  if (!P) { P = mainPath(tiers); P.tiers = tiers.slice(); pcache.set(key, P); }
+  if (!P) {
+    P = mainPath(tiers); P.tiers = tiers.slice();
+    if (P.mt >= 5) { P.mt = 4; P.t5 = true; }
+    pcache.set(key, P);
+  }
   return P;
 }
 function artFor(type) { return SKINS[skin].art[type] || null; }
 export function isConverted(type) { return !!artFor(type); }
 
 // ---- sprite cache ------------------------------------------------------------------------------
+// A tier 5 is drawn as its skin's tier 4 form (P.mt = 4, P.t5 set) plus the second form from
+// wards/ascend.js, shared by both skins. artPath() is that view of a ward's tiers.
+export function artPath(tiers) { return pathInfo(tiers); }
+
 // Box (ward units) every body fits in: x -38..38, y -70..22.
 const BX = -38, BY = -70, BW = 76, BH = 92;
 const sprites = new Map();
@@ -62,6 +71,7 @@ function sprite(type, art, P) {
   const ctx = cv.getContext('2d');
   ctx.setTransform(k, 0, 0, k, -BX * k, -BY * k);
   if (!art.flat && !art.float) shadow(ctx, 15);   // a Snare lies on the road; a floating ward casts its own
+  if (P.t5) ascendBehind(ctx, type, P, WARD_DMG[type], skin);
   const top = art.body(ctx, P, WARD_DMG[type]);
   sp = { cv, top: typeof top === 'number' ? top : -30 };
   sprites.set(key, sp);
@@ -82,15 +92,17 @@ const live = new Map();   // ward id -> { cv, key }
 const LX = -72, LY = -80, LW = 144, LH = 114;   // ward units: room for gear, beams and searchlights
 export function pruneWardCache(ids) { for (const id of live.keys()) if (!ids.has(id)) live.delete(id); }
 
-function drawLive(ctx, art, P, d, sp, st, pop) {   // ctx is already in ward units
+function drawLive(ctx, art, P, d, sp, st, pop, type) {   // ctx is already in ward units
   // A floating ward (the Wandering Light) bobs gently; its shadow is drawn in `back`, on the ground.
   if (art.float) { if (art.shadow) art.shadow(ctx, P, st); ctx.translate(0, Math.sin(st.time * 2.2 + (st.id || 0)) * 1.6); }
+  if (P.t5) ascendBack(ctx, type, P, st, d, skin);
   if (art.back) art.back(ctx, P, st, d);
   // Kindlings breathe: a slow, volume-keeping squash about the ground line.
   const b = art.breathe ? Math.sin(st.time * 2.4 + (st.id || 0)) * 0.025 : 0;
   if (b) { ctx.translate(0, 14); ctx.scale(1 - b * 0.5, 1 + b); ctx.translate(0, -14); }
   ctx.drawImage(sp.cv, BX, BY, BW, BH);
   art.front(ctx, P, st, d);
+  if (P.t5) ascendFront(ctx, type, P, st, d, skin, sp.top);
   if (pop > 0) { // white flash during the upgrade pop
     ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = pop * 0.5; ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.ellipse(0, -8, 20, 26, 0, 0, Math.PI * 2); ctx.fill();
@@ -109,7 +121,7 @@ export function drawWard(ctx, t, st) {
     const S = wardScale(t.tiers) * (1 + pop * 0.3);
     ctx.save();
     ctx.translate(t.x, t.y); ctx.scale(S, S); ctx.translate(0, -PLINTH_Y);
-    drawLive(ctx, art, P, d, sp, st, pop);
+    drawLive(ctx, art, P, d, sp, st, pop, t.type);
     ctx.restore();
     return;
   }
@@ -126,7 +138,7 @@ export function drawWard(ctx, t, st) {
     const t0 = performance.now(), g = c.cv.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.cv.width, c.cv.height);
     g.setTransform(k, 0, 0, k, -LX * k, -LY * k);
-    drawLive(g, art, P, d, sp, st, 0);
+    drawLive(g, art, P, d, sp, st, 0, t.type);
     c.last = LIVE.frame - ((LIVE.frame + t.id) % LIVE.every);   // keeps refreshes staggered across wards
     LIVE.spent += performance.now() - t0;
   }
@@ -174,6 +186,8 @@ export function drawWardIcon(canvas, type, tiers = [0, 0, 0]) {
   ctx.translate(canvas.width / 2, canvas.height - 17 * s);
   ctx.scale(s, s);
   shadow(ctx, 15);
-  art.body(ctx, P, d);
+  if (P.t5) ascendBehind(ctx, type, P, d, skin);
+  const top = art.body(ctx, P, d);
   art.front(ctx, P, ICON_ST, d);
+  if (P.t5) ascendFront(ctx, type, P, ICON_ST, d, skin, typeof top === 'number' ? top : -30);
 }

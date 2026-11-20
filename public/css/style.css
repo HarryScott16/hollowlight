@@ -196,6 +196,15 @@ body.details .tp-hint { display: none; }
 .path.p0 .pip.on { background: var(--p0); }
 .path.p1 .pip.on { background: var(--p1); }
 .path.p2 .pip.on { background: var(--p2); }
+/* the fifth pip: a gold-rimmed diamond for the capstone tier */
+.pip.t5 { width: 9px; height: 9px; margin: -1.5px 2px 0 3px; transform: rotate(45deg); border-radius: 1px; box-shadow: 0 0 0 1px #8a6a1e inset; }
+.pip.t5.on { background: #fff4c8 !important; box-shadow: 0 0 0 1px #ffd34d inset, 0 0 6px #ffd34d; }
+/* tier 5 button: a gold frame, and a bar of the gold saved towards it */
+.up-btn.capstone { border-color: #c9a23a; background-image: linear-gradient(90deg, rgba(255, 211, 77, 0.16) var(--save, 0%), transparent var(--save, 0%)); }
+.up-btn.capstone.maxed { background-image: linear-gradient(90deg, rgba(255, 211, 77, 0.18), rgba(255, 211, 77, 0.05)); }
+.up-btn.capstone .up-top > span:first-child { color: #ffe6a0; }
+.up-btn.capstone.maxed { opacity: 0.92; }
+.up-btn.locked.holder { cursor: pointer; }
 .up-btn { display: block; width: 100%; text-align: left; padding: 6px 9px; }
 .up-btn .up-top { display: flex; justify-content: space-between; font-weight: 600; }
 .up-btn .up-cost { color: var(--gold); }

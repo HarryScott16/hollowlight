@@ -11,16 +11,17 @@
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
-import { initWardArt, setSkin, drawWard, SKINS, wardScale } from '../public/js/render/wardArt.js';
-import { FACE, mainPath, WARD_DMG } from '../public/js/render/wards/kit.js';
+import { initWardArt, setSkin, drawWard, SKINS, wardScale, artPath } from '../public/js/render/wardArt.js';
+import { FACE, WARD_DMG } from '../public/js/render/wards/kit.js';
+import { ascendFront } from '../public/js/render/wards/ascend.js';
 
 const req = createRequire(process.env.CANVAS_MODULES ? join(process.env.CANVAS_MODULES, 'x.js') : import.meta.url);
 const { createCanvas, GlobalFonts } = req('@napi-rs/canvas');
 if (process.env.FONT_DIR) GlobalFonts.registerFromPath(join(process.env.FONT_DIR, 'DejaVuSans.ttf'), 'Sans');
 const out = process.argv[2] || 'wards.png';
-const CAPS = [46, 50, 56, 62, 68];   // by main-path tier (the Longeye is the tall one)
+const CAPS = [46, 50, 56, 62, 68, 76];   // by main-path tier (the Longeye is the tall one)
 
-const STATES = [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [4, 2, 0], [0, 2, 4], [2, 0, 4]];
+const STATES = [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0], [5, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [0, 0, 5], [4, 2, 0], [0, 2, 4], [2, 0, 4], [5, 2, 0], [2, 0, 5]];
 const skins = Object.keys(SKINS);
 // node tools/wards.mjs [out.png] [ward ...]   (default: every ward)
 const only = process.argv.slice(3);
@@ -34,15 +35,17 @@ for (const s of skins) for (const t of types) if (!SKINS[s].art[t]) { console.lo
 const COVER = 0.3;
 // Canvases are reused: @napi-rs/canvas memory is native, and new canvases per render add up fast.
 const COVER_CTX = createCanvas(160, 160).getContext('2d'), HEIGHT_CTX = createCanvas(120, 120).getContext('2d');
-function coverage(art, type, tiers) {
-  const P = { ...mainPath(tiers), tiers }, d = WARD_DMG[type], box = art.self(P), Z = 3, N = 160;
+function coverage(art, type, tiers, skin) {
+  const P = artPath(tiers), d = WARD_DMG[type], box = art.self(P), Z = 3, N = 160;
   let worst = 0;
   FACE.skip = true;
   const ctx = COVER_CTX;
   for (let k = 0; k < 8; k++) {
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, N, N);
     ctx.translate(N / 2, N * 0.72); ctx.scale(Z, Z); ctx.translate(0, -11);
-    art.front(ctx, P, { ang: (k / 8) * Math.PI * 2, recoil: 0, time: 0.3 + k * 0.4, pulse: 0, fire: 0, pop: 0, id: 1 }, d);
+    const st = { ang: (k / 8) * Math.PI * 2, recoil: 0, time: 0.3 + k * 0.4, pulse: 0, fire: 0, pop: 0, id: 1 };
+    art.front(ctx, P, st, d);
+    if (P.t5) ascendFront(ctx, type, P, st, d, skin, -40);   // tier 5 gear in front counts too
     const px = ctx.getImageData(0, 0, N, N).data;
     const x0 = Math.round(N / 2 + box[0] * Z), x1 = Math.round(N / 2 + box[2] * Z), y0 = Math.round(N * 0.72 + (box[1] - 11) * Z), y1 = Math.round(N * 0.72 + (box[3] - 11) * Z);
     let hit = 0, all = 0;
@@ -82,7 +85,7 @@ for (const s of skins) {
     const art = SKINS[s].art[t];
     if (!art.self) { console.log(`NO BODY BOX: ${t} (${SKINS[s].name}) has no self(); can't check the body-and-face rule`); bad++; }
     STATES.forEach((tiers, i) => {
-      if (art.self) { const cv = coverage(art, t, tiers); if (cv > COVER) { console.log(`GEAR COVERS BODY: ${t} ${tiers.join('/')} (${SKINS[s].name}) covers ${(cv * 100).toFixed(0)}% of its body box (max ${COVER * 100}%)`); bad++; } }
+      if (art.self) { const cv = coverage(art, t, tiers, s); if (cv > COVER) { console.log(`GEAR COVERS BODY: ${t} ${tiers.join('/')} (${SKINS[s].name}) covers ${(cv * 100).toFixed(0)}% of its body box (max ${COVER * 100}%)`); bad++; } }
       const h = height(t, tiers), cap = CAPS[Math.max(...tiers)];
       if (h > cap) { console.log(`TOO TALL: ${t} ${tiers.join('/')} (${SKINS[s].name}) stands ${h.toFixed(1)} px (cap ${cap})`); bad++; }
       results.set(`${s}|${t}|${i}`, { h, over: h > cap });

@@ -2,7 +2,7 @@
 // muzzles, effects) in both skins. Like tools/smoke.js, but the game canvas and every offscreen
 // canvas are real @napi-rs/canvas canvases.
 //
-//   CANVAS_MODULES=<dir>/node_modules [FONT_DIR=<dir with DejaVuSans.ttf>] node tools/frame.mjs <outdir>
+//   CANVAS_MODULES=<dir>/node_modules [FONT_DIR=<dir with DejaVuSans.ttf>] [WAVE=24] [T5=1] node tools/frame.mjs <outdir>
 //
 // Needs @napi-rs/canvas, which is NOT a game dependency (see tools/wards.mjs).
 import { join } from 'node:path';
@@ -21,6 +21,8 @@ const builds = [
   [160, 624, 'rime', [0, 0, 4]], [215, 624, 'censer', [0, 4, 2]], [270, 624, 'mortar', [0, 4, 0]], [325, 624, 'coil', [4, 2, 0]], [380, 624, 'prism', [4, 0, 2]], [435, 624, 'bolt', [4, 2, 0]],
   [436, 330, 'mortar', [0, 0, 0]], [526, 330, 'coil', [0, 0, 0]], [436, 400, 'prism', [0, 0, 0]], [526, 400, 'beacon', [0, 0, 0]],
 ];
+// T5=1: the same defence with every tier 4 taken to tier 5 (all different, so the limit allows it).
+if (process.env.T5) for (const b of builds) b[3] = b[3].map((n) => (n === 4 ? 5 : n));
 for (const [x, y, type, tiers] of builds) {
   let t = null;
   for (let d = 0; d < 30 && !t; d += 3) t = g.place(type, x + (d % 2 ? d : -d), y) || g.place(type, x, y + (y < 580 ? -d : d));
