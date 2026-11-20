@@ -63,6 +63,15 @@ export function buildPath(waypoints, cornerRadius, step = 4) {
       out.ang = ang;
       return out;
     },
+    // Index of the centre-line sample nearest (x, y).
+    nearest(x, y) {
+      let best = Infinity, bi = 0;
+      for (let i = 0; i < count; i++) {
+        const dx = this.xs[i] - x, dy = this.ys[i] - y, d = dx * dx + dy * dy;
+        if (d < best) { best = d; bi = i; }
+      }
+      return bi;
+    },
     distTo(x, y) {
       let best = Infinity;
       for (let i = 0; i < count; i++) {

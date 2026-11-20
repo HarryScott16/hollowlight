@@ -62,23 +62,37 @@ function frames(n, dtMs = 16.7) {
 }
 
 await import('../public/js/main.js');
+const { TOWERS } = await import('../public/js/data/towers.js');
 const { game, ui } = globalThis.window.hollowlight;
 for (const cb of listeners.pointerdown || []) cb({}); // starts the (stub) audio context
 
 ui.setSpeed(3);
 game.gold = 1e7;
-const order = ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon'];
+import { TOWER_ORDER as order } from '../public/js/data/towers.js';
 // Every ward type, near the path, three times (so each path's tier 3/4 art and effects get drawn).
 const cands = [];
 for (let y = 40; y < 700; y += 24) for (let x = 40; x < 1100; x += 24) if (game.map.buildable(x, y)) cands.push([x, y]);
+const N = order.length;
 let placed = 0;
-for (let i = 0; placed < 24 && i < cands.length; i += 7) {
-  const t = game.place(order[placed % 8], cands[i][0], cands[i][1]);
+for (let i = 0; placed < N * 3 && i < cands.length; i += 5) {
+  const type = order[placed % N];
+  if (TOWERS[type].onPath) continue;
+  const t = game.place(type, cands[i][0], cands[i][1]);
   if (t) { placed++; ui.select(t); }
+  // Snares go on the road: three along the path, placed through the UI's pointer handler.
+  while (TOWERS[order[placed % N]] && TOWERS[order[placed % N]].onPath && placed < N * 3) {
+    const p = game.map.path, d = 300 + (placed / N) * 700;
+    const x = p.xs[Math.round(d / p.step)], y = p.ys[Math.round(d / p.step)];
+    ui.setPlacing('snare'); ui.mouse.x = x; ui.mouse.y = y; ui.mouse.inside = true; frames(1);
+    const s = game.place('snare', x + 5, y + 3);
+    if (!s) { console.error('could not place a snare at', x, y); errors++; }
+    ui.setPlacing(null);
+    placed++;
+  }
 }
 for (const t of game.towers) {
   ui.select(t);
-  const idx = game.towers.indexOf(t), main = (idx % 8 + Math.floor(idx / 8)) % 3;
+  const idx = game.towers.indexOf(t), main = (idx % N + Math.floor(idx / N)) % 3;
   for (let k = 0; k < 4; k++) ui.buyUpgrade(main);
   for (let k = 0; k < 2; k++) ui.buyUpgrade((main + 1) % 3);
 }
@@ -97,6 +111,7 @@ function play(from, count) {
     frames(60);
     game.useFlare();
     for (const type of order) game.useAbility(type);
+    for (const t of game.towers) if (t.type === 'vault' && t.bank > 50) { ui.select(t); ui.wardAction(); }
   }
   // let the last wave in the stretch finish
   for (let guard = 0; guard < 400 && !game.clear && !game.over; guard++) frames(60);
@@ -107,7 +122,26 @@ if (game.over === 'win') ui.continueEndless();
 play(41, 1);
 play(50, 1);
 // keyboard: pick a ward, fire abilities by key, toggle FPS
-for (const key of ['5', 'Escape', 'a', 'g', 'h', 'j', 'k', '`', '`']) for (const cb of listeners.keydown || []) cb({ key, shiftKey: false, preventDefault() {} });
+for (const key of ['5', 'Escape', '0', '-', '=', 'Escape', 'a', 'g', 'h', 'j', 'k', 'z', 'c', 'v', 'b', '`', '`']) for (const cb of listeners.keydown || []) cb({ key, shiftKey: false, preventDefault() {} });
+frames(30);
+// a Wandering Light's post moves with R and a click; a Vault cashes out with R
+const wl = game.towers.find((t) => t.type === 'wander');
+ui.select(wl);
+for (const cb of listeners.keydown || []) cb({ key: 'r', shiftKey: false, preventDefault() {} });
+if (ui.moving !== wl) { console.error('R did not start moving the Wandering Light'); errors++; }
+frames(2);
+const hx = wl.hx;
+game.movePost(wl, 600, 380);
+if (wl.hx === hx) { console.error('post did not move'); errors++; }
+ui.moving = null;
+frames(60);
+const vt = game.towers.find((t) => t.type === 'vault');
+vt.bank = 100; ui.select(vt); const g0 = game.gold;
+for (const cb of listeners.keydown || []) cb({ key: 'r', shiftKey: false, preventDefault() {} });
+if (game.gold < g0 + 100) { console.error('R did not cash out the Vault'); errors++; }
+frames(10);
+// the skins: draw a few frames in the other one too
+for (const cb of listeners.keydown || []) cb({ key: 'l', shiftKey: false, preventDefault() {} });
 frames(30);
 // sell one, exercise restart
 ui.select(game.towers[1]);

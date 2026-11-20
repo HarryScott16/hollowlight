@@ -5,6 +5,9 @@ export const RULES = {
   sellRefund: 0.75,      // gold spent on a ward during the current wave (or before wave 1) refunds in full
   towerRadius: 18,       // footprint used for placement and clicking
   towerSpacing: 38,      // minimum distance between tower centres
+  snareSpacing: 60,      // Thornlight Snares: between two on the road,
+  snareFromRift: 70,     // ...and how far along the path from the Rift
+  snareFromGoal: 120,    // ...and before the Heartfire
   maxTier: 4,            // tiers per upgrade path
   maxPaths: 2,           // a tower may invest in this many paths
   minorTierCap: 2,       // only one path may go above this tier

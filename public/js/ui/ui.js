@@ -1,6 +1,6 @@
 // DOM user interface: HUD, ward shop, upgrade panel, wave preview and canvas input.
 import { MAP } from '../data/map.js';
-import { TOWERS, TOWER_ORDER } from '../data/towers.js';
+import { TOWERS, TOWER_ORDER, WARD_KEYS } from '../data/towers.js';
 import { ENEMIES, pops } from '../data/enemies.js';
 import { DAMAGE_TYPES } from '../data/damage.js';
 import { RULES, TARGET_MODES } from '../data/rules.js';
@@ -33,6 +33,29 @@ const yes = (b) => (b ? 'yes' : 'no');
 // Rows shown in the tower panel and in upgrade before/after comparisons: [label, value text].
 function statRows(def, s) {
   const k = def.kind;
+  if (k === 'vault') {
+    const rows = [['Gathers from', s.gleanAll ? 'every kill (half outside)' : `range ${Math.round(s.range)}`], ['Share of bounty', pct(s.glean)], ['Cap', String(s.cap)], ['Growth per wave', pct(s.growth)]];
+    if (s.warmRate) rows.push(['Warm boost', `+${pct(s.warmRate)} speed${s.warmDmg ? `, +${pct(s.warmDmg)} dmg` : ''}`], ['Warm from', `${pct(s.warmAt || 0.5)} full`]);
+    return rows;
+  }
+  if (k === 'lure') {
+    const rows = [['Lure radius', String(Math.round(s.range))], ['Flyers at once', String(s.lureMax)], ['Lure lasts', `${num(s.lureDur)}s`]];
+    if (s.lureAmp) rows.push(['Lured take', `+${pct(s.lureAmp)}`]);
+    if (s.lureDps) rows.push(['Moth damage/s', num(s.lureDps)]);
+    if (s.releaseSlow) rows.push(['Release slow', `${pct(s.releaseSlow)} for ${s.releaseSlowDur}s`]);
+    if (s.groundDur) rows.push(['Grounded for', `${s.groundDur}s`]);
+    if (s.reveal || s.lureReveal) rows.push(['Reveals Veiled', s.reveal ? 'in range' : 'lured flyers']);
+    return rows;
+  }
+  if (k === 'snare') {
+    const rows = [['Layers/s, crowd', fmt(estimateDps(k, s, true) / 10)], ['Damage per bite', num(s.damage)], ['Charges', String(Math.round(s.charges))], ['Refill', `${num(s.refill)}/s`]];
+    if (s.armorPierce) rows.push(['Armour ignored', pct(s.armorPierce)]);
+    if (s.slow) rows.push(['Slow', `${pct(s.slow)} for ${s.slowDur}s`]);
+    if (s.rootDur) rows.push(['Holds for', `${s.rootDur}s${s.rootHits ? `, ${s.rootHits} around` : ''}`]);
+    if (s.heavyRoot) rows.push(['Holds a Heavy', `${s.heavyRoot}s every ${s.heavyRootEvery}s`]);
+    if (s.mineMax) rows.push(['Mines', `${s.mineMax}, one per ${num(s.mineEvery)}s`], ['Mine burst', `${s.mineDmg} on ${s.mineHits}, ${s.mineRadius} wide`]);
+    return rows;
+  }
   if (k === 'aura') {
     const rows = [['Light radius', String(Math.round(s.range))]];
     if (s.auraRate) rows.push(['Attack speed inside', `+${pct(s.auraRate)}`]);
@@ -103,6 +126,12 @@ function statRows(def, s) {
     if (s.searAmp) rows.push(['Scorched take', `+${pct(s.searAmp)}`]);
     if (s.shieldMul) rows.push(['vs shields', `x${s.shieldMul}`]);
     if (s.brand) rows.push(['Scorched lose resistances', 'yes']);
+  } else if (k === 'wander') {
+    if (s.lights > 1) rows.push(['Lights', String(s.lights)]);
+    if (s.shots > 1) rows.push(['Stars per cast', String(s.shots)]);
+    rows.push(['Roams', String(Math.round(s.leash))], ['Star burst', `${pct(s.starMul)} on ${s.starHits}, ${s.starRadius} wide`]);
+    if (s.markPct) rows.push(['Mark bonus', `+${pct(s.markPct)}`]);
+    if (s.torchRate) rows.push(['Torch boost', `+${pct(s.torchRate)} speed${s.torchDmg ? `, +${pct(s.torchDmg)} dmg` : ''}`]);
   } else if (k === 'beam') {
     rows.push(['Beams', String(s.beams)]);
     if (s.keep) rows.push(['Charge kept on new target', pct(s.keep)]);
@@ -155,11 +184,11 @@ export class UI {
       const def = TOWERS[type];
       const b = el('button', 'shop-btn');
       b.type = 'button';
-      b.title = `${def.name} (${i + 1})`;
+      b.title = `${def.name} (${WARD_KEYS[i]})`;
       const c = iconCanvas(48);
       drawWardIcon(c, type);
       this.shopIcons[type] = c;
-      b.append(el('span', 'key', String(i + 1)), c, el('span', 'cost', String(def.cost)));
+      b.append(el('span', 'key', WARD_KEYS[i]), c, el('span', 'cost', String(def.cost)));
       b.addEventListener('click', () => this.setPlacing(this.placing === type ? null : type));
       b.addEventListener('pointerenter', () => this.showShopInfo(type));
       b.addEventListener('pointerleave', () => this.showShopInfo(this.placing));
@@ -173,7 +202,7 @@ export class UI {
     const info = $('shop-info');
     info.textContent = '';
     if (!type) {
-      info.textContent = 'Hover a ward to see what it does. Keys: 1-8 pick a ward, Q W E upgrade the selected one, A S D F G H J K fire ward abilities, X the Flare, Esc cancels, Shift shows numbers, ` shows FPS.';
+      info.textContent = 'Hover a ward to see what it does. Keys: 1-9, 0, - and = pick a ward (in shop order). Q W E upgrade the selected ward, R is its special action (cash out a Vault, move a Wandering Light). Abilities: A S D F G H J K for the first eight wards, Z C V B for the last four, X the Flare. Space pauses, Enter calls the next wave, Esc cancels, Shift shows numbers, ` shows FPS.';
       return;
     }
     const def = TOWERS[type];
@@ -183,6 +212,7 @@ export class UI {
 
   setPlacing(type) {
     this.placing = type;
+    this.moving = null;
     if (type) this.select(null);
     for (const t in this.shopButtons) this.shopButtons[t].classList.toggle('active', t === type);
     this.canvas.classList.toggle('placing', !!type);
@@ -344,8 +374,13 @@ export class UI {
     c.addEventListener('pointerdown', (ev) => {
       this.toMap(ev);
       this.mouse.inside = true;
-      if (ev.button === 2) { this.setPlacing(null); return; }
+      if (ev.button === 2) { this.setPlacing(null); this.moving = null; return; }
       if (ev.button !== 0) return;
+      if (this.moving) {   // a Wandering Light's new post
+        const t = this.moving;
+        if (this.game.movePost(t, this.mouse.x, this.mouse.y)) { this.moving = null; this.canvas.classList.remove('placing'); }
+        return;
+      }
       if (this.placing) {
         const t = this.game.place(this.placing, this.mouse.x, this.mouse.y);
         // Hold Shift to keep placing the same ward.
@@ -382,9 +417,11 @@ export class UI {
         this.game.useAbility(abType);
       } else if (k === 'x' || k === 'X') {
         this.game.useFlare();
-      } else if (k >= '1' && k <= '9') {
-        const type = TOWER_ORDER[Number(k) - 1];
+      } else if (WARD_KEYS.includes(k)) {
+        const type = TOWER_ORDER[WARD_KEYS.indexOf(k)];
         if (type) this.setPlacing(this.placing === type ? null : type);
+      } else if (this.selected && (k === 'r' || k === 'R') && !ev.shiftKey) {
+        this.wardAction();
       } else if (k === ' ') {
         ev.preventDefault();
         this.togglePause();
@@ -392,7 +429,7 @@ export class UI {
         ev.preventDefault();
         this.game.startWave();
       } else if (k === 'Escape') {
-        if (this.placing) this.setPlacing(null); else this.select(null);
+        if (this.moving) { this.moving = null; this.canvas.classList.remove('placing'); } else if (this.placing) this.setPlacing(null); else this.select(null);
       } else if (k === '`') {
         this.renderer.showFps = !this.renderer.showFps;
       } else if (k === 'm' || k === 'M') {
@@ -412,8 +449,17 @@ export class UI {
   }
 
   // ---- tower panel ---------------------------------------------------------------------------
+  // R: the selected ward's own action. Ember Vault: cash out. Wandering Light: pick a new post.
+  wardAction() {
+    const t = this.selected;
+    if (!t) return;
+    if (t.def.kind === 'vault') { this.game.cashOut(t); this.updatePanel(); }
+    else if (t.def.kind === 'wander') { this.moving = this.moving === t ? null : t; this.canvas.classList.toggle('placing', !!this.moving); }
+  }
+
   select(tower) {
     this.selected = tower || null;
+    this.moving = null;
     this.previewRange = 0;
     this.buildPanel();
   }
@@ -452,8 +498,8 @@ export class UI {
 
     const stats = el('div', 'tp-stats');
     const dmg = el('b', null, '0'), kills = el('b', null, '0');
-    const aura = def.kind === 'aura';
-    const s1 = el('span', null, aura ? 'Wards boosted ' : 'Damage dealt '), s2 = el('span', null, aura ? 'Gold earned ' : 'Layers broken ');
+    const aura = def.kind === 'aura' || def.kind === 'vault';
+    const s1 = el('span', null, def.kind === 'vault' ? 'Embers ' : aura ? 'Wards boosted ' : 'Damage dealt '), s2 = el('span', null, aura ? 'Gold earned ' : 'Layers broken ');
     s1.append(dmg); s2.append(kills);
     stats.append(s1, s2);
 
@@ -464,7 +510,16 @@ export class UI {
     numbers.append(el('span', 'tp-hint', 'Numbers: hover here or hold Shift'), grid);
     panel.append(head, stats, numbers);
 
-    if (def.kind !== 'pulse' && def.kind !== 'aura') {
+    // A Vault's cash-out and a Wandering Light's move, also on R.
+    let action = null;
+    if (def.kind === 'vault' || def.kind === 'wander') {
+      action = el('button', 'sell-btn action-btn');
+      action.type = 'button';
+      action.addEventListener('click', () => this.wardAction());
+      panel.append(action);
+    }
+
+    if (def.kind !== 'pulse' && def.kind !== 'aura' && def.kind !== 'vault' && def.kind !== 'lure' && def.kind !== 'snare') {
       const row = el('div', 'tp-target', 'Target');
       for (const m of TARGET_MODES) {
         const b = el('button', t.targetMode === m.id ? 'active' : '', m.label);
@@ -533,14 +588,25 @@ export class UI {
     sell.addEventListener('click', () => this.sellSelected());
     panel.append(sell);
 
-    this.panelRefs = { dmg, kills, upButtons };
+    this.panelRefs = { dmg, kills, upButtons, action };
     this.updatePanel();
   }
 
   updatePanel() {
     const refs = this.panelRefs, t = this.selected;
     if (!refs || !t) return;
-    if (t.def.kind === 'aura') {
+    if (t.def.kind === 'vault') {
+      refs.dmg.textContent = `${Math.floor(t.bank)} / ${t.stats.cap}`;
+      refs.kills.textContent = fmt(t.goldEarned || 0);
+      const txt = `Cash out ${Math.floor(t.bank)} gold  [R]`;
+      if (refs.action.textContent !== txt) refs.action.textContent = txt;
+      refs.action.disabled = t.bank < 1;
+    } else if (t.def.kind === 'wander') {
+      const txt = this.moving === t ? 'Click the map to set its new post (Esc cancels)' : 'Move its post  [R]';
+      if (refs.action.textContent !== txt) refs.action.textContent = txt;
+      refs.dmg.textContent = fmt(t.dmg);
+      refs.kills.textContent = String(t.kills);
+    } else if (t.def.kind === 'aura') {
       const r2 = t.stats.range ** 2;
       refs.dmg.textContent = String(this.game.towers.filter((o) => o !== t && o.aura && (o.x - t.x) ** 2 + (o.y - t.y) ** 2 <= r2).length);
       refs.kills.textContent = fmt(t.goldEarned || 0);

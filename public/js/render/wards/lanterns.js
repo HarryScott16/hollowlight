@@ -11,7 +11,8 @@
 // P = mainPath(tiers) + { tiers }. st = { ang, recoil, time, pulse, fire (0-1), id }.
 import { FACE, gearInFront, DMG, INK, TAU, circle, poly, rrect, star, ink, flat, line, glow, notches, pips, glyph, aimPlane, FORE, shade, crown, groundAura, twinkle, risingMotes } from './kit.js';
 import { crossbowX, tripod, ballista, repeater, hawk, mark, banner, sigil, BALLISTA_TIP, REPEATER_TIP, STEEL2, GOLD, GREEN2, NIGHT, NIGHT2, SILVER } from './bolt-parts.js';
-import { iceCrystal, iceBlade, snowCloud, scarf, fuelTank, ashCollar, IRON as P_IRON, GOLD as P_GOLD, BRASS as P_BRASS, COPPER, tubeLean, tube, shell, crate, cinderPool, chimney, smokePuffs, lavaCracks, prong, orb, zap, pylon, cloud, gyro, gem, shard, lensRing, sunDisc, starBurst, drum, warhorn, pennant, coins, chest, beam } from './parts.js';
+import { iceCrystal, iceBlade, snowCloud, scarf, fuelTank, ashCollar, IRON as P_IRON, GOLD as P_GOLD, BRASS as P_BRASS, COPPER, tubeLean, tube, shell, crate, cinderPool, chimney, smokePuffs, lavaCracks, prong, orb, zap, pylon, cloud, gyro, gem, shard, lensRing, sunDisc, starBurst, drum, warhorn, pennant, coins, chest, beam,
+  snareArt, crook, paperLantern, moths, flyStrips, stickyNet, wand, wandTip, torchPole, torchFlame, orbitSparks, bowl, emberHeap, emberTop, emberWisp, crescent, heartGrill } from './parts.js';
 
 export const IRON = '#3a4160', IRON2 = '#4d5677', BRONZE = '#8f6b47', WOOD = '#7a5236', STEEL = '#b8c2d2', BRASS = '#c8963a';
 const GREEN_IRON = '#35553a', GREEN_TRIM = '#5f8a4a';
@@ -613,4 +614,149 @@ const lBeacon = {
   muzzle(P, ang, out) { const L = LB_LAMP(P); out[0] = L[0]; out[1] = L[1] + 1.5; return out; },
 };
 
-export const LANTERNS = { bolt, mortar: lMortar, rime, coil: lCoil, longeye, censer, prism: lPrism, beacon: lBeacon };
+// ==== Thornlight Snare (Snare): a floor-lantern sunk in the road, a lens of white light in its grate =
+// (grate, thorns and path props shared with the Kindlings: snareArt in parts.js).
+const lSnare = snareArt({
+  rim: '#3a4160', thorn: '#5f8a4a',
+  face(ctx, P, st, d, snap) {
+    if (FACE.skip) return;
+    const y = 7 - snap * 1.5, D = DMG[d];
+    ctx.beginPath(); ctx.ellipse(0, y, 6.5, 3.4, 0, 0, TAU); flat(ctx, '#8a96aa', 1.4);   // the lens's brass-and-steel collar
+    ctx.beginPath(); ctx.ellipse(0, y - 0.6, 5, 2.4, 0, 0, TAU);
+    const g = ctx.createRadialGradient(-1, y - 1, 0, 0, y, 6); g.addColorStop(0, '#ffffff'); g.addColorStop(0.5, D.core); g.addColorStop(1, D.deep);
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.stroke();
+    glyph(ctx, D.glyph, 0, y - 0.6, 2.2, INK);
+    glow(ctx, 0, y - 3, 8 + snap * 6, '#ffffff', 0.4 + snap * 0.4);
+  },
+});
+
+// ==== Moth Lantern (Hanger): an iron crook-post with a paper lantern on its hook ==================
+// The post carries a small pane of Radiant light; moths circle the hanging lantern. Paths as the
+// Kindling version (bigger lantern / moon; flypaper strips, gum pot, net; moths, cage).
+const LM_X = 0, LM_CURL = 4.6;
+const lMothTop = (P) => (P.might && P.mt >= 3 ? -35 : -33);
+const lMothLamp = (P) => { const s = P.might ? [1, 1.12, 1.24, 1.3, 1.42][P.mt] : 1; return { x: LM_X + LM_CURL * 1.6, y: lMothTop(P) + LM_CURL * 0.5 + 3 + 6.5 * s, s, kind: P.might && P.mt >= 3 ? 'moon' : P.craft && P.mt >= 3 ? 'cage' : 'paper' }; };
+const lMoth = {
+  self: () => [-4, -9, 4, 6],
+  body(ctx, P, d) {
+    const { might, many, craft, mt } = P;
+    plinth(ctx, many && mt >= 3 ? 30 : 24, P, d, '#4a4458');
+    if (many && mt >= 1) { const h = mt >= 3 ? 30 : 22; line(ctx, [[-13, 8], [-13, 8 - h]], IRON2, 1.6); line(ctx, [[-16, 9 - h], [-10, 9 - h]], IRON2, 1.2); }
+    if (many && mt >= 2) { ctx.beginPath(); ctx.ellipse(-17, 8, 3.2, 2, 0, 0, TAU); flat(ctx, '#6a5a3a', 1.1); ctx.beginPath(); ctx.ellipse(-17, 6.8, 2.4, 0.9, 0, 0, TAU); flat(ctx, '#e8c84a', 0.8); }
+    crook(ctx, LM_X, 7, lMothTop(P), LM_CURL, might && mt >= 4 ? P_GOLD : IRON2, 2.6);
+    // iron moth-wing filigree on the post
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.ellipse(sx * 5.5, -14, 4, 5.5, sx * 0.5, 0, TAU); ctx.strokeStyle = INK; ctx.lineWidth = 2.6; ctx.stroke(); ctx.strokeStyle = craft && mt >= 2 ? '#c8963a' : '#8a96aa'; ctx.lineWidth = 1.2; ctx.stroke(); }
+    rrect(ctx, -4.5, -9, 9, 15, 2); ink(ctx, '#4a4458', 1.8, -4.5, 4.5);   // the lamp-housing on the post
+    roof(ctx, 0, -9, 11, 4, '#4a4458');
+    pane(ctx, 0, -1.5, 5.5, 8, d);
+    if (mt >= 4) crown(ctx, 0, -14, d, 0.8);
+    return lMothTop(P) - 4;
+  },
+  back(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time, L = lMothLamp(P);
+    if (mt >= 4) groundAura(ctx, d, t, 24);
+    if (might && mt >= 4) sunDisc(ctx, L.x, L.y, 13, t, 12);
+    if (many && mt >= 3) stickyNet(ctx, -13, mt >= 4 ? -20 : -16, LM_X - 1, -22, mt >= 4 ? 22 : 18, mt >= 4);
+    moths(ctx, L.x, L.y, 9 + L.s * 3, craft ? [3, 4, 6, 7, 10][mt] : 3, t, craft && mt >= 1, -1);
+  },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time, L = lMothLamp(P), sway = Math.sin(t * 1.6) * 0.8;
+    if (many && mt >= 1) flyStrips(ctx, -13, (mt >= 3 ? -22 : -14) + 1, mt >= 2 ? 3 : 2, 7, t);
+    paperLantern(ctx, L.x + sway, L.y, L.s, L.kind, 0.5 + (st.fill || 0) * 0.5);
+    if (might && mt >= 2) glow(ctx, L.x + sway, L.y, 18 * L.s, DMG[d].core, 0.25 + Math.sin(t * 3) * 0.06);
+    moths(ctx, L.x, L.y, 9 + L.s * 3, craft ? [3, 4, 6, 7, 10][mt] : 3, t, craft && mt >= 1, 1);
+    flicker(ctx, 0, -1.5, 7, d, t + (st.id || 0));
+  },
+  muzzle(P, ang, out) { const L = lMothLamp(P); out[0] = L.x; out[1] = L.y; return out; },
+};
+
+// ==== Wandering Light (Floater): a little lantern that floats, its wand an aiming rod ==============
+// No plinth: it hovers over a rune-disc that carries the tier notches. Hunter: a longer rod, then a
+// spired roof and crystal staff, then a comet staff. Swarm: sparks, a twin tassel, a small sibling
+// lantern on a chain, then a rod each side. Torchbearer: a rose rune, a rose torch, a gold torch and
+// a rose ring, then a tall lamplighter's torch.
+const LW_ROD = [9, -12], LW_ROD2 = [-9, -12];
+const lWandKind = (P) => (P.might ? (P.mt >= 4 ? 'comet' : P.mt >= 3 ? 'staff' : P.mt >= 2 ? 'long' : 'wand') : 'wand');
+function floatLantern(ctx, x, y, s, d, spire) {
+  rrect(ctx, x - 7 * s, y - 9 * s, 14 * s, 17 * s, 4 * s); ink(ctx, '#4a3a6a', 1.8, x - 7 * s, x + 7 * s);
+  if (spire) { poly(ctx, [[x - 8 * s, y - 9 * s], [x + 8 * s, y - 9 * s], [x + 1 * s, y - 22 * s], [x - 1 * s, y - 22 * s]]); ink(ctx, '#3a2a68', 1.6, x - 8 * s, x + 8 * s); star(ctx, x, y - 15 * s, 2.2 * s, 1 * s, 5); flat(ctx, '#fff3a0', 0.8); }
+  else { ctx.beginPath(); ctx.ellipse(x, y - 9 * s, 8 * s, 3 * s, 0, Math.PI, TAU); ctx.closePath(); ink(ctx, '#5a4a80', 1.6, x - 8 * s, x + 8 * s); circle(ctx, x, y - 13 * s, 1.6 * s); flat(ctx, '#c8b0e8', 1); }
+  rrect(ctx, x - 8 * s, y + 7 * s, 16 * s, 2.6 * s, 1); flat(ctx, '#5a4a80', 1.2);
+  line(ctx, [[x, y + 9.6 * s], [x, y + 13 * s]], '#c8b0e8', 1);   // the tassel
+  for (const sx of [-1, 1]) { poly(ctx, [[x + sx * 7 * s, y - 4 * s], [x + sx * 12 * s, y - 7 * s], [x + sx * 10 * s, y + 1 * s], [x + sx * 7 * s, y + 2 * s]]); flat(ctx, '#6a5a90', 1.1); }   // little fins
+}
+const lWander = {
+  float: true,
+  self: () => [-7, -21, 7, -4],
+  shadow(ctx) { ctx.fillStyle = 'rgba(8,40,34,0.35)'; ctx.beginPath(); ctx.ellipse(1, 14, 9, 2.6, 0, 0, TAU); ctx.fill(); },
+  body(ctx, P, d) {
+    const { might, many, craft, mt } = P;
+    ctx.beginPath(); ctx.ellipse(0, 8, 11, 3.4, 0, 0, TAU); ink(ctx, '#2a2a48', 1.6, -11, 11);
+    ctx.beginPath(); ctx.ellipse(0, 7.4, 8, 2.2, 0, 0, TAU); ctx.strokeStyle = 'rgba(216,184,255,0.6)'; ctx.lineWidth = 0.8; ctx.stroke();
+    notches(ctx, mt, 0, 10.6, 18, DMG[d].core, 2.2);
+    pips(ctx, P.tiers, P.main, 8, 4.5);
+    if (many && mt >= 3) { line(ctx, [[-7, -8], [-12, -6]], '#c8b0e8', 0.8); floatLantern(ctx, -15, -3, 0.45, d, false); }
+    if (craft && mt >= 2) torchPole(ctx, -10, 4, mt >= 4 ? -24 : mt >= 3 ? -18 : -14, mt >= 3);
+    floatLantern(ctx, 0, -12, 1, d, might && mt >= 3);
+    if (many && mt >= 2) line(ctx, [[-3, -2.4], [-3, 2]], '#c8b0e8', 1);
+    if (craft && mt >= 1) { rrect(ctx, -6, -21.5, 12, 2.2, 1); flat(ctx, '#ff7eb6', 0.9); }   // a rose rune-band
+    if (mt >= 4) crown(ctx, 0, might ? -34 : -23, d, 0.85);
+    return might && mt >= 3 ? -38 : craft && mt >= 4 ? -30 : -26;
+  },
+  back(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time;
+    if (mt >= 4) glow(ctx, 0, -10, 26, DMG[d].core, 0.3 + Math.sin(t * 3) * 0.06);
+    if (craft && mt >= 3) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(255,126,182,0.6)'; ctx.lineWidth = 1.6; ctx.setLineDash([4, 4]); ctx.lineDashOffset = -t * 10; ctx.beginPath(); ctx.ellipse(0, 8, 16, 5, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
+    if (many) orbitSparks(ctx, 0, -12, 14, [0, 2, 3, 4, 6][mt], t, -1);
+    if (!gearInFront(st.ang, 1)) wand(ctx, LW_ROD[0], LW_ROD[1], st.ang, lWandKind(P), t, st.recoil);
+    if (many && mt >= 4 && !gearInFront(st.ang, -1)) wand(ctx, LW_ROD2[0], LW_ROD2[1], st.ang, 'wand', t, st.recoil);
+  },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time;
+    if (many) orbitSparks(ctx, 0, -12, 14, [0, 2, 3, 4, 6][mt], t, 1);
+    if (craft && mt >= 2) torchFlame(ctx, -10, (mt >= 4 ? -24 : mt >= 3 ? -18 : -14), mt >= 4 ? 1.4 : mt >= 3 ? 1.15 : 0.9, t);
+    if (!FACE.skip) { pane(ctx, 0, -12, 8, 10, d); flicker(ctx, 0, -12, 9, d, t + (st.id || 0)); }
+    if (gearInFront(st.ang, 1)) wand(ctx, LW_ROD[0], LW_ROD[1], st.ang, lWandKind(P), t, st.recoil);
+    if (many && mt >= 4 && gearInFront(st.ang, -1)) wand(ctx, LW_ROD2[0], LW_ROD2[1], st.ang, 'wand', t, st.recoil);
+  },
+  muzzle(P, ang, out) { return wandTip(LW_ROD[0], LW_ROD[1], ang, lWandKind(P), out); },
+};
+
+// ==== Ember Vault (Hoard): an iron cresset on three legs, its bowl of rose embers ==================
+// The bowl is the lantern's light: embers heap up and the rose flame grows as it fills. Paths as the
+// Kindling version (deeper bowl / gold / heaped hearth; tongs, wisps, pole, moon; glow, stones,
+// heart grill, heart).
+const LV_Y = -8;
+const lVaultW = (P) => (P.might ? [20, 22, 24, 27, 30][P.mt] : 20);
+const lVault = {
+  self: () => [-9, -8, 9, 1],
+  body(ctx, P, d) {
+    const { might, many, craft, mt } = P, w = lVaultW(P);
+    plinth(ctx, 28, P, d, '#5a4048');
+    if (craft && mt >= 2) for (let i = 0; i < 7; i++) { const a = Math.PI * (0.05 + i * 0.15); circle(ctx, Math.cos(a) * 15, 11 + Math.sin(a) * 2.5, 1.8); flat(ctx, '#8a7a80', 0.9); }
+    if (many && mt >= 1 && mt < 3) { line(ctx, [[-16, 8], [-12, -12]], '#8a96aa', 1.2); line(ctx, [[-14, 8], [-12, -12]], '#8a96aa', 1.2); }
+    if (many && mt >= 3) { line(ctx, [[-16, 8], [-16, mt >= 4 ? -28 : -24]], IRON2, 1.8); line(ctx, [[-16, mt >= 4 ? -26 : -22], [-11, mt >= 4 ? -26 : -22]], IRON2, 1.2); }
+    for (const dx of [-8, 0, 8]) { ctx.beginPath(); ctx.moveTo(dx, 8); ctx.quadraticCurveTo(dx * 1.3, 0, dx * 0.4, LV_Y + w * 0.3); ctx.strokeStyle = INK; ctx.lineWidth = 3.4; ctx.stroke(); ctx.strokeStyle = might && mt >= 3 ? P_BRASS : IRON2; ctx.lineWidth = 1.8; ctx.stroke(); }
+    bowl(ctx, 0, LV_Y, w, '#4a3a48', might && mt >= 3);
+    pane(ctx, 0, LV_Y + w * 0.2, 6, 4.4, d);
+    if (craft && mt >= 3) heartGrill(ctx, 0, LV_Y + w * 0.2, 1 + (mt >= 4 ? 0.2 : 0));
+    return Math.min(-26, emberTop(LV_Y, w, 1) - 14);
+  },
+  back(ctx, P, st, d) {
+    const { many, craft, mt } = P, t = st.time;
+    if (mt >= 4) groundAura(ctx, d, t, 26);
+    if (craft && mt >= 1) glow(ctx, 0, 6, 16 + mt * 2, DMG[d].core, (st.warm ? 0.45 : 0.15) + Math.sin(t * 2) * 0.05);
+    if (many && mt >= 4) crescent(ctx, -13, -33, 4.5);
+  },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time, w = lVaultW(P), fill = st.fill || 0;
+    if (!FACE.skip) emberHeap(ctx, 0, LV_Y, w, fill, t, might && mt >= 4);
+    if (craft && mt >= 3) heartGrill(ctx, 0, LV_Y + w * 0.2, 1 + (mt >= 4 ? 0.2 : 0), st.warm ? 0.8 + Math.sin(t * 4) * 0.2 : 0);
+    if (mt >= 4) crown(ctx, -w * 0.32, LV_Y + 1.5, d, 0.7);   // perched on the bowl's rim
+    if (many && mt >= 2) { const n = mt >= 4 ? 4 : 2; for (let i = 0; i < n; i++) { const a = t * 1.6 + (i / n) * TAU; emberWisp(ctx, Math.cos(a) * 14, LV_Y - 8 + Math.sin(a) * 4, t + i); } }
+    if (many && mt >= 3) { glow(ctx, -11, mt >= 4 ? -24 : -20, 6, DMG[d].core, 0.5); circle(ctx, -11, mt >= 4 ? -24 : -20, 2.2); flat(ctx, '#ffd0e6', 1); }
+  },
+  muzzle(P, ang, out) { out[0] = 0; out[1] = LV_Y - 6; return out; },
+};
+
+export const LANTERNS = { bolt, mortar: lMortar, rime, coil: lCoil, longeye, censer, prism: lPrism, beacon: lBeacon, snare: lSnare, moth: lMoth, wander: lWander, vault: lVault };

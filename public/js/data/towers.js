@@ -34,11 +34,29 @@
 //           target), burstMul/burstRadius/burstRate (light bursts from beam kills)
 //   aura    range = aura radius. auraRate/auraDmg/auraRange (+% to wards inside), auraDetect, auraAir,
 //           reveal, tithe (gold per wave cleared), interest/interestCap (on banked gold at each clear)
+//   snare   built ON the path. damage per bite (one charge per enemy that steps on it), charges (stock),
+//           refill (charges/s; full at each wave clear), radius (trigger), armorPierce, slow/slowDur,
+//           rootDur (non-heavy bitten enemies are held), rootRadius/rootHits (a bite holds more around it,
+//           at most once a second), heavyRoot/heavyRootEvery (holds a Heavy), mineMax/mineEvery/mineDmg/
+//           mineRadius/mineHits/mineStun/mineRange (mines sown on the path near it, burst when stepped on)
+//   lure    pulls flyers in range (range) to circle it: lureMax at once, lureDur (s), lureImm (s before the
+//           same flyer can be lured again). Circling flyers can be hit by every ward. lureAmp (+% damage
+//           taken while lured), lureDps (Radiant/s to circling flyers), lureReveal, releaseSlow/
+//           releaseSlowDur, groundDur (s a released flyer stays hittable by every ward)
+//   wander  floats near its post: leash (how far it roams), moveSpeed, lights (separate lights, each
+//           casting), shots (stars per cast), projSpeed, starRadius/starHits/starMul (each star
+//           bursts on hit), markPct/markDur/markRadius, torchRate/torchDmg/torchRange (boost to wards
+//           near its post)
+//   vault   banks embers from Gloom that die in range: glean (share of their bounty, x max(gold rate,
+//           0.15)), cap, growth (per wave cleared), gleanAll (also from kills anywhere, at half rate),
+//           warmRate/warmDmg/warmAt (wards in range attack faster while it is over warmAt full)
 
 export const PATH_COLORS = ['#ffae2b', '#2fe0ff', '#c86bff'];
 const TAU = Math.PI * 2;
 
-export const TOWER_ORDER = ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon'];
+export const TOWER_ORDER = ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon', 'snare', 'moth', 'wander', 'vault'];
+// Build keys, in TOWER_ORDER: the number row.
+export const WARD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
 
 export const TOWERS = {
   bolt: {
@@ -245,6 +263,109 @@ export const TOWERS = {
         { name: 'Interest', blurb: "Your savings earn interest.", cost: 400, desc: '+150 gold each wave, plus 3% of your banked gold (up to 150).', set: { tithe: 150, interest: 0.03, interestCap: 150 } },
         { name: 'Coffers', blurb: "A steady stream of gold.", cost: 1200, desc: '+300 gold each wave, plus 5% of your banked gold (up to 300).', set: { tithe: 300, interest: 0.05, interestCap: 300 } },
         { name: 'Golden Hearth', blurb: "A treasury that pays for a ward every few waves.", cost: 4000, desc: '+450 gold each wave, plus 5% of your banked gold (up to 600).', set: { tithe: 450, interest: 0.05, interestCap: 600 } },
+      ] },
+    ],
+  },
+  snare: {
+    name: 'Thornlight Snare', role: 'Path trap', cost: 200, kind: 'snare', onPath: true,
+    desc: 'Built on the path itself. Each enemy that steps on it loses a layer and spends a charge; charges refill slowly and fully at the end of each wave. Flyers pass over it.',
+    base: { damage: 10, charges: 15, refill: 2, radius: 20, type: 'kinetic', hitsAir: false },
+    paths: [
+      { name: 'Caltrops', blurb: "Heavier thorns that bite through armour and drag the Gloom down.", tiers: [
+        { name: 'Sharp Thorns', blurb: "Every bite strips two layers.", cost: 100, desc: 'x2 damage: each bite strips 2 layers.', mul: { damage: 2 } },
+        { name: 'Thornbed', blurb: "Holds more charges, refills faster and bites into plate.", cost: 250, desc: '+10 charges, x1.5 refill, ignores half of armour.', add: { charges: 10 }, mul: { refill: 1.5 }, set: { armorPierce: 0.5 } },
+        { name: 'Iron Thorns', blurb: "Iron spikes tear through plate and slow whatever they bite.", cost: 750, desc: 'x2 damage, +15 charges, ignores all armour, bitten enemies slowed 30% for 1s.', mul: { damage: 2 }, add: { charges: 15 }, set: { armorPierce: 1, slow: 0.3, slowDur: 1 } },
+        { name: 'Iron Briar', blurb: "A briar of iron that shreds the road and mires everything on it.", cost: 3900, desc: 'x3 damage, x2.5 refill, x2 charges, bitten enemies slowed 50% for 2s.', mul: { damage: 3, refill: 2.5, charges: 2 }, set: { slow: 0.5, slowDur: 2 } },
+      ] },
+      { name: 'Flashmines', blurb: "Sows little mine-lamps along the road that burst underfoot.", tiers: [
+        { name: 'Lamp Seeds', blurb: "Sows a couple of mines on the road nearby.", cost: 110, desc: 'Keeps up to 2 mines on the path near it (one every 3s). Each bursts for 20 on up to 8 enemies within 40.', set: { mineMax: 2, mineEvery: 3, mineDmg: 20, mineRadius: 40, mineHits: 8, mineRange: 150 } },
+        { name: 'Seedbed', blurb: "More mines, sown faster, bursting harder.", cost: 260, desc: 'Up to 4 mines, one every 2s, bursting for 30.', set: { mineMax: 4, mineEvery: 2, mineDmg: 30 } },
+        { name: 'Flashmines', blurb: "A minefield: bright bursts all along the road.", cost: 800, desc: 'Up to 8 mines, one a second, bursting for 60 on up to 15 enemies within 50.', set: { mineMax: 8, mineEvery: 1, mineDmg: 60, mineRadius: 50, mineHits: 15, mineRange: 190 } },
+        { name: 'Starfield', blurb: "The road glitters with mines that blast and stun.", cost: 4200, desc: 'Up to 16 mines, 2.5 a second, bursting for 80 on up to 25 enemies within 60 and stunning for 0.6s.', set: { mineMax: 16, mineEvery: 0.4, mineDmg: 80, mineRadius: 60, mineHits: 25, mineStun: 0.6, mineRange: 230 } },
+      ] },
+      { name: 'Binding Light', blurb: "Chains of light hold the Gloom in place, even the Heavy.", tiers: [
+        { name: 'Snaring Light', blurb: "Holds whatever it bites for a moment.", cost: 100, desc: 'Bitten non-heavy enemies are held for 0.5s.', set: { rootDur: 0.5 } },
+        { name: 'Chains of Light', blurb: "Holds longer, with more charges.", cost: 240, desc: 'Held for 0.9s. +6 charges.', set: { rootDur: 0.9 }, add: { charges: 6 } },
+        { name: 'Binding Circle', blurb: "Each bite binds the crowd around it too.", cost: 850, desc: 'x2 damage. Held 1.2s, and a bite also holds up to 6 non-heavy enemies within 50 (once a second).', mul: { damage: 2 }, set: { rootDur: 1.2, rootRadius: 50, rootHits: 6 } },
+        { name: 'Lightbound', blurb: "Chains strong enough to hold a Heavy.", cost: 4000, desc: 'x3 damage. Held 1.5s, up to 12 around each bite, and it holds a Heavy for 1.5s every 5s.', mul: { damage: 3 }, set: { rootDur: 1.5, rootHits: 12, heavyRoot: 1.5, heavyRootEvery: 5 } },
+      ] },
+    ],
+  },
+
+  moth: {
+    name: 'Moth Lantern', role: 'Flyer lure', cost: 250, kind: 'lure',
+    desc: 'Never attacks on its own. Gloomwings that fly near it leave their route and circle it for a few seconds, where every ward can hit them (Mortars and Rime Spires included).',
+    base: { damage: 0, range: 110, type: 'radiant', lureMax: 5, lureDur: 3, lureImm: 4, hitsAir: true },
+    paths: [
+      { name: 'Bright Lure', blurb: "A brighter light that drags in whole flocks.", tiers: [
+        { name: 'Brighter Paper', blurb: "Reaches further.", cost: 90, desc: '+25 range.', add: { range: 25 } },
+        { name: 'Lamp Oil', blurb: "Holds more flyers for longer.", cost: 220, desc: 'Lures up to 9 at once, for 4s.', set: { lureMax: 9, lureDur: 4 } },
+        { name: 'Moonlure', blurb: "A moon of a lantern: flocks circle it dazed and take more damage.", cost: 800, desc: 'Lures up to 18, x1.25 range. Circling flyers take +25% damage.', set: { lureMax: 18, lureAmp: 0.25 }, mul: { range: 1.25 } },
+        { name: 'Great Lure', blurb: "Whole skies of Gloom turn and circle the light.", cost: 3800, desc: 'Lures up to 40 for 6s, x1.25 range. Circling flyers take +50% damage.', set: { lureMax: 40, lureDur: 6, lureAmp: 0.5 }, mul: { range: 1.25 } },
+      ] },
+      { name: 'Flypaper', blurb: "Lured flyers come away slowed and stuck low.", tiers: [
+        { name: 'Sticky Wings', blurb: "Flyers it lets go are slowed.", cost: 100, desc: 'Released flyers are slowed 35% for 3s.', set: { releaseSlow: 0.35, releaseSlowDur: 3 } },
+        { name: 'Gum Paper', blurb: "Holds them longer and slows them more.", cost: 240, desc: 'Lures for 4.5s. Released flyers slowed 50% for 4s.', set: { lureDur: 4.5, releaseSlow: 0.5, releaseSlowDur: 4 } },
+        { name: 'Flypaper', blurb: "Released flyers stay grounded: every ward can hit them.", cost: 750, desc: 'Lures up to 8. Released flyers stay low for 6s, where every ward can hit them.', set: { lureMax: 8, groundDur: 6 } },
+        { name: 'Glue Trap', blurb: "Nothing that touches the light flies properly again.", cost: 3600, desc: 'Lures up to 16 for 6s. Released flyers stay low for 12s and are slowed 60% for 6s.', set: { lureMax: 16, lureDur: 6, groundDur: 12, releaseSlow: 0.6, releaseSlowDur: 6 } },
+      ] },
+      { name: 'Moth-trap', blurb: "Moths swarm the circling flyers and burn them.", tiers: [
+        { name: 'Moth Fire', blurb: "Moths sting the flyers it holds.", cost: 110, desc: 'Circling flyers take 15 Radiant damage/s.', set: { lureDps: 15 } },
+        { name: 'Moth Swarm', blurb: "A thicker swarm that finds the Veiled too.", cost: 260, desc: '35 damage/s, and Veiled flyers it lures are revealed to every ward.', set: { lureDps: 35, lureReveal: true } },
+        { name: 'Moth-trap', blurb: "A caged light: everything Veiled near it is laid bare.", cost: 850, desc: '90 damage/s. Reveals every Veiled enemy in its light to every ward.', set: { lureDps: 90, reveal: true, detect: true } },
+        { name: 'Thousand Moths', blurb: "A storm of moths that burns flocks out of the sky.", cost: 4100, desc: '300 damage/s, lures up to 12, circling flyers take +25% damage.', set: { lureDps: 300, lureMax: 12, lureAmp: 0.25 } },
+      ] },
+    ],
+  },
+
+  wander: {
+    name: 'Wandering Light', role: 'Roaming caster', cost: 325, kind: 'wander', target: 'first',
+    desc: 'A floating light that roams near its post, chasing the Gloom and casting homing Arcane stars that burst on hit. Hits flyers. Select it and press R to move its post anywhere.',
+    base: { damage: 10, rate: 1.2, range: 120, type: 'arcane', projSpeed: 480, pierce: 1, shots: 1, lights: 1, leash: 80, moveSpeed: 60, starRadius: 24, starHits: 3, starMul: 0.5, hitsAir: true },
+    paths: [
+      { name: 'Hunter', blurb: "Bigger stars, a staff, and finally a comet.", tiers: [
+        { name: 'Bright Stars', blurb: "Each star hits twice as hard.", cost: 100, desc: 'x2 damage.', mul: { damage: 2 } },
+        { name: 'Seeking Stars', blurb: "Roams further and faster, and hits harder still.", cost: 260, desc: 'x1.5 damage, +20 range, +40 roaming, +30 speed.', mul: { damage: 1.5 }, add: { range: 20, leash: 40, moveSpeed: 30 } },
+        { name: 'Star Staff', blurb: "A crystal staff: stars burst wide at full strength.", cost: 850, desc: 'x2.5 damage. Stars burst for full damage on up to 8 enemies within 45 and ignore half of armour.', mul: { damage: 2.5 }, set: { starRadius: 45, starHits: 8, starMul: 1, armorPierce: 0.5 } },
+        { name: 'Comet', blurb: "Casts comets that crash down on the crowd.", cost: 4300, desc: 'x3 damage, x1.3 rate, +60 roaming. Comets burst on up to 16 enemies within 70.', mul: { damage: 3, rate: 1.3 }, add: { leash: 60 }, set: { starRadius: 70, starHits: 16, comet: true } },
+      ] },
+      { name: 'Swarm', blurb: "Splits into several lights, each casting on its own.", tiers: [
+        { name: 'Quick Wand', blurb: "Casts noticeably faster.", cost: 90, desc: 'x1.4 cast rate.', mul: { rate: 1.4 } },
+        { name: 'Two Lights', blurb: "Splits into two lights.", cost: 280, desc: '2 lights, each casting at its own target.', set: { lights: 2 } },
+        { name: 'Wisp Swarm', blurb: "Three lights, faster and brighter.", cost: 800, desc: '3 lights. x1.3 rate, x1.5 damage.', set: { lights: 3 }, mul: { rate: 1.3, damage: 1.5 } },
+        { name: 'Starswarm', blurb: "Every light casts volleys of stars.", cost: 4000, desc: 'Each light casts 2 stars at once. x1.5 rate, x2.5 damage.', set: { shots: 2 }, mul: { rate: 1.5, damage: 2.5 } },
+      ] },
+      { name: 'Torchbearer', blurb: "Rose stars mark the Gloom, and its torch lifts nearby wards.", tiers: [
+        { name: 'Rune Stars', blurb: "Stars mark their target: it takes more damage from every ward.", cost: 110, desc: 'Hits mark for 3s: +15% damage from everything.', set: { markPct: 0.15, markDur: 3 } },
+        { name: 'Rose Torch', blurb: "Bigger marks, and wards near its post attack faster.", cost: 260, desc: 'Marks +25%. Wards within 100 of its post attack 10% faster.', set: { markPct: 0.25, torchRate: 0.1, torchRange: 100 } },
+        { name: 'Torchbearer', blurb: "Marks spread through the pack, and the torch burns brighter.", cost: 900, desc: 'Marks +35% and spread within 50. Wards near its post attack 20% faster. x1.5 damage, sees Veiled.', set: { markPct: 0.35, markRadius: 50, torchRate: 0.2, detect: true }, mul: { damage: 1.5 } },
+        { name: 'Lamplighter', blurb: "A great rose torch: every ward near it fights harder.", cost: 4000, desc: 'Marks +50%, spread within 80. Wards near its post attack 30% faster and deal 15% more. x2 damage.', set: { markPct: 0.5, markRadius: 80, torchRate: 0.3, torchDmg: 0.15, torchRange: 120 }, mul: { damage: 2 } },
+      ] },
+    ],
+  },
+
+  vault: {
+    name: 'Ember Vault', role: 'Economy', cost: 400, kind: 'vault',
+    desc: 'Never attacks. Gloom that die in its light drop embers into it, and stored embers grow each wave, up to its cap (then it stops collecting). Select it and press R to cash out.',
+    base: { damage: 0, range: 110, type: null, glean: 0.5, cap: 300, growth: 0.1 },
+    paths: [
+      { name: 'Great Brazier', blurb: "A bigger brazier that holds more and grows faster.", tiers: [
+        { name: 'Deep Pan', blurb: "Holds twice as much.", cost: 150, desc: 'Cap 600.', set: { cap: 600 } },
+        { name: 'Banked Coals', blurb: "Holds more, and grows faster.", cost: 350, desc: 'Cap 1,000. Grows 15% a wave.', set: { cap: 1000, growth: 0.15 } },
+        { name: 'Great Brazier', blurb: "A roaring brazier that gathers more from each kill.", cost: 1000, desc: 'Cap 2,500. Grows 20% a wave. Gathers 75% of bounties.', set: { cap: 2500, growth: 0.2, glean: 0.75 } },
+        { name: 'Everburning Hearth', blurb: "A hearth that never dims: a fortune for the patient.", cost: 4000, desc: 'Cap 6,000. Grows 25% a wave. Gathers 100% of bounties.', set: { cap: 6000, growth: 0.25, glean: 1 } },
+      ] },
+      { name: 'Gleaners', blurb: "Ember-wisps gather from further and further away.", tiers: [
+        { name: 'Long Tongs', blurb: "Gathers from further away.", cost: 120, desc: '+30 range.', add: { range: 30 } },
+        { name: 'Ember Wisps', blurb: "Wisps fetch embers from further still.", cost: 300, desc: '+30 range. Gathers 75% of bounties.', add: { range: 30 }, set: { glean: 0.75 } },
+        { name: 'Gleaners', blurb: "A flock of wisps gathers from a wide field.", cost: 900, desc: 'x1.5 range. Gathers 100% of bounties. +500 cap.', mul: { range: 1.5 }, add: { cap: 500 }, set: { glean: 1 } },
+        { name: 'Harvest Moon', blurb: "Embers drift to it from every kill on the map.", cost: 3800, desc: 'Gathers from every kill on the map (half rate outside its light). Gathers 125%. +1,500 cap.', add: { cap: 1500 }, set: { glean: 1.25, gleanAll: true } },
+      ] },
+      { name: 'Hearthwarm', blurb: "While it is well stocked, nearby wards fight faster.", tiers: [
+        { name: 'Warm Coals', blurb: "Over half full, wards in its light attack a little faster.", cost: 130, desc: 'While over half full: wards in range attack 8% faster.', set: { warmRate: 0.08, warmAt: 0.5 } },
+        { name: 'Hearth', blurb: "A warmer glow.", cost: 320, desc: 'Wards in range attack 15% faster while it is over half full.', set: { warmRate: 0.15 } },
+        { name: 'Hearthwarm', blurb: "Warms from a quarter full, and wards hit harder too.", cost: 950, desc: 'While over a quarter full: wards in range attack 25% faster and deal 10% more.', set: { warmRate: 0.25, warmDmg: 0.1, warmAt: 0.25 } },
+        { name: 'Heart of the Hearth', blurb: "A blazing heart that drives every ward around it.", cost: 4200, desc: 'Wards in range attack 35% faster and deal 20% more. x1.3 range.', set: { warmRate: 0.35, warmDmg: 0.2 }, mul: { range: 1.3 } },
       ] },
     ],
   },

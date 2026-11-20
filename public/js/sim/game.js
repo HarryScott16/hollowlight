@@ -10,8 +10,8 @@ import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { buildMap, mulberry32 } from './path.js';
 import { Grid } from './grid.js';
 import { createEnemy, updateEnemy, inherit, applySlow, regrow } from './enemies.js';
-import { createTower, computeStats, upgradeInfo, updateTower, snipeHit, ignite } from './towers.js';
-import { updateProjectiles, updateZones, launchShell } from './projectiles.js';
+import { createTower, computeStats, upgradeInfo, updateTower, snipeHit, ignite, startLure, castStar } from './towers.js';
+import { updateProjectiles, updateZones, launchShell, updateMines, isLow } from './projectiles.js';
 import { endlessWave } from './endless.js';
 
 const scratch = [];
@@ -43,6 +43,8 @@ export class Game {
     this.towers = [];
     this.projectiles = [];
     this.zones = [];
+    this.mines = [];          // Flashmines on the path
+    this.vaults = [];
     this.spawners = [];
     this.pending = [];        // deferred shatter explosions
     this.fx = [];
@@ -120,18 +122,39 @@ export class Game {
 
   // ---- towers --------------------------------------------------------------------------------
   canPlace(type, x, y) {
+    const def = TOWERS[type];
+    if (def && def.onPath) return !!this.snapToPath(x, y);
     if (!this.map.buildable(x, y)) return false;
     for (const t of this.towers) {
-      if ((t.x - x) ** 2 + (t.y - y) ** 2 < RULES.towerSpacing ** 2) return false;
+      if (t.def.onPath) continue;   // a Snare lies on the road, out of the way
+      if ((t.hx - x) ** 2 + (t.hy - y) ** 2 < RULES.towerSpacing ** 2) return false;
     }
     return true;
+  }
+
+  // A Thornlight Snare goes on the road: the point on the path's centre line nearest (x, y), if
+  // (x, y) is on the road, the spot isn't too close to the Rift or the Heartfire, and no other
+  // Snare is within RULES.snareSpacing. Returns { x, y, dist } or null.
+  snapToPath(x, y) {
+    const path = this.map.path, i = path.nearest(x, y);
+    const px = path.xs[i], py = path.ys[i], dist = i * path.step;
+    if ((px - x) ** 2 + (py - y) ** 2 > (MAP.pathWidth / 2 + 6) ** 2) return null;
+    if (px < 24 || py < 24 || px > MAP.width - 24 || py > MAP.height - 24) return null;
+    if (dist < RULES.snareFromRift || dist > path.length - RULES.snareFromGoal) return null;
+    for (const t of this.towers) if (t.def.onPath && (t.x - px) ** 2 + (t.y - py) ** 2 < RULES.snareSpacing ** 2) return null;
+    const out = this._snap || (this._snap = { x: 0, y: 0, dist: 0 });
+    out.x = px; out.y = py; out.dist = dist;
+    return out;
   }
 
   place(type, x, y) {
     const def = TOWERS[type];
     if (!def || this.over || this.gold < def.cost || !this.canPlace(type, x, y)) return null;
+    let pd = 0;
+    if (def.onPath) { const p = this.snapToPath(x, y); x = p.x; y = p.y; pd = p.dist; }
     this.gold -= def.cost;
     const t = createTower(this, type, x, y);
+    t.pathDist = pd;
     this.spend(t, def.cost);
     this.towers.push(t);
     this.refreshGlobals();
@@ -163,7 +186,33 @@ export class Game {
   freshGold(t) { return t.freshWave === this.wave ? t.fresh : 0; }
   sellValue(tower) {
     const fresh = this.freshGold(tower);
-    return Math.floor(fresh + (tower.spent - fresh) * RULES.sellRefund);
+    return Math.floor(fresh + (tower.spent - fresh) * RULES.sellRefund + (tower.bank || 0));   // a Vault's embers come too
+  }
+
+  // Ember Vault: empties its embers into your gold.
+  cashOut(t) {
+    if (!t || !t.bank || this.over) return 0;
+    const n = Math.floor(t.bank);
+    t.bank -= n;
+    t.goldEarned = (t.goldEarned || 0) + n;
+    this.addGold(n);
+    if (t.warm && t.stats.warmRate) { t.warm = false; this.refreshGlobals(); }
+    this.emit('cashout', { x: t.x, y: t.y, amount: n });
+    return n;
+  }
+
+  // Wandering Light: moves its post (it floats there). Anywhere on the map that isn't water.
+  canMovePost(t, x, y) {
+    if (!t || t.def.kind !== 'wander') return false;
+    if (x < 22 || y < 22 || x > MAP.width - 22 || y > MAP.height - 22) return false;
+    return !MAP.ponds.some((p) => ((x - p.x) / (p.rx + 4)) ** 2 + ((y - p.y) / (p.ry + 4)) ** 2 < 1);
+  }
+  movePost(t, x, y) {
+    if (!this.canMovePost(t, x, y) || this.over) return false;
+    t.hx = x; t.hy = y;
+    this.refreshGlobals();
+    this.emit('post', { x, y });
+    return true;
   }
 
   sell(tower) {
@@ -171,6 +220,8 @@ export class Game {
     if (i < 0 || this.over) return false;
     const value = this.sellValue(tower);
     this.towers.splice(i, 1);
+    tower.sold = true;   // a Moth Lantern's circling flyers fly on
+    if (tower.def.kind === 'snare' && this.mines.length) this.mines = this.mines.filter((m) => m.src !== tower);
     this.gold += value;
     this.refreshGlobals();
     this.emit('sell', { x: tower.x, y: tower.y, amount: value });
@@ -181,8 +232,11 @@ export class Game {
   // placed, upgraded or sold, and when a Rally starts or ends). Beacons don't stack: each kind of
   // boost comes from the best Beacon covering the ward.
   refreshGlobals() {
-    const beacons = [];
+    const beacons = [], torches = [];
     for (const t of this.towers) if (t.def.kind === 'aura') { t.stats = computeStats(t.def, t.tiers); beacons.push(t); }
+    // Wandering Light torches (around their post) and warm Ember Vaults boost like Beacons.
+    for (const t of this.towers) if ((t.def.kind === 'wander' && t.stats.torchRate) || (t.def.kind === 'vault' && t.warm && t.stats.warmRate)) torches.push(t);
+    this.vaults = this.towers.filter((t) => t.def.kind === 'vault');
     const rally = this.rally && this.towers.includes(this.rally.src) ? this.rally.src : null;
     for (const t of this.towers) {
       if (t.def.kind === 'aura') continue;
@@ -190,12 +244,19 @@ export class Game {
       let rate = 0, dmg = 0, range = 0, detect = false, air = false;
       for (const b of beacons) {
         const bs = b.stats;
-        if (b !== rally && (b.x - t.x) ** 2 + (b.y - t.y) ** 2 > bs.range * bs.range) continue;
+        if (b !== rally && (b.x - t.hx) ** 2 + (b.y - t.hy) ** 2 > bs.range * bs.range) continue;
         rate = Math.max(rate, bs.auraRate || 0);
         dmg = Math.max(dmg, bs.auraDmg || 0);
         range = Math.max(range, bs.auraRange || 0);
         detect = detect || !!bs.auraDetect;
         air = air || !!bs.auraAir;
+      }
+      for (const b of torches) {
+        if (b === t) continue;
+        const bs = b.stats, wv = b.def.kind === 'vault', r = wv ? bs.range : bs.torchRange;
+        if ((b.hx - t.hx) ** 2 + (b.hy - t.hy) ** 2 > r * r) continue;
+        rate = Math.max(rate, wv ? bs.warmRate : bs.torchRate);
+        dmg = Math.max(dmg, (wv ? bs.warmDmg : bs.torchDmg) || 0);
       }
       if (rate || dmg || range || detect || air) {
         // A Prism has no attack rate: its share of the boost goes into damage.
@@ -228,7 +289,7 @@ export class Game {
   // `area` attacks (pulses, explosions, fire) hit Veiled enemies without needing to see them.
   targetable(e, s, area) {
     if (!e.alive) return false;
-    if (e.def.flying && !s.hitsAir) return false;
+    if (e.def.flying && !s.hitsAir && !isLow(e)) return false;
     if (e.veiled && !area && !s.detect && e.revealT <= 0) return false;
     return true;
   }
@@ -283,6 +344,7 @@ export class Game {
     if (e.scorchT > 0) amp += e.scorchPct;
     if (seared) amp += e.searAmp;
     if (e.freezeT > 0) amp += e.frozenAmp || 0;
+    if (e.lureT > 0) amp += e.lureAmp;
     const k = mult * amp;
     let dmg = amount * k;
     let dealt = 0;
@@ -359,6 +421,7 @@ export class Game {
     if (src) src.kills++;
     const gold = e.unpaid > 0 ? 0 : e.def.gold * this.goldMul;
     this.addGold(gold);
+    if (this.vaults && this.vaults.length && gold > 0) this.glean(e);
     this.emit('death', { x: e.x, y: e.y, r: e.r, etype: e.type, gold, boss: !!e.def.boss, heavy: !!e.def.heavy, src: src ? src.id : 0 });
     this.streak = this.time - this.lastKill <= RULES.streakWindow ? this.streak + 1 : 1;
     this.lastKill = this.time;
@@ -387,6 +450,21 @@ export class Game {
     if (ph) while (e.phase < ph.length) { const p = ph[e.phase++]; this.spawnShed(e, p.type, p.count, 0); }
     const shed = e.def.shed;
     if (shed) for (let i = 0; i < shed.length; i++) this.spawnShed(e, shed[i].type, shed[i].count, i === 0 ? carry : 0, dtype, opts, src);
+  }
+
+  // Ember Vaults bank a share of the bounty of Gloom that die in their light (a Harvest Moon: from
+  // anywhere, at half rate outside it). Late-game bounties are tiny, so embers count at least 0.15
+  // gold a layer. A full vault stops collecting.
+  glean(e) {
+    const base = e.def.gold * Math.max(this.goldMul, 0.15);
+    for (const v of this.vaults) {
+      const s = v.stats;
+      if (v.bank >= s.cap) continue;
+      const inside = (v.x - e.x) ** 2 + (v.y - e.y) ** 2 <= s.range * s.range;
+      if (!inside && !s.gleanAll) continue;
+      v.bank = Math.min(s.cap, v.bank + base * s.glean * (inside ? 1 : 0.5));
+      if (inside && this.fxOn && this.rand() < 0.35) this.emit('glean', { x: e.x, y: e.y, id: v.id });
+    }
   }
 
   // A leak costs one life per layer the enemy still holds: its own remaining health (in layers)
@@ -493,6 +571,24 @@ export class Game {
     } else if (type === 'beacon') {
       this.rally = { src: t, t: ab.dur };
       this.refreshGlobals();
+    } else if (type === 'snare') {
+      for (const p of this.towers) if (p.type === 'snare') { p.charges = p.stats.charges; p.bloomT = ab.dur; }
+      this.emit('bloom', { x: t.x, y: t.y });
+    } else if (type === 'moth') {
+      t.groundBonus = ab.ground;
+      for (const e of this.enemies) if (e.alive && e.def.flying) { startLure(e, t, ab.dur); e.groundT = Math.max(e.groundT, ab.ground + ab.dur); }
+      this.emit('lamplure', { x: t.x, y: t.y });
+    } else if (type === 'wander') {
+      const list = this.enemies.filter((e) => e.alive).sort((a, b) => this.leakCost(b) - this.leakCost(a)).slice(0, ab.stars);
+      for (const w of this.towers) {
+        if (w.type !== 'wander' || !list.length) continue;
+        const ws = w.stats, dmg = Math.max(ab.minDmg, ws.damage * ab.mul);
+        list.forEach((e, i) => castStar(this, w, ws, w.lights[i % Math.max(1, w.lights.length)] || w, e, 0, dmg, true));
+      }
+      this.emit('starfall', { x: t.x, y: t.y });
+    } else if (type === 'vault') {
+      t.bank = Math.min(t.stats.cap * 2, Math.max(t.bank * ab.mul, t.bank + 1));
+      this.emit('windfall', { x: t.x, y: t.y });
     }
     this.emit('ability', { ward: type, name: ab.name, x: t.x, y: t.y });
     return true;
@@ -628,6 +724,7 @@ export class Game {
     this.updateAbilities(dt);
     updateProjectiles(this, dt);
     updateZones(this, dt);
+    updateMines(this, dt);
 
     // shatter explosions (may chain: the list can grow while we walk it)
     for (let i = 0; i < this.pending.length; i++) {
@@ -655,6 +752,10 @@ export class Game {
         if (s.tithe + i > tithe + interest) { tithe = s.tithe; interest = i; payer = t; }
       }
       if (payer) payer.goldEarned = (payer.goldEarned || 0) + tithe + interest;
+      for (const t of this.towers) {
+        if (t.def.kind === 'snare') t.charges = t.stats.charges;
+        else if (t.def.kind === 'vault' && t.bank > 0 && t.bank < t.stats.cap) t.bank = Math.min(t.stats.cap, t.bank * (1 + t.stats.growth));
+      }
       let total = 0;
       while (this.rewarded < this.wave) total += RULES.waveReward(++this.rewarded);
       this.addGold(total);

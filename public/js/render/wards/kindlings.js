@@ -6,7 +6,8 @@
 import { FACE, gearInFront, DMG, INK, TAU, circle, poly, rrect, star, ink, flat, line, glow, notches, pips, glyph, aim, FORE, shade, crown, groundAura, twinkle, risingMotes, brows } from './kit.js';
 import { longeyeArt, roof } from './lanterns.js';
 import { crossbowX, tripod, ballista, repeater, hawk, mark, banner, sigil, quiver, BALLISTA_TIP, REPEATER_TIP, STEEL as STEEL_B, STEEL2, GOLD, LEATHER, BRASS, GREEN, GREEN2, NIGHT, NIGHT2, SILVER } from './bolt-parts.js';
-import { iceCrystal, iceBlade, snowCloud, scarf, fuelTank, ashCollar, IRON as P_IRON, GOLD as P_GOLD, BRASS as P_BRASS, COPPER, tubeLean, tube, shell, crate, cinderPool, chimney, smokePuffs, lavaCracks, prong, orb, zap, pylon, cloud, gyro, gem, shard, lensRing, sunDisc, starBurst, drum, warhorn, pennant, coins, chest, beam } from './parts.js';
+import { iceCrystal, iceBlade, snowCloud, scarf, fuelTank, ashCollar, IRON as P_IRON, GOLD as P_GOLD, BRASS as P_BRASS, COPPER, tubeLean, tube, shell, crate, cinderPool, chimney, smokePuffs, lavaCracks, prong, orb, zap, pylon, cloud, gyro, gem, shard, lensRing, sunDisc, starBurst, drum, warhorn, pennant, coins, chest, beam,
+  snareArt, crook, paperLantern, moths, flyStrips, stickyNet, wand, wandTip, torchPole, torchFlame, orbitSparks, bowl, emberHeap, emberTop, emberWisp, crescent, heartGrill } from './parts.js';
 
 export const WAX = '#f3e4c6', WAX2 = '#e2cfa8', WOOD = '#7a5236', BRONZE = '#c8963a', STEEL = STEEL_B;
 const EMBER = '#ff7a3a', EMBER2 = '#ffb070', CHAR = '#3a1a14';
@@ -652,4 +653,176 @@ const kBeacon = {
   muzzle(P, ang, out) { const L = B_LAMP(P); out[0] = L[0]; out[1] = L[1] + 3; return out; },
 };
 
-export const KINDLINGS = { bolt, mortar: kMortar, rime, coil: kCoil, longeye, censer, prism: kPrism, beacon: kBeacon };
+// ==== Thornlight Snare: a little spirit peeking up out of an iron grate in the road ================
+// (the grate, thorns and path props are shared: snareArt in parts.js). It ducks and pops up as it bites.
+const kSnare = snareArt({
+  rim: '#4a4a58', thorn: '#4f7a3a',
+  face(ctx, P, st, d, snap) {
+    if (FACE.skip) return;
+    const y = 6 - snap * 2.5;
+    ctx.beginPath(); ctx.ellipse(0, y + 1, 6, 5, 0, Math.PI, TAU); ctx.lineTo(6, y + 4); ctx.quadraticCurveTo(0, y + 6, -6, y + 4); ctx.closePath(); ink(ctx, WAX, 1.6, -6, 6);
+    eyes(ctx, 0, y, st, { sep: 2.8, r: 2.1, brow: 'sharp' });
+    tuft(ctx, 0, y - 4, 0.55, d, st.time);
+  },
+});
+
+// ==== Moth Lantern: a moth-winged spirit with a shepherd's crook, a paper lantern on the hook ======
+// Bright Lure: a bigger lantern, a brighter one, a round moon lantern (Moonlure), then a great moon
+// with rays. Flypaper: sticky strips on a post, more strips and a gum pot, a sticky net, then a
+// golden glue net. Moth-trap: glowing moths, more of them, an iron cage lantern, then a swarm.
+const MOTH_X = 8, MOTH_CURL = 4.2;
+const mothTop = (P) => (P.might && P.mt >= 3 ? -33 : -31);
+const mothLamp = (P) => { const s = P.might ? [1, 1.12, 1.24, 1.3, 1.42][P.mt] : 1; return { x: MOTH_X + MOTH_CURL * 1.6, y: mothTop(P) + MOTH_CURL * 0.5 + 3 + 6.5 * s, s, kind: P.might && P.mt >= 3 ? 'moon' : P.craft && P.mt >= 3 ? 'cage' : 'paper' }; };
+const MOTH_WING = '#d8c8f0';
+const kMoth = {
+  breathe: true,
+  self: () => [-8, -12, 6, 9],
+  body(ctx, P, d) {
+    const { might, many, craft, mt } = P;
+    hearthstone(ctx, many && mt >= 3 ? 34 : 28, P, d);
+    if (many && mt >= 1) { const h = mt >= 3 ? 30 : 22; line(ctx, [[-15, 10], [-15, 10 - h]], '#7a5236', 1.6); line(ctx, [[-18, 10 - h + 1], [-12, 10 - h + 1]], '#7a5236', 1.2); }   // the flypaper post
+    if (many && mt >= 2) { ctx.beginPath(); ctx.ellipse(-19, 9, 3.4, 2.2, 0, 0, TAU); flat(ctx, '#8a6a3a', 1.1); ctx.beginPath(); ctx.ellipse(-19, 7.6, 2.6, 1, 0, 0, TAU); flat(ctx, '#e8c84a', 0.8); }   // the gum pot
+    // moth wings on its back, both sides
+    for (const sx of [-1, 1]) {
+      ctx.beginPath(); ctx.ellipse(sx * 9, -5, 5.5, 7.5, sx * 0.5, 0, TAU); ink(ctx, MOTH_WING, 1.4, sx * 9 - 5, sx * 9 + 5);
+      ctx.beginPath(); ctx.ellipse(sx * 8, 3, 3.6, 4.6, sx * -0.4, 0, TAU); ink(ctx, shade(MOTH_WING, -0.1), 1.2, sx * 8 - 3, sx * 8 + 3);
+      circle(ctx, sx * 10, -6, 1.6); ctx.fillStyle = craft && mt >= 2 ? '#ffb030' : '#8a6aa8'; ctx.fill();
+    }
+    crook(ctx, MOTH_X, 10, mothTop(P), MOTH_CURL, might && mt >= 4 ? P_GOLD : '#7a5236', 2.2);
+    rrect(ctx, -7, -12, 14, 21, 6.5); ink(ctx, '#f2ecf8', 2, -7, 7);
+    rrect(ctx, -5, 1, 10, 6, 3); ctx.fillStyle = 'rgba(160,140,200,0.35)'; ctx.fill();   // a fuzzy moth belly
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * 2, -11); ctx.quadraticCurveTo(sx * 4, -17, sx * 6.5, -18); ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.stroke(); for (let i = 0; i < 3; i++) line(ctx, [[sx * (3 + i * 1.2), -14 - i * 1.3], [sx * (4 + i * 1.2), -15.5 - i * 1.3]], '#6a5a80', 0.5); }   // feathery antennae
+    circle(ctx, MOTH_X - 0.5, -2, 2.4); flat(ctx, '#f2ecf8', 1.2);   // the hand on the crook
+    if (mt >= 4) crown(ctx, 0, -12, d, 0.9);
+    return mothTop(P) - 4;
+  },
+  back(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time, L = mothLamp(P);
+    if (mt >= 4) groundAura(ctx, d, t, 24);
+    if (might && mt >= 4) sunDisc(ctx, L.x, L.y, 13, t, 12);
+    if (many && mt >= 3) stickyNet(ctx, -15, mt >= 4 ? -18 : -14, MOTH_X - 1, -20, mt >= 4 ? 22 : 18, mt >= 4);
+    moths(ctx, L.x, L.y, 9 + L.s * 3, craft ? [3, 4, 6, 7, 10][mt] : 3, t, craft && mt >= 1, -1);
+  },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time, L = mothLamp(P), sway = Math.sin(t * 1.6) * 0.8;
+    if (many && mt >= 1) flyStrips(ctx, -15, (mt >= 3 ? -20 : -12) + 1, mt >= 2 ? 3 : 2, 7, t);
+    paperLantern(ctx, L.x + sway, L.y, L.s, L.kind, 0.5 + (st.fill || 0) * 0.5);
+    if (might && mt >= 2) glow(ctx, L.x + sway, L.y, 18 * L.s, DMG[d].core, 0.25 + Math.sin(t * 3) * 0.06);
+    moths(ctx, L.x, L.y, 9 + L.s * 3, craft ? [3, 4, 6, 7, 10][mt] : 3, t, craft && mt >= 1, 1);
+    eyes(ctx, 0, -5, st, { sep: 3.4, r: 2.6, brow: 'soft' });
+    tuft(ctx, 0, -12, 0.7, d, t);
+  },
+  muzzle(P, ang, out) { const L = mothLamp(P); out[0] = L.x; out[1] = L.y; return out; },
+};
+
+// ==== Wandering Light: a floating wisp with a star-tipped wand, over a little rune-disc ============
+// No hearthstone: it floats (its plinth is a hovering disc with the tier notches). Hunter: a longer
+// wand, then a wizard's hat and crystal staff (Star Staff), then a comet staff. Swarm: orbiting
+// sparks, a split tail, a little sibling wisp, then a wand in each hand. Torchbearer: a rose rune,
+// a rose torch, a bigger gold torch with a rose ring, then a tall lamplighter's torch.
+const WD_HAND = [7, -8], WD_HAND2 = [-7, -8];
+const wandKind = (P) => (P.might ? (P.mt >= 4 ? 'comet' : P.mt >= 3 ? 'staff' : P.mt >= 2 ? 'long' : 'wand') : 'wand');
+function wisp(ctx, x, y, s, fill, deep) {
+  ctx.beginPath(); ctx.moveTo(x, y - 13 * s);
+  ctx.bezierCurveTo(x + 8 * s, y - 12 * s, x + 8 * s, y - 2 * s, x + 4 * s, y + 3 * s);
+  ctx.quadraticCurveTo(x + 4 * s, y + 8 * s, x + 7 * s, y + 10 * s);
+  ctx.quadraticCurveTo(x - 1 * s, y + 10 * s, x - 3 * s, y + 4 * s);
+  ctx.bezierCurveTo(x - 8 * s, y - 1 * s, x - 8 * s, y - 12 * s, x, y - 13 * s); ctx.closePath();
+  ink(ctx, fill, 1.8, x - 8 * s, x + 8 * s);
+  ctx.beginPath(); ctx.ellipse(x - 2.5 * s, y - 7 * s, 2.4 * s, 3.6 * s, -0.3, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.fill();
+}
+const kWander = {
+  float: true,
+  self: () => [-7, -21, 7, -1],
+  shadow(ctx) { ctx.fillStyle = 'rgba(8,40,34,0.35)'; ctx.beginPath(); ctx.ellipse(1, 14, 9, 2.6, 0, 0, TAU); ctx.fill(); },
+  body(ctx, P, d) {
+    const { might, many, craft, mt } = P;
+    // the hovering rune-disc (its plinth), with the tier notches
+    ctx.beginPath(); ctx.ellipse(0, 7, 11, 3.4, 0, 0, TAU); ink(ctx, '#3a2a58', 1.6, -11, 11);
+    ctx.beginPath(); ctx.ellipse(0, 6.4, 8, 2.2, 0, 0, TAU); ctx.strokeStyle = 'rgba(216,184,255,0.6)'; ctx.lineWidth = 0.8; ctx.stroke();
+    notches(ctx, mt, 0, 9.6, 18, DMG[d].core, 2.2);
+    pips(ctx, P.tiers, P.main, 8, 3.5);
+    if (many && mt >= 3) wisp(ctx, -13, -4, 0.55, '#e0d0ff', DMG[d].deep);   // a little sibling wisp
+    if (craft && mt >= 2) torchPole(ctx, -9, 4, mt >= 4 ? -24 : mt >= 3 ? -18 : -14, mt >= 3);
+    wisp(ctx, 0, -8, 1, '#efe4ff', DMG[d].deep);
+    if (many && mt >= 2) { ctx.beginPath(); ctx.moveTo(-1, 1); ctx.quadraticCurveTo(-4, 6, -7, 7); ctx.strokeStyle = INK; ctx.lineWidth = 2.6; ctx.stroke(); ctx.strokeStyle = '#efe4ff'; ctx.lineWidth = 1.2; ctx.stroke(); }   // a split tail
+    for (const h of [WD_HAND, WD_HAND2]) { circle(ctx, h[0], h[1], 2.2); flat(ctx, '#efe4ff', 1.1); }
+    if (craft && mt >= 1) glyph(ctx, 'heart', 0, -4, 2.6, '#ff7eb6');   // the rose rune on its chest
+    if (might && mt >= 3) { // a wizard's hat, with a star on it
+      poly(ctx, [[-8, -18], [8, -18], [2, -31], [-1, -32]]); ink(ctx, '#3a2a68', 1.6, -8, 8);
+      ctx.beginPath(); ctx.ellipse(0, -18, 9.5, 2.4, 0, 0, TAU); flat(ctx, '#4a3a80', 1.4);
+      star(ctx, 1, -24, 2.4, 1, 5); flat(ctx, '#fff3a0', 0.8);
+    }
+    if (mt >= 4) crown(ctx, 0, might ? -31 : -21, d, 0.9);
+    return might && mt >= 3 ? -36 : craft && mt >= 4 ? -30 : -25;
+  },
+  back(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time;
+    if (mt >= 4) glow(ctx, 0, -6, 26, DMG[d].core, 0.3 + Math.sin(t * 3) * 0.06);
+    if (craft && mt >= 3) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(255,126,182,0.6)'; ctx.lineWidth = 1.6; ctx.setLineDash([4, 4]); ctx.lineDashOffset = -t * 10; ctx.beginPath(); ctx.ellipse(0, 7, 16, 5, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
+    if (many) orbitSparks(ctx, 0, -8, 13, [0, 2, 3, 4, 6][mt], t, -1);
+    if (!gearInFront(st.ang, 1)) wand(ctx, WD_HAND[0], WD_HAND[1], st.ang, wandKind(P), t, st.recoil);
+    if (many && mt >= 4 && !gearInFront(st.ang, -1)) wand(ctx, WD_HAND2[0], WD_HAND2[1], st.ang, 'wand', t, st.recoil);
+  },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time;
+    if (many) orbitSparks(ctx, 0, -8, 13, [0, 2, 3, 4, 6][mt], t, 1);
+    if (craft && mt >= 2) torchFlame(ctx, -9, (mt >= 4 ? -24 : mt >= 3 ? -18 : -14), mt >= 4 ? 1.4 : mt >= 3 ? 1.15 : 0.9, t);
+    if (gearInFront(st.ang, 1)) wand(ctx, WD_HAND[0], WD_HAND[1], st.ang, wandKind(P), t, st.recoil);
+    if (many && mt >= 4 && gearInFront(st.ang, -1)) wand(ctx, WD_HAND2[0], WD_HAND2[1], st.ang, 'wand', t, st.recoil);
+    eyes(ctx, 0, -12, st, { sep: 3.2, r: 2.5, brow: might && mt >= 2 ? 'sharp' : 'soft', iris: '#5a1fb0' });
+    if (!(might && mt >= 3)) tuft(ctx, 0, -20, 0.75, d, t);
+  },
+  muzzle(P, ang, out) { return wandTip(WD_HAND[0], WD_HAND[1], ang, wandKind(P), out); },
+};
+
+// ==== Ember Vault: an aproned keeper tending a brazier of rose embers =============================
+// The embers heap up and the rose flame grows as it fills (st.fill). Great Brazier: a deeper pan,
+// banked coals, a great gold-rimmed brazier, then an everburning hearth heaped with gold. Gleaners:
+// long tongs, ember-wisps, a gleaner's lantern-pole, then a harvest moon over it. Hearthwarm: a warm
+// glow, hearthstones, a heart grill, then a blazing heart.
+const VB_X = 9, VB_Y = -1;
+const vaultW = (P) => (P.might ? [15, 17, 19, 22, 25][P.mt] : 15);
+const kVault = {
+  breathe: true,
+  self: () => [-14, -11, 0, 9],
+  body(ctx, P, d) {
+    const { might, many, craft, mt } = P, w = vaultW(P);
+    hearthstone(ctx, 34, P, d, 'coals');
+    if (craft && mt >= 2) for (let i = 0; i < 7; i++) { const a = Math.PI * (0.05 + i * 0.15); circle(ctx, VB_X + Math.cos(a) * 12, 10 + Math.sin(a) * 2.5, 1.8); flat(ctx, '#8a7a80', 0.9); }   // hearthstones
+    if (many && mt >= 1 && mt < 3) { line(ctx, [[-19, 10], [-15, -10]], '#5a5f70', 1.2); line(ctx, [[-17, 10], [-15, -10]], '#5a5f70', 1.2); }   // long tongs
+    if (many && mt >= 3) { line(ctx, [[-19, 10], [-19, mt >= 4 ? -26 : -22]], '#7a5236', 1.8); line(ctx, [[-19, mt >= 4 ? -24 : -20], [-14, mt >= 4 ? -24 : -20]], '#7a5236', 1.2); }   // the gleaner's pole
+    // the brazier: three legs and the bowl
+    for (const dx of [-5, 0, 5]) line(ctx, [[VB_X + dx, 10], [VB_X + dx * 0.3, VB_Y + w * 0.3]], might && mt >= 3 ? P_BRASS : '#5a4048', 1.5);
+    bowl(ctx, VB_X, VB_Y, w, '#5a4048', might && mt >= 3);
+    if (craft && mt >= 3) heartGrill(ctx, VB_X, VB_Y + w * 0.22, 0.9 + (mt >= 4 ? 0.2 : 0));
+    // the keeper: a plump rose-wax spirit in an apron, poking the embers
+    rrect(ctx, -14, -11, 14, 20, 6.5); ink(ctx, '#f4bccb', 2, -14, 0);
+    poly(ctx, [[-11.5, 1.5], [-2.5, 1.5], [-3, 8], [-11, 8]]); flat(ctx, '#d0708e', 1);   // the apron
+    glyph(ctx, 'heart', -7, 4.6, 2, '#ffe0ec');
+    ctx.beginPath(); ctx.ellipse(-7, -8.2, 7.3, 3.4, 0, Math.PI, TAU); ctx.closePath(); flat(ctx, '#b0306e', 1.1);   // a headscarf
+    circle(ctx, -0.6, -8.6, 1.3); flat(ctx, '#b0306e', 0.9);
+    line(ctx, [[-2, 0], [VB_X - 3, VB_Y - 3]], '#8a96aa', 0.8);   // the poker
+    circle(ctx, -2, 0, 2.3); flat(ctx, '#f4bccb', 1.1);
+    if (mt >= 4) crown(ctx, -7, -13, d, 0.85);
+    return Math.min(-22, emberTop(VB_Y, w, 1) - 14);
+  },
+  back(ctx, P, st, d) {
+    const { many, craft, mt } = P, t = st.time;
+    if (mt >= 4) groundAura(ctx, d, t, 26);
+    if (craft && mt >= 1) glow(ctx, VB_X, 6, 16 + mt * 2, DMG[d].core, (st.warm ? 0.45 : 0.15) + Math.sin(t * 2) * 0.05);
+    if (many && mt >= 4) crescent(ctx, -16, -31, 4.5);
+  },
+  front(ctx, P, st, d) {
+    const { might, many, craft, mt } = P, t = st.time, w = vaultW(P), fill = st.fill || 0;
+    emberHeap(ctx, VB_X, VB_Y, w, fill, t, might && mt >= 4);
+    if (craft && mt >= 3) heartGrill(ctx, VB_X, VB_Y + w * 0.22, 0.9 + (mt >= 4 ? 0.2 : 0), st.warm ? 0.8 + Math.sin(t * 4) * 0.2 : 0);
+    if (many && mt >= 2) { const n = mt >= 4 ? 4 : 2; for (let i = 0; i < n; i++) { const a = t * 1.6 + (i / n) * TAU; emberWisp(ctx, VB_X + Math.cos(a) * 11, VB_Y - 8 + Math.sin(a) * 4, t + i); } }
+    if (many && mt >= 3) { glow(ctx, -14, mt >= 4 ? -22 : -18, 6, DMG[d].core, 0.5); circle(ctx, -14, mt >= 4 ? -22 : -18, 2.2); flat(ctx, '#ffd0e6', 1); }
+    eyes(ctx, -7, -4, st, { sep: 3.2, r: 2.5, brow: 'soft' });
+    tuft(ctx, -7, -11, 0.6, d, t);
+  },
+  muzzle(P, ang, out) { out[0] = VB_X; out[1] = VB_Y - 6; return out; },
+};
+
+export const KINDLINGS = { bolt, mortar: kMortar, rime, coil: kCoil, longeye, censer, prism: kPrism, beacon: kBeacon, snare: kSnare, moth: kMoth, wander: kWander, vault: kVault };

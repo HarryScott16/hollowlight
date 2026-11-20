@@ -61,7 +61,7 @@ function sprite(type, art, P) {
   cv.width = Math.ceil(BW * k); cv.height = Math.ceil(BH * k);
   const ctx = cv.getContext('2d');
   ctx.setTransform(k, 0, 0, k, -BX * k, -BY * k);
-  shadow(ctx, 15);
+  if (!art.flat && !art.float) shadow(ctx, 15);   // a Snare lies on the road; a floating ward casts its own
   const top = art.body(ctx, P, WARD_DMG[type]);
   sp = { cv, top: typeof top === 'number' ? top : -30 };
   sprites.set(key, sp);
@@ -83,6 +83,8 @@ const LX = -72, LY = -80, LW = 144, LH = 114;   // ward units: room for gear, be
 export function pruneWardCache(ids) { for (const id of live.keys()) if (!ids.has(id)) live.delete(id); }
 
 function drawLive(ctx, art, P, d, sp, st, pop) {   // ctx is already in ward units
+  // A floating ward (the Wandering Light) bobs gently; its shadow is drawn in `back`, on the ground.
+  if (art.float) { if (art.shadow) art.shadow(ctx, P, st); ctx.translate(0, Math.sin(st.time * 2.2 + (st.id || 0)) * 1.6); }
   if (art.back) art.back(ctx, P, st, d);
   // Kindlings breathe: a slow, volume-keeping squash about the ground line.
   const b = art.breathe ? Math.sin(st.time * 2.4 + (st.id || 0)) * 0.025 : 0;

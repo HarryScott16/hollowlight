@@ -31,6 +31,8 @@ export function createEnemy(game, type, dist, wave, mods, root) {
     burnT: 0, burnDps: 0, burnSrc: null, burnType: 'blast', revealT: 0, zoneT: -1,
     searT: 0, searAmp: 0, brand: false,   // Scorched (Ember Censer): no healing, regrowing or shield recharge
     shatterT: 0, shatterDmg: 0, shatterRadius: 0, shatterSrc: null,
+    rootT: 0, snaredBy: 0,                                  // held by a Thornlight Snare; the snare that bit it
+    lure: null, lureT: 0, lureW: 0, lureA: 0, lureImm: 0, lureAmp: 0, groundT: 0,   // Moth Lantern
   };
   path.posAt(dist, e, e.off);
   return e;
@@ -67,6 +69,9 @@ export function updateEnemy(game, e, dt) {
   if (e.shatterT > 0) e.shatterT -= dt;
   if (e.revealT > 0) e.revealT -= dt;
   if (e.hasteT > 0) e.hasteT -= dt;
+  if (e.rootT > 0) e.rootT -= dt;
+  if (e.groundT > 0) e.groundT -= dt;
+  if (e.lureImm > 0) e.lureImm -= dt;
   // Scorched enemies can't recharge shields, regenerate or regrow layers.
   const seared = e.searT > 0;
   if (seared) e.searT -= dt;
@@ -97,7 +102,10 @@ export function updateEnemy(game, e, dt) {
     mul = (1 - slow) * (1 + (e.hasteT > 0 ? e.hasteF : 0));
   }
   e.curSpeed = e.speed * mul;
-  e.dist += e.curSpeed * dt;
+  // Circling a Moth Lantern: no progress along the route while it lasts.
+  const lured = e.lureT > 0 || e.lureW > 0;
+  if (lured) updateLure(e, dt);
+  if (!(e.lureT > 0)) e.dist += e.curSpeed * dt;
   e.wob += dt * (2 + e.curSpeed * 0.12);
 
   const path = e.path;
@@ -108,6 +116,34 @@ export function updateEnemy(game, e, dt) {
     return;
   }
   path.posAt(e.dist, e, e.off);
+  if (lured && e.lureW > 0) {
+    // Blend from the route onto a circle round the lantern (and back again once it lets go).
+    const L = e.lure, R = 30 + (e.id % 5) * 3;
+    const ox = L.x + Math.cos(e.lureA) * R, oy = L.y - 8 + Math.sin(e.lureA) * R * 0.6;
+    const w = e.lureW * e.lureW * (3 - 2 * e.lureW);
+    e.x += (ox - e.x) * w; e.y += (oy - e.y) * w;
+    e.ang = e.lureA + Math.PI / 2;
+  }
+}
+
+function updateLure(e, dt) {
+  const L = e.lure;
+  if (e.lureT > 0) {
+    e.lureT -= dt;
+    if (L.sold) e.lureT = 0;
+    if (e.lureT <= 0) {
+      // Let go: it can't be lured again for a while, and Flypaper leaves it slowed and flying low.
+      const s = L.stats;
+      e.lureImm = s.lureImm || 4;
+      if (s.releaseSlow) applySlow(e, s.releaseSlow, s.releaseSlowDur);
+      if (s.groundDur) e.groundT = Math.max(e.groundT, s.groundDur);
+      if (L.groundBonus) e.groundT = Math.max(e.groundT, L.groundBonus);
+    }
+    e.lureW = Math.min(1, e.lureW + dt * 2.5);
+  } else {
+    e.lureW = Math.max(0, e.lureW - dt * 2.5);
+  }
+  e.lureA += dt * Math.max(40, e.speed) / 34;
 }
 
 // Grows back e's outer layer (Mote -> Skitter -> Shambler), at most MAX_MENDS times per lineage.

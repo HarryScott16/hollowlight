@@ -3,7 +3,8 @@
 // Heartfire Flare is the player's own ability, ready from wave 1. Each ward type unlocks one
 // ability when any ward of that type reaches tier 4 on any path. A freshly unlocked ability
 // starts one-third charged. When several wards of a type have it, the button fires whichever is
-// ready first. Keys: the home row, in build-bar order (A S D F G H J K).
+// ready first. Keys, in build-bar order: the home row for the first eight wards (A S D F G H J K),
+// the bottom row for the last four (Z C V B), and X for the Flare.
 
 export const FLARE = {
   name: 'Heartfire Flare', key: 'X', cd: 60,
@@ -51,5 +52,21 @@ export const ABILITIES = {
   beacon: {
     name: 'Rally', key: 'K', cd: 50, dur: 10,
     desc: 'Every ward on the map gets this Beacon\'s boost for 10s.',
+  },
+  snare: {
+    name: 'Briar Bloom', key: 'Z', cd: 45, dur: 8,
+    desc: 'Every Thornlight Snare refills, and for 8s its bites cost no charges.',
+  },
+  moth: {
+    name: 'Lamplure', key: 'C', cd: 50, dur: 5, ground: 8,
+    desc: 'Every flyer on the map is drawn to this Moth Lantern for 5s, and stays low enough for every ward to hit for 8s.',
+  },
+  wander: {
+    name: 'Starfall', key: 'V', cd: 45, stars: 20, mul: 5, minDmg: 150,
+    desc: 'Every Wandering Light casts 20 great stars at the toughest enemies on the map: x5 damage (at least 150).',
+  },
+  vault: {
+    name: 'Windfall', key: 'B', cd: 60, mul: 2,
+    desc: 'This Ember Vault\'s embers double at once (up to twice its cap).',
   },
 };

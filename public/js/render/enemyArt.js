@@ -466,6 +466,21 @@ function combo(e, frame, n, vs) {
   return c;
 }
 const FLASH_LV = 4;
+// Held by a Snare's Binding Light: a ring of light with four chain links (cached).
+function heldOverlay(r) {
+  const R = r + 7;
+  return overlay(`ht${Math.round(r)}`, R, (g) => {
+    g.strokeStyle = 'rgba(255,246,208,0.95)'; g.lineWidth = 2; g.setLineDash([5, 3]);
+    g.beginPath(); g.arc(0, 0, r + 4, 0, TAU); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#fff6d0'; g.strokeStyle = '#1a1428'; g.lineWidth = 1;
+    for (let i = 0; i < 4; i++) { const a = (i / 4) * TAU + 0.4; g.beginPath(); g.ellipse(Math.cos(a) * (r + 4), Math.sin(a) * (r + 4), 2.6, 1.6, a, 0, TAU); g.fill(); g.stroke(); }
+  });
+}
+// A flyer brought low by a Moth Lantern's Flypaper: a gold ring on its shadow (every ward can hit it).
+function lowOverlay(r) {
+  const R = r + 4;
+  return overlay(`lw${Math.round(r)}`, R, (g) => { g.scale(1, 0.5); g.strokeStyle = 'rgba(255,224,58,0.9)'; g.lineWidth = 2.4; g.setLineDash([4, 3]); g.beginPath(); g.arc(0, 0, r + 1, 0, TAU); g.stroke(); });
+}
 
 // The renderer's base transform (its scale and screen-shake offset). drawEnemy sets the whole
 // transform for each enemy in one call rather than save/translate/rotate/restore, and does NOT
@@ -519,7 +534,7 @@ export function drawEnemy(ctx, e, lite, quality = lite ? 1 : 2) {
 
   // status overlays, upright (cached where they're common); skipped entirely when there are none
   const q2 = quality === 2;
-  if (!(e.shield > 0 || e.veiled || e.freezeT > 0 || (e.slowT > 0 && q2) || e.stunT > 0 || e.flash > 0 || (q2 && (e.burnT > 0 || e.searT > 0 || e.markT > 0 || e.chargedT > 0 || e.hasteT > 0)))) {
+  if (!(e.shield > 0 || e.veiled || e.freezeT > 0 || (e.slowT > 0 && q2) || e.stunT > 0 || e.flash > 0 || e.groundT > 0 || (q2 && (e.burnT > 0 || e.searT > 0 || e.markT > 0 || e.chargedT > 0 || e.hasteT > 0)))) {
     queueBar(e, x, y, r);
     return;
   }
@@ -604,13 +619,15 @@ export function drawEnemy(ctx, e, lite, quality = lite ? 1 : 2) {
       ctx.stroke();
     }
   }
-  if (e.stunT > 0) {
+  if (e.rootT > 0) { const R = r + 7; ctx.drawImage(heldOverlay(r), -R, -R, R * 2, R * 2); }
+  else if (e.stunT > 0) {
     ctx.fillStyle = '#fff36b';
     for (let i = 0; i < 3; i++) {
       const a = e.wob * 2 + (i / 3) * TAU;
       ctx.fillRect(Math.cos(a) * (r + 3) - 2, Math.sin(a) * (r + 3) * 0.5 - r - 2, 4, 4);
     }
   }
+  if (e.groundT > 0 && !(e.lureT > 0)) { const R = r + 4; ctx.drawImage(lowOverlay(r), -R, 16 - R * 0.5, R * 2, R); }
   if (e.flash > 0) {
     const R = r * 1.05 + 1;
     ctx.globalAlpha = Math.min(1, e.flash * 10);
@@ -633,8 +650,10 @@ function drawCrowdEnemy(ctx, e, x, y, r, quality) {
     const lv = Math.min(FLASH_LV, Math.ceil(e.flash * 10 * FLASH_LV)), R = r * 1.05 + 1;
     ctx.drawImage(overlay(`fq${Math.round(r)}|${lv}`, R, (g) => { g.fillStyle = '#fff'; g.globalAlpha = lv / FLASH_LV; g.beginPath(); g.arc(0, 0, r * 1.05, 0, TAU); g.fill(); }), -R, -R, R * 2, R * 2);
   }
-  if (e.shield > 0 || e.freezeT > 0 || e.stunT > 0) {
+  if (e.shield > 0 || e.freezeT > 0 || e.stunT > 0 || e.groundT > 0) {
     ctx.setTransform(BS, 0, 0, BS, BX + x * BS, BY + y * BS);
+    if (e.rootT > 0) { const R = r + 7; ctx.drawImage(heldOverlay(r), -R, -R, R * 2, R * 2); }
+    if (e.groundT > 0 && !(e.lureT > 0)) { const R = r + 4; ctx.drawImage(lowOverlay(r), -R, 16 - R * 0.5, R * 2, R); }
     if (e.shield > 0) {
       const lvl = Math.min(3, Math.floor((e.shield / e.maxShield) * 4)), R = r + 7;
       ctx.drawImage(overlay(`sd${Math.round(r)}|${lvl}`, R, (g) => {
@@ -652,7 +671,7 @@ function drawCrowdEnemy(ctx, e, x, y, r, quality) {
         g.closePath(); g.fill(); g.stroke();
       }), -R, -R, R * 2, R * 2);
     }
-    if (e.stunT > 0) {
+    if (e.stunT > 0 && !(e.rootT > 0)) {
       ctx.fillStyle = '#fff36b';
       for (let i = 0; i < 3; i++) {
         const a = e.wob * 2 + (i / 3) * TAU;

@@ -55,6 +55,17 @@ export function estimateDps(kind, s, crowd = true) {
     const charge = 1 + (s.maxCharge - 1) * (s.keep || 0) * 0.6 + 0.4;
     return s.damage * charge * s.beams * (1 + (s.burstMul ? 1.5 * s.burstMul : 0));
   }
+  if (kind === 'snare') {
+    // Bites: steady state is the refill rate (plus a stock to spend on a rush); mines burst in crowds.
+    let d = s.damage * s.refill * (crowd ? 1.6 : 1) * (s.rootDur ? 1.15 : 1);
+    if (s.mineMax) d += (s.mineDmg * (crowd ? Math.min(s.mineHits, 6) : 1)) / s.mineEvery;
+    return d;
+  }
+  if (kind === 'wander') {
+    const burst = crowd ? 1 + Math.min(s.starHits, 3 * (s.starRadius / 24)) * s.starMul : 1;
+    return s.damage * s.rate * s.shots * s.lights * burst * (1 + (s.markPct || 0));
+  }
+  if (kind === 'lure') return (s.lureDps || 0) * Math.min(s.lureMax, crowd ? 6 : 1);
   if (kind === 'chain') {
     let jumps = 0, f = 1;
     const n = crowd ? Math.min(s.chains, 12) : 1;
@@ -76,6 +87,9 @@ export function createTower(game, type, x, y) {
     abilityCd: null, buffT: 0, buffRate: 1,   // abilityCd stays null until the ward reaches tier 4
     recoil: 0, shotN: 0, pulseN: 0, pulseAnim: 0,
     beams: [], sunT: 0, spreadTokens: 0, burstTokens: 0, aura: null, firing: false,
+    hx: x, hy: y,                                    // a Wandering Light's post (it floats around it)
+    charges: def.base.charges || 0, bloomT: 0, mineT: 0, rootCd: 0, heavyCd: 0, pathDist: 0,   // Snare
+    lights: [], bank: 0, warm: false, goldEarned: 0, // Wandering Light's lights; Ember Vault's embers
   };
 }
 
@@ -149,8 +163,8 @@ function mortar(game, t, dt) {
   t.recoil = 1;
   for (let i = 0; i < s.shells; i++) {
     const e = targets[i % targets.length];
-    // Lead the target along the path.
-    e.path.posAt(e.dist + e.curSpeed * s.flight, aim, e.off);
+    // Lead the target along the path (a flyer circling a Moth Lantern: where it is).
+    if (e.lureW > 0) { aim.x = e.x; aim.y = e.y; } else e.path.posAt(e.dist + e.curSpeed * s.flight, aim, e.off);
     let tx = aim.x, ty = aim.y;
     if (i >= targets.length) { tx += (game.rand() - 0.5) * 50; ty += (game.rand() - 0.5) * 50; }
     if (i === 0) t.ang = Math.atan2(ty - t.y, tx - t.x);
@@ -431,7 +445,166 @@ export const SUN_MUL = 2;
 // --- aura: the Beacon never attacks; game.refreshGlobals applies its boost ---------------------
 function aura() {}
 
-const BEHAVIOURS = { bolt, mortar, pulse, chain, snipe, flame, beam, aura };
+// --- snare: a trap on the path. Each enemy that steps on it is bitten once (a charge each) --------
+const BITE = { armorPierce: 0 };
+function snare(game, t, dt) {
+  const s = t.stats;
+  const free = t.bloomT > 0;
+  if (free) t.bloomT -= dt;
+  if (t.rootCd > 0) t.rootCd -= dt;
+  if (t.heavyCd > 0) t.heavyCd -= dt;
+  t.charges = Math.min(s.charges, t.charges + s.refill * dt);
+  if (s.mineMax) sowMines(game, t, s, dt);
+  if (t.charges < 1 && !free) return;
+  game.grid.query(t.x, t.y, s.radius + 30, buf);
+  for (let i = 0; i < buf.length; i++) {
+    const e = buf[i];
+    if (!e.alive || e.def.flying || e.snaredBy === t.id) continue;   // flyers pass over it
+    const reach = s.radius + e.r * 0.5;
+    if ((e.x - t.x) ** 2 + (e.y - t.y) ** 2 > reach * reach) continue;
+    if (t.charges < 1 && !free) break;
+    e.snaredBy = t.id;
+    if (!free) t.charges -= 1;
+    t.recoil = 1;
+    bite(game, t, s, e);
+  }
+}
+function bite(game, t, s, e) {
+  BITE.armorPierce = s.armorPierce || 0;
+  game.damage(e, s.damage, s.type, t, BITE);
+  if (!e.alive) return;
+  if (s.slow) applySlow(e, s.slow, s.slowDur);
+  if (s.rootDur && !e.def.heavy) hold(e, s.rootDur);
+  if (s.heavyRoot && e.def.heavy && t.heavyCd <= 0) { t.heavyCd = s.heavyRootEvery; hold(e, s.heavyRoot); game.emit('bind', { x: e.x, y: e.y, r: e.r + 6, heavy: true }); }
+  if (s.rootRadius && t.rootCd <= 0) {
+    t.rootCd = 1;
+    game.grid.query(t.x, t.y, s.rootRadius, near);
+    let n = 0;
+    for (const o of near) {
+      if (o === e || !o.alive || o.def.heavy || o.def.flying) continue;
+      hold(o, s.rootDur);
+      if (++n >= s.rootHits) break;
+    }
+    game.emit('bind', { x: t.x, y: t.y, r: s.rootRadius, heavy: false });
+  }
+}
+// Held: can't move (a stun underneath, drawn as chains of light).
+function hold(e, dur) { e.stunT = Math.max(e.stunT, dur); e.rootT = Math.max(e.rootT, dur); }
+// Flashmines: lamps sown on the path near the snare, up to mineMax at once.
+function sowMines(game, t, s, dt) {
+  if ((t.mineT -= dt) > 0) return;
+  t.mineT = s.mineEvery;
+  let n = 0;
+  for (const m of game.mines) if (m.src === t) n++;
+  if (n >= s.mineMax) return;
+  const path = game.map.path;
+  const d = Math.max(30, Math.min(path.length - 90, t.pathDist - 30 + game.rand() * (s.mineRange + 30)));
+  path.posAt(d, aim, (game.rand() - 0.5) * 26);
+  game.mines.push({ x: aim.x, y: aim.y, src: t, arm: 0.5 });
+  game.emit('mine', { x: aim.x, y: aim.y });
+}
+
+// --- lure: a Moth Lantern pulls flyers in to circle it -----------------------------------------
+const LURE_TICK = 0.1;
+function lure(game, t, dt) {
+  const s = t.stats;
+  if (t.cd > 0) return;
+  t.cd += LURE_TICK;
+  game.grid.query(t.x, t.y, s.range, buf);
+  let n = 0;
+  for (const e of buf) if (e.alive && e.lure === t && e.lureT > 0) n++;
+  let tgt = null;
+  for (const e of buf) {
+    if (!e.alive || !e.def.flying) continue;
+    if (e.lure === t && e.lureT > 0) {
+      if (s.lureDps) game.damage(e, s.lureDps * LURE_TICK, s.type, t, DOT);
+      if (s.lureReveal && e.veiled) e.revealT = Math.max(e.revealT, 0.3);
+      if (!tgt) tgt = e;
+      continue;
+    }
+    if (n >= s.lureMax || e.lureImm > 0 || e.lureT > 0) continue;
+    if ((e.x - t.x) ** 2 + (e.y - t.y) ** 2 > s.range * s.range) continue;
+    startLure(e, t, s.lureDur);
+    n++;
+  }
+  t.target = tgt;
+  t.lured = n;
+  if (tgt) turnTo(t, tgt.x, tgt.y, LURE_TICK, 20);
+}
+export function startLure(e, t, dur) {
+  e.lure = t; e.lureT = dur;
+  e.lureA = Math.atan2(e.y - t.y, e.x - t.x);
+  e.lureAmp = t.stats.lureAmp || 0;
+}
+
+// --- wander: a floating light (or several) that roams near its post and casts homing stars --------
+function wander(game, t, dt) {
+  const s = t.stats;
+  const n = s.lights;
+  while (t.lights.length < n) {
+    const k = t.lights.length, a = (k / Math.max(2, n)) * TAU;
+    t.lights.push({ x: t.x + Math.cos(a) * 18, y: t.y + Math.sin(a) * 10, cd: 0.2 * k, ang: -Math.PI / 2, tgt: null, recoil: 0 });
+  }
+  if (t.lights.length > n) t.lights.length = n;
+  // Targets: anything it can reach from its roaming area, best first by its targeting mode.
+  const reach = s.range + s.leash;
+  const R = s.range;
+  s.range = reach; t.x = t.hx; t.y = t.hy;   // pick from the post, over the whole roaming area
+  game.pickTargets(t, n, targets);
+  s.range = R;
+  const boost = t.buffT > 0 ? t.buffRate : 1;
+  for (let i = 0; i < n; i++) {
+    const L = t.lights[i];
+    if (L.recoil > 0) L.recoil = Math.max(0, L.recoil - dt * 5);
+    if (L.cd > 0) L.cd -= dt * boost;
+    const e = targets.length ? targets[i % targets.length] : null;
+    // Move: up to about half its range from the target, never further than `leash` from its post.
+    let gx, gy;
+    if (e) {
+      const dx = L.x - e.x, dy = L.y - e.y, d = Math.hypot(dx, dy) || 1, want = Math.min(d, R * 0.5);
+      gx = e.x + (dx / d) * want; gy = e.y + (dy / d) * want;
+    } else {
+      const a = (i / Math.max(1, n)) * TAU + game.time * 0.4;
+      gx = t.hx + (n > 1 ? Math.cos(a) * 16 : 0); gy = t.hy + (n > 1 ? Math.sin(a) * 9 : 0);
+    }
+    const lx = gx - t.hx, ly = gy - t.hy, ld = Math.hypot(lx, ly);
+    if (ld > s.leash) { gx = t.hx + (lx / ld) * s.leash; gy = t.hy + (ly / ld) * s.leash; }
+    const mx = gx - L.x, my = gy - L.y, md = Math.hypot(mx, my), step = s.moveSpeed * dt;
+    if (md > 0.5) { const k = Math.min(1, step / md); L.x += mx * k; L.y += my * k; }
+    L.tgt = e;
+    if (e) { const want = Math.atan2(e.y - L.y, e.x - L.x); let d = ((want - L.ang + Math.PI) % TAU + TAU) % TAU - Math.PI; L.ang += Math.abs(d) < 9 * dt ? d : Math.sign(d) * 9 * dt; }
+    if (e && L.cd <= 0 && (e.x - L.x) ** 2 + (e.y - L.y) ** 2 <= (R + e.r * 0.5) ** 2) {
+      L.cd += 1 / s.rate;
+      L.recoil = 1;
+      L.ang = Math.atan2(e.y - L.y, e.x - L.x);
+      for (let k = 0; k < s.shots; k++) castStar(game, t, s, L, e, k, s.damage);
+      game.emit('fire', { x: L.x, y: L.y, ang: L.ang, kind: 'wander' });
+    }
+    if (L.cd < 0) L.cd = 0;
+  }
+  const L0 = t.lights[0];
+  t.x = L0.x; t.y = L0.y; t.ang = L0.ang; t.recoil = L0.recoil; t.target = L0.tgt;
+}
+export function castStar(game, t, s, L, e, k, dmg, big = false) {
+  const a = Math.atan2(e.y - L.y, e.x - L.x) + (k ? (k % 2 ? 1 : -1) * 0.5 : 0);
+  const sp = s.projSpeed * (big ? 1.2 : 1);
+  game.projectiles.push({
+    kind: 'bolt', star: true, comet: !!s.comet || big, x: L.x + Math.cos(a) * 8, y: L.y + Math.sin(a) * 8, ox: L.x, oy: L.y,
+    vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, speed: sp,
+    target: e, homing: true, dmg, pierce: s.pierce, hit: [], bounces: 0, big,
+    life: big ? 3000 : s.range * 2 + 120, src: t, s, dead: false,
+  });
+}
+
+// --- vault: banks embers (game.kill and the wave clear fill it); Hearthwarm warms nearby wards -----
+function vault(game, t) {
+  const s = t.stats;
+  if (!s.warmRate) return;
+  const warm = t.bank >= s.cap * (s.warmAt || 0.5);
+  if (warm !== t.warm) { t.warm = warm; game.refreshGlobals(); }
+}
+
+const BEHAVIOURS = { bolt, mortar, pulse, chain, snipe, flame, beam, aura, snare, lure, wander, vault };
 
 export function updateTower(game, t, dt) {
   // Overdraw: the attack timer runs buffRate times faster.

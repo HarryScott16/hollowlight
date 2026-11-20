@@ -1,5 +1,7 @@
 // Projectiles, explosions and lingering ground zones. No DOM access.
 const buf = [];
+// A flyer circling a Moth Lantern (or still grounded by Flypaper) flies low: anything can hit it.
+export const isLow = (e) => e.lureW > 0.5 || e.groundT > 0;
 
 const marks = [];
 function mark(game, e, s, src) {
@@ -26,6 +28,8 @@ function hitBolt(game, p, e) {
       mark(game, e, s, p.src);
     }
   }
+  // A Wandering Light's star bursts on hit.
+  if (p.star && s.starRadius) starBurst(game, p, e, s);
   p.hit.push(e.root);
   p.homing = false;
   if (--p.pierce > 0) return;
@@ -51,6 +55,22 @@ function hitBolt(game, p, e) {
   p.dead = true;
 }
 
+const STAR = { quiet: true, armorPierce: 0 };
+function starBurst(game, p, e, s) {
+  const x = e.x, y = e.y, r = s.starRadius * (p.big ? 1.3 : 1);
+  game.grid.query(x, y, r + 20, marks);
+  const list = marks.slice();
+  let n = 0;
+  STAR.armorPierce = s.armorPierce || 0;
+  for (const o of list) {
+    if (o === e || !o.alive || !game.targetable(o, s, true)) continue;
+    if ((o.x - x) ** 2 + (o.y - y) ** 2 > (r + o.r * 0.5) ** 2) continue;
+    game.damage(o, p.dmg * s.starMul, s.type, p.src, STAR);
+    if (++n >= s.starHits) break;
+  }
+  game.emit('starburst', { x, y, r, comet: !!p.comet });
+}
+
 function updateBolt(game, p, dt) {
   if (p.homing) {
     const e = p.target;
@@ -74,14 +94,14 @@ function updateBolt(game, p, dt) {
 }
 
 const inBlast = [];
-export function explode(game, x, y, s, src, sub) {
+export function explode(game, x, y, s, src, sub, kind = 'shell') {
   const r = s.radius * (sub ? 0.6 : 1);
   const dmg = s.damage * (sub ? 0.5 : 1);
   const cap = Math.max(1, Math.round((s.maxHits || 999) * (sub ? 0.4 : 1)));
   game.grid.query(x, y, r + 34, buf);
   inBlast.length = 0;
   for (const e of buf) {
-    if (!e.alive || (e.def.flying && !s.hitsAir)) continue;
+    if (!e.alive || (e.def.flying && !s.hitsAir && !isLow(e))) continue;
     const reach = r + e.r * 0.6;
     const d2 = (e.x - x) ** 2 + (e.y - y) ** 2;
     if (d2 > reach * reach) continue;
@@ -100,7 +120,7 @@ export function explode(game, x, y, s, src, sub) {
       e.burnT = Math.max(e.burnT, s.burnDur);
     }
   }
-  game.emit('explosion', { x, y, r, sub });
+  game.emit('explosion', { x, y, r, sub, kind });
   if (sub) return;
   if (s.poolDps) {
     game.zones.push({ x, y, r: r * (s.poolRadiusMul || 1) * 0.9, dps: s.poolDps, t: s.poolDur, tick: 0, scorch: s.scorch || 0, src });
@@ -159,7 +179,7 @@ export function updateZones(game, dt) {
     game.grid.query(z.x, z.y, z.r + 20, buf);
     let hits = 0;
     for (const e of buf) {
-      if (!e.alive || e.def.flying) continue;
+      if (!e.alive || (e.def.flying && !isLow(e))) continue;
       if ((e.x - z.x) ** 2 + (e.y - z.y) ** 2 > (z.r + e.r * 0.5) ** 2) continue;
       // Overlapping pools don't stack: an enemy burns in one pool per tick.
       if (game.time - e.zoneT < ZONE_TICK * 0.9) continue;
@@ -173,3 +193,27 @@ export function updateZones(game, dt) {
   for (let i = 0; i < zones.length; i++) if (zones[i].t > 0) zones[w++] = zones[i];
   zones.length = w;
 }
+
+// Flashmines: a mine arms after a moment, then bursts under the first ground enemy that steps on it.
+const MINE_R = 12;
+export function updateMines(game, dt) {
+  const mines = game.mines;
+  if (!mines.length) return;
+  for (const m of mines) {
+    if (m.arm > 0) { m.arm -= dt; continue; }
+    game.grid.query(m.x, m.y, MINE_R + 30, buf);
+    for (const e of buf) {
+      if (!e.alive || e.def.flying) continue;
+      if ((e.x - m.x) ** 2 + (e.y - m.y) ** 2 > (MINE_R + e.r) ** 2) continue;
+      const s = m.src.stats;
+      MINE.radius = s.mineRadius; MINE.damage = s.mineDmg; MINE.maxHits = s.mineHits; MINE.stun = s.mineStun || 0;
+      m.dead = true;
+      explode(game, m.x, m.y, MINE, m.src, false, 'mine');
+      break;
+    }
+  }
+  let w = 0;
+  for (let i = 0; i < mines.length; i++) if (!mines[i].dead) mines[w++] = mines[i];
+  mines.length = w;
+}
+const MINE = { radius: 40, damage: 20, maxHits: 8, stun: 0, type: 'kinetic', hitsAir: false };

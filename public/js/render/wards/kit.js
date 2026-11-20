@@ -26,7 +26,7 @@ export const DMG = {
   hearth: { core: '#ff7eb6', deep: '#b0306e', glow: true, glyph: 'heart' },
 };
 // Each ward's damage type for its art (Beacon is support: Hearth).
-export const WARD_DMG = { bolt: 'kinetic', mortar: 'blast', rime: 'frost', coil: 'arcane', longeye: 'kinetic', censer: 'fire', prism: 'radiant', beacon: 'hearth' };
+export const WARD_DMG = { bolt: 'kinetic', mortar: 'blast', rime: 'frost', coil: 'arcane', longeye: 'kinetic', censer: 'fire', prism: 'radiant', beacon: 'hearth', snare: 'kinetic', moth: 'radiant', wander: 'arcane', vault: 'hearth' };
 
 export function mainPath(tiers) {
   let main = -1, mt = 0;
