@@ -176,11 +176,11 @@ export const TOWERS = {
     desc: 'A flamethrower: pours a constant cone of Fire over everything in front of it, flyers and Veiled included, sweeping to follow its target. Burning enemies are Scorched: no healing, regrowing or shield recharge.',
     base: { damage: 8, range: 95, type: 'fire', arc: 0.8, burnDps: 3, burnDur: 2, searDur: 2.5, hitsAir: true },
     paths: [
-      { name: 'Pyre', blurb: "A hotter flame, white then blue, that grinds through hulks and armour.", tiers: [
+      { name: 'Pyre', blurb: "A hotter flame, burning white-hot, that grinds through hulks and armour.", tiers: [
         { name: 'Hotter Coals', blurb: "Burns hurt twice as much.", cost: 110, desc: 'Burns deal x2 (6/s).', mul: { burnDps: 2 } },
         { name: 'Clinging Flame', blurb: "Fire sticks for longer and the flame bites harder.", cost: 260, desc: 'Burns last 3s. x1.3 flame damage.', set: { burnDur: 3, searDur: 3.5 }, mul: { damage: 1.3 } },
         { name: 'Pyre', blurb: "A white-hot flame: hulks and bosses burn like dry wood.", cost: 900, desc: 'Burns x2; hulks and bosses burn x3. x1.4 flame damage.', set: { burnHeavy: 3 }, mul: { burnDps: 2, damage: 1.4 } },
-        { name: 'Wildfire', blurb: "Blue fire that leaps from every burning death to the Gloom around it.", cost: 4200, desc: 'Burns x2.4, flames x1.9. A burning enemy that dies spreads its fire to up to 3 enemies within 70 (up to 15 a second).', set: { spread: 3, spreadRadius: 70, spreadRate: 15 }, mul: { burnDps: 2.4, damage: 1.9 } },
+        { name: 'Wildfire', blurb: "White-hot fire that leaps from every burning death to the Gloom around it.", cost: 4200, desc: 'Burns x2.4, flames x1.9. A burning enemy that dies spreads its fire to up to 3 enemies within 70 (up to 15 a second).', set: { spread: 3, spreadRadius: 70, spreadRate: 15 }, mul: { burnDps: 2.4, damage: 1.9 } },
       ] },
       { name: "Dragon's Breath", blurb: "A longer, wider jet that hoses down whole crowds.", tiers: [
         { name: 'Bellows', blurb: "The jet reaches further.", cost: 100, desc: '+20 range.', add: { range: 20 } },

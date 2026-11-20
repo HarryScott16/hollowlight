@@ -6,7 +6,7 @@ import { DAMAGE_TYPES } from '../data/damage.js';
 import { RULES, TARGET_MODES } from '../data/rules.js';
 import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { upgradeInfo, computeStats, estimateDps } from '../sim/towers.js';
-import { drawTowerIcon } from '../render/towerArt.js';
+import { drawWardIcon, nextSkin, skinName } from '../render/wardArt.js';
 import { drawEnemyIcon } from '../render/enemyArt.js';
 
 const $ = (id) => document.getElementById(id);
@@ -147,13 +147,15 @@ export class UI {
   buildShop() {
     const list = $('shop-list');
     this.shopButtons = {};
+    this.shopIcons = {};
     TOWER_ORDER.forEach((type, i) => {
       const def = TOWERS[type];
       const b = el('button', 'shop-btn');
       b.type = 'button';
       b.title = `${def.name} (${i + 1})`;
       const c = iconCanvas(48);
-      drawTowerIcon(c, type);
+      drawWardIcon(c, type);
+      this.shopIcons[type] = c;
       b.append(el('span', 'key', String(i + 1)), c, el('span', 'cost', String(def.cost)));
       b.addEventListener('click', () => this.setPlacing(this.placing === type ? null : type));
       b.addEventListener('pointerenter', () => this.showShopInfo(type));
@@ -317,12 +319,23 @@ export class UI {
     this.mouse.y = ((ev.clientY - r.top) / r.height) * MAP.height;
   }
 
+  // Wards stand upright, so a click on a ward's body (above its footprint) selects it too.
+  wardAt(x, y) { return this.game.towerAt(x, y) || this.game.towerAt(x, y + 18); }
+
+  // Hidden test switch between the two ward skins (also ?skin=lantern / ?skin=kindling).
+  toggleSkin() {
+    nextSkin();
+    for (const type in this.shopIcons) drawWardIcon(this.shopIcons[type], type);
+    if (this.selected) this.select(this.selected);
+    this.renderer.text(MAP.width / 2, 70, `Skin: ${skinName()}`, '#ffffff', 18, 1.6, 10);
+  }
+
   bindCanvas() {
     const c = this.canvas;
     c.addEventListener('pointermove', (ev) => {
       this.toMap(ev);
       this.mouse.inside = true;
-      c.classList.toggle('hover-tower', !this.placing && !!this.game.towerAt(this.mouse.x, this.mouse.y));
+      c.classList.toggle('hover-tower', !this.placing && !!this.wardAt(this.mouse.x, this.mouse.y));
     });
     c.addEventListener('pointerleave', () => { this.mouse.inside = false; });
     c.addEventListener('pointerdown', (ev) => {
@@ -336,7 +349,7 @@ export class UI {
         if (t && !ev.shiftKey) { this.setPlacing(null); this.select(t); }
         return;
       }
-      this.select(this.game.towerAt(this.mouse.x, this.mouse.y));
+      this.select(this.wardAt(this.mouse.x, this.mouse.y));
     });
     c.addEventListener('contextmenu', (ev) => ev.preventDefault());
   }
@@ -374,6 +387,8 @@ export class UI {
         this.renderer.showFps = !this.renderer.showFps;
       } else if (k === 'm' || k === 'M') {
         this.toggleMute();
+      } else if (k === 'l' || k === 'L') {
+        this.toggleSkin();
       } else if (this.selected && (k === 'Backspace' || k === 'Delete')) {
         this.sellSelected();
       } else if (this.selected && 'qwe'.includes(k.toLowerCase()) && k.length === 1) {
@@ -416,7 +431,7 @@ export class UI {
 
     const head = el('div', 'tp-head');
     const icon = iconCanvas(48);
-    drawTowerIcon(icon, t.type, t.tiers);
+    drawWardIcon(icon, t.type, t.tiers);
     const titles = el('div');
     titles.append(el('h3', null, def.name), el('div', 'tp-role', `${def.role}  ·  tiers ${t.tiers.join(' / ')}${t.aura ? '  ·  boosted by a Beacon' : ''}`));
     const close = el('button', 'tp-close', '×');

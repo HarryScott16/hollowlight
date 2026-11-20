@@ -2,11 +2,13 @@
 // particles that leave the nozzle white-hot, cool through orange to red, billow out and rise, and
 // trail smoke. Embers spark off the stream, the ground under it is scorched, the air above the
 // tips shimmers, and the area glows. Dragon's Breath at tier 4 breathes a swirling ring of fire.
+// Flame leaves the ward's spout (or mouth) up on the upright ward and drops to the ground as it
+// travels: each particle carries a height z that fades out over its life.
 //
 // The renderer reads the simulation directly (t.firing, t.ang, t.stats.range/arc), so the flame
 // follows the nozzle as it sweeps: particles keep the heading they left with, and the stream
 // bends like a real hose. Everything is pooled and capped, so dozens of Censers stay cheap.
-import { towerScale } from './towerArt.js';
+import { wardMuzzle } from './wardArt.js';
 
 const TAU = Math.PI * 2;
 const MAX_FLAME = 1500;     // flame particles alive at once (all Censers together)
@@ -22,17 +24,19 @@ const PALETTES = {
   warm: ['#fff6d0', '#ffc848', '#ff8a26', '#ff5a1c', '#d8301a', '#7a1c10'],
   hot: ['#ffffff', '#ffe27a', '#ffa83a', '#ff7424', '#e8401a', '#8a2010'],
   white: ['#ffffff', '#fff0a8', '#ffcc5a', '#ff9a34', '#f05a1e', '#a02c10'],
-  blue: ['#ffffff', '#a8d4ff', '#5a96ff', '#4a64f0', '#ff8a3a', '#a03a14'],   // Wildfire: blue core, orange tips
-  ash: ['#ffe0d0', '#ff9a6a', '#ff5a3a', '#d42a3a', '#8a1a3a', '#3a1028'],
-  brand: ['#fff0fa', '#ffa8e4', '#ff62a8', '#e02a5a', '#8a1a4a', '#3a1030'],
+  // Wildfire: a white-hot core over deep crimson. (Fire stays in reds and oranges: blue would
+  // read as Frost and pink as Hearth.)
+  inferno: ['#ffffff', '#fff8e0', '#ffe08a', '#ff8a3a', '#ff3a22', '#8a0c08'],
+  ash: ['#ffe0d0', '#ff9a6a', '#ff5a3a', '#d42a2a', '#7a1a1a', '#2e1010'],
+  brand: ['#fff0e0', '#ff9a6a', '#ff4433', '#d01a22', '#8a1020', '#3a0c14'],   // Ashen Brand: crimson and soot
 };
-const EMBER = { ember: '#ffb347', warm: '#ffc24a', hot: '#ffe08a', white: '#fff4c0', blue: '#bfe4ff', ash: '#ff7a5a', brand: '#ff9ae0' };
-const GLOW = { ember: '#ff6a1a', warm: '#ff7a20', hot: '#ff9a30', white: '#ffc860', blue: '#6aa8ff', ash: '#e0402a', brand: '#ff4a9a' };
+const EMBER = { ember: '#ffb347', warm: '#ffc24a', hot: '#ffe08a', white: '#fff4c0', inferno: '#ffffff', ash: '#ff7a5a', brand: '#ff6a4a' };
+const GLOW = { ember: '#ff6a1a', warm: '#ff7a20', hot: '#ff9a30', white: '#ffc860', inferno: '#ff7a3a', ash: '#e0402a', brand: '#d0201a' };
 
-// How a Censer's flame looks: hotter (orange -> white -> blue) as it's upgraded.
+// How a Censer's flame looks: hotter (orange -> white-hot) as it's upgraded.
 function flameLook(tiers) {
   const [a, b, c] = tiers;
-  if (a >= 4) return 'blue';
+  if (a >= 4) return 'inferno';
   if (c >= 4) return 'brand';
   if (c >= 3) return 'ash';
   if (a >= 3 || b >= 4) return 'white';
@@ -73,6 +77,7 @@ export class FlameFx {
     this.active = [];         // Censers drawing this frame: [tower, state] pairs
     this.sprites = null;
     this.hazeCache = new Map();   // tower id -> cached background patch
+    this.m = [0, 0];
   }
 
   initSprites() {
@@ -139,24 +144,26 @@ export class FlameFx {
     const look = flameLook(t.tiers);
     const lvl = t.tiers[0] + t.tiers[1] + t.tiers[2];
     const range = s.range, arc = ring ? TAU : s.arc;
-    const sc = towerScale(t.tiers);
     const life = 0.34 + range * 0.0007;
     const reachK = (1 - Math.exp(-DRAG * life)) / DRAG;   // distance covered per unit of start speed
     const rate = (ring ? 210 : 52 + 34 * Math.min(2.5, arc) + range * 0.26) * share * st.k;
-    const nozzle = ring ? 22 * sc : (15 + t.tiers[1] * 2) * sc;
-    const ox = t.x + Math.cos(t.ang) * nozzle, oy = t.y + Math.sin(t.ang) * nozzle;
+    const M = this.m;
+    wardMuzzle(t, t.ang, M);
+    const ox = M[0], oz = Math.max(0, t.y + Math.sin(t.ang) * 10 - M[1]), oy = M[1] + oz;
     const s0 = 6 + lvl * 0.7, s1 = 17 + range * 0.11 + Math.min(arc, 2) * 5 + lvl * 1.6;
     st.acc += rate * dt;
     while (st.acc >= 1) {
       st.acc -= 1;
       if (this.flame.length >= MAX_FLAME) { st.acc = 0; break; }
       const p = this.pool.pop() || {};
-      let a, x0 = ox, y0 = oy;
+      let a, x0 = ox, y0 = oy, z0 = oz;
       if (ring) {
         // Dragon's Breath ring: a jet from each of the three spinning heads, curling into a
         // pinwheel, with fire filling the ring between them.
-        a = Math.random() < 0.6 ? t.ang + ((Math.random() * 3) | 0) * (TAU / 3) + (Math.random() - 0.5) * 0.4 : Math.random() * TAU;
-        x0 = t.x + Math.cos(a) * nozzle; y0 = t.y + Math.sin(a) * nozzle;
+        const head = t.ang + ((Math.random() * 3) | 0) * (TAU / 3);
+        a = Math.random() < 0.6 ? head + (Math.random() - 0.5) * 0.4 : Math.random() * TAU;
+        wardMuzzle(t, head, M);
+        z0 = Math.max(0, t.y + Math.sin(head) * 10 - M[1]); x0 = M[0]; y0 = M[1] + z0;
       } else {
         // Fuller in the middle of the cone, thinning to its edges.
         a = t.ang + (Math.random() + Math.random() - 1) * arc * 0.55;
@@ -164,7 +171,7 @@ export class FlameFx {
       p.max = p.life = life * (0.85 + Math.random() * 0.3);
       const reach = range * (0.8 + Math.random() * 0.25);
       const v = reach / ((1 - Math.exp(-DRAG * p.max)) / DRAG || reachK);
-      p.x = x0; p.y = y0;
+      p.x = x0; p.y = y0; p.z = z0;
       p.vx = Math.cos(a) * v; p.vy = Math.sin(a) * v;
       if (ring) { const sw = v * 0.45; p.vx += Math.sin(a) * sw; p.vy -= Math.cos(a) * sw; }   // trails the spin
       p.s0 = s0 * (0.8 + Math.random() * 0.4);
@@ -172,7 +179,7 @@ export class FlameFx {
       if (ring && Math.random() < 0.3) {
         // The crest: a band of flame burning along the ring's edge, licking round with the spin.
         const r0 = range * (0.72 + Math.random() * 0.25);
-        p.x = t.x + Math.cos(a) * r0; p.y = t.y + Math.sin(a) * r0;
+        p.x = t.x + Math.cos(a) * r0; p.y = t.y + Math.sin(a) * r0; p.z = 0;
         const tv = 40 + Math.random() * 40;
         p.vx = Math.sin(a) * tv + Math.cos(a) * 12; p.vy = -Math.cos(a) * tv + Math.sin(a) * 12 - 20;
         p.s0 = s1 * 0.5; p.s1 = s1 * 0.9;
@@ -378,7 +385,8 @@ export class FlameFx {
           const inv = sp2 > 1 ? 1 / Math.sqrt(sp2) : 0;
           const cx = sp2 > 1 ? p.vx * inv : 1, cy = sp2 > 1 ? p.vy * inv : 0;
           const along = size * (1 + 1.1 * (1 - u)), across = size * (0.75 + 0.25 * u);
-          ctx.setTransform(S * cx * along, S * cy * along, -S * cy * across, S * cx * across, S * p.x + m.e, S * p.y + m.f);
+          const fall = (1 - u) * (1 - u);
+          ctx.setTransform(S * cx * along, S * cy * along, -S * cy * across, S * cx * across, S * p.x + m.e, S * (p.y - p.z * fall) + m.f);
           ctx.drawImage(sp[p.look][stage], -0.5, -0.5, 1, 1);
         }
       }
@@ -390,13 +398,11 @@ export class FlameFx {
     for (let i = 0; i < A.length; i += 2) {
       const t = A[i], st = A[i + 1], s = t.stats, ring = s.arc >= TAU - 0.01;
       const look = flameLook(t.tiers);
-      const sc = towerScale(t.tiers);
-      const nz = (ring ? 22 : 15 + t.tiers[1] * 2) * sc;
-      const R = (ring ? 11 : 13) * (0.9 + Math.sin(this.time * 37 + t.id) * 0.1) * (1 + (t.tiers[0] + t.tiers[1] + t.tiers[2]) * 0.06);
+      const R = (ring ? 9 : 10) * (0.9 + Math.sin(this.time * 37 + t.id) * 0.1) * (1 + (t.tiers[0] + t.tiers[1] + t.tiers[2]) * 0.06);
       ctx.globalAlpha = 0.85 * st.k;
       for (let h = 0; h < (ring ? 3 : 1); h++) {
-        const a = t.ang + (h * TAU) / 3;
-        ctx.drawImage(this.sprites.flame[look][0], t.x + Math.cos(a) * nz - R, t.y + Math.sin(a) * nz - R, R * 2, R * 2);
+        const M = wardMuzzle(t, t.ang + (h * TAU) / 3, this.m);
+        ctx.drawImage(this.sprites.flame[look][0], M[0] - R, M[1] - R, R * 2, R * 2);
       }
     }
     ctx.globalCompositeOperation = 'source-over';

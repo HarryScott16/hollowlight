@@ -1,12 +1,13 @@
 // Draws the game each frame and turns simulation events (game.fx) into visual effects.
 import { MAP } from '../data/map.js';
-import { TOWERS, PATH_COLORS } from '../data/towers.js';
+import { TOWERS } from '../data/towers.js';
 import { DAMAGE_TYPES } from '../data/damage.js';
 import { RULES } from '../data/rules.js';
 import { Particles } from './particles.js';
 import { FlameFx } from './flames.js';
 import { paintBackground } from './background.js';
-import { drawTower, towerScale } from './towerArt.js';
+import { drawWard, wardMuzzle, wardTop, wardColor, initWardArt, setSkin, skinFromQuery } from './wardArt.js';
+import { DMG } from './wards/kit.js';
 import { drawEnemy, initSprites, ENEMY_COLORS } from './enemyArt.js';
 
 const TAU = Math.PI * 2;
@@ -14,9 +15,13 @@ const W = MAP.width, H = MAP.height;
 const INK = '#1d1030';
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 
-const NUM_COLORS = { kinetic: '#fff4c2', blast: '#ffb347', arcane: '#8ff0ff', frost: '#d6f7ff', fire: '#ff9a4a', radiant: '#fff3b0', true: '#ff7ae0' };
+// Damage numbers use each damage type's signature colour (render/wards/kit.js).
+const NUM_COLORS = { kinetic: DMG.kinetic.core, blast: DMG.blast.core, arcane: DMG.arcane.core, frost: DMG.frost.core, fire: DMG.fire.core, radiant: DMG.radiant.core, true: '#ffffff' };
+const FROST = DMG.frost.core, KINETIC = DMG.kinetic.core;
 const POP_TIME = 0.45;
 const noop = () => {};
+const byY = (a, b) => a.y - b.y;
+const GHOST_TIERS = [0, 0, 0];
 // Stand-in when no Sound is attached (and for unknown events).
 const MUTE = { pop: noop, crack: noop, boom: noop, zap: noop, shot: noop, pulse: noop, coin: noop, flare: noop, frost: noop, ability: noop, upgrade: noop, place: noop, sell: noop, wave: noop, leak: noop, streak: noop, bossDown: noop, lastLight: noop, snipe: noop, flame: noop, burst: noop, roar: noop };
 
@@ -51,7 +56,13 @@ export class Renderer {
     this.numBudget = 0;
     this.showFps = false;
     this.fps = { frames: 0, t: performance.now(), value: 0, worst: 0, last: performance.now() };
-    this._st = { ang: 0, recoil: 0, time: 0, pulse: 0, tx: null, ty: null, pop: 0 };
+    this._st = { ang: 0, recoil: 0, time: 0, pulse: 0, fire: 0, tx: null, ty: null, pop: 0, id: 0 };
+    this._walk = [];      // walkers sorted by depth, drawn interleaved with the wards
+    this._wards = [];
+    this._at = new Map(); // map position -> ward, to find which ward an event came from
+    this._m = [0, 0];
+    this.snow = null;     // Endless Winter snowfall
+    if (typeof location !== 'undefined') { const s = skinFromQuery(location.search); if (s) setSkin(s); }
     this.resize();
   }
 
@@ -88,6 +99,7 @@ export class Renderer {
     b.setTransform(scale, 0, 0, scale, 0, 0);
     paintBackground(b, this.game.map);
     initSprites(() => document.createElement('canvas'), scale);
+    initWardArt(() => document.createElement('canvas'), scale);
     this.aimCoins();
   }
 
@@ -117,6 +129,7 @@ export class Renderer {
     const P = this.parts;
     const S = this.sound || MUTE;
     this.numBudget = 4;
+    if (fx.length) { this._at.clear(); for (const t of this.game.towers) this._at.set(Math.round(t.x) * 4096 + Math.round(t.y), t); }
     for (let i = 0; i < fx.length; i++) {
       const f = fx[i];
       switch (f.type) {
@@ -199,34 +212,56 @@ export class Renderer {
           break;
         case 'pulse':
           S.pulse();
-          this.ring(f.x, f.y, 12, f.r, 0.5, f.freeze ? '#ffffff' : '#3fd0ff', f.freeze ? 5 : 2.5, f.freeze ? 'rgba(200,245,255,0.35)' : 'rgba(120,215,255,0.16)');
-          P.burst(f.x, f.y, f.freeze ? 22 : 8, { color: f.freeze ? '#ffffff' : '#bff3ff', speed: f.r * 2.4, life: 0.45, size: 2.6, drag: 3 });
+          this.ring(f.x, f.y, 12, f.r, 0.5, f.freeze ? '#ffffff' : FROST, f.freeze ? 5 : 2.5, f.freeze ? 'rgba(200,245,255,0.35)' : 'rgba(82,230,255,0.16)');
+          P.burst(f.x, f.y - 8, f.freeze ? 22 : 8, { color: f.freeze ? '#ffffff' : '#bff3ff', speed: f.r * 2.4, life: 0.45, size: 2.6, drag: 3 });
+          if (f.freeze) { // a freezing pulse: a second white shock ring and a spray of ice shards
+            this.ring(f.x, f.y, 6, f.r * 0.7, 0.3, '#e8fbff', 3, null, true);
+            P.burst(f.x, f.y - 10, 16, { color: FROST, speed: f.r * 1.6, life: 0.6, size: 3.6, drag: 2.5 });
+          }
           break;
         case 'shatter':
-          this.ring(f.x, f.y, 4, f.r, 0.28, '#ffffff', 3, 'rgba(190,240,255,0.5)', true);
-          P.burst(f.x, f.y, 14, { color: '#bff3ff', speed: 220, life: 0.45, size: 3.4 });
+          this.ring(f.x, f.y, 4, f.r, 0.28, '#ffffff', 3, 'rgba(82,230,255,0.4)', true);
+          P.burst(f.x, f.y, 14, { color: FROST, speed: 220, life: 0.45, size: 3.4 });
+          P.burst(f.x, f.y, 6, { color: '#ffffff', speed: 160, life: 0.35, size: 2.6 });
           break;
         case 'markburst':
-          this.ring(f.x, f.y, 6, f.r, 0.3, '#d36bff', 2.5, 'rgba(200,107,255,0.15)');
+          this.ring(f.x, f.y, 6, f.r, 0.3, KINETIC, 2.5, 'rgba(233,238,246,0.12)');
           break;
         case 'execute':
-          this.text(f.x, f.y - 18, 'EXECUTED', '#ff7ae0', 14, 0.9);
-          P.burst(f.x, f.y, 16, { color: '#ff7ae0', speed: 180, life: 0.5, size: 3 });
+          this.text(f.x, f.y - 18, 'EXECUTED', '#ffffff', 14, 0.9);
+          P.burst(f.x, f.y, 16, { color: KINETIC, speed: 180, life: 0.5, size: 3 });
+          this.ring(f.x, f.y, 4, 30, 0.3, '#ffffff', 3, null, true);
           break;
-        case 'fire':
+        case 'fire': {
           S.shot();
-          if (f.kind === 'mortar') P.burst(f.x + Math.cos(f.ang) * 18, f.y + Math.sin(f.ang) * 18, 7, { color: '#e8e0d8', speed: 70, life: 0.5, size: 4.5, ang: f.ang, spread: 1 });
-          else P.burst(f.x + Math.cos(f.ang) * 18, f.y + Math.sin(f.ang) * 18, 2, { color: '#fff4c2', speed: 90, life: 0.15, size: 2, ang: f.ang, spread: 0.6 });
+          const w = this._at.get(Math.round(f.x) * 4096 + Math.round(f.y));
+          const m = w ? wardMuzzle(w, f.ang, this._m) : [f.x + Math.cos(f.ang) * 18, f.y + Math.sin(f.ang) * 18];
+          if (f.kind === 'mortar') P.burst(m[0], m[1], 7, { color: '#e8e0d8', speed: 70, life: 0.5, size: 4.5, ang: f.ang, spread: 1 });
+          else {
+            const big = w && w.stats.lance;
+            P.burst(m[0], m[1], big ? 10 : 3, { color: KINETIC, speed: big ? 200 : 100, life: big ? 0.35 : 0.18, size: big ? 3.2 : 2.2, ang: f.ang, spread: big ? 1 : 0.6 });
+            if (big) { this.ring(m[0], m[1], 3, 26, 0.25, '#ffffff', 3, null, true); this.shake = Math.max(this.shake, 1.5); }
+          }
           break;
+        }
         case 'snipe': {
           S.snipe(f.big);
-          if (this.tracers.length < 60) this.tracers.push({ x: f.x, y: f.y, tx: f.tx, ty: f.ty, life: f.big ? 0.3 : 0.18, max: f.big ? 0.3 : 0.18, big: f.big, spot: f.spot > 0 });
-          P.burst(f.tx, f.ty, f.big ? 10 : 4, { color: '#fff4c2', speed: 160, life: 0.3, size: 2.6 });
-          if (f.flak) {
-            this.ring(f.tx, f.ty, 4, f.flak, 0.25, '#b8f6ff', 2.5, 'rgba(184,246,255,0.18)', true);
-            P.burst(f.tx, f.ty, 8, { color: '#d8e4f0', speed: f.flak * 3, life: 0.35, size: 2.4 });
+          const w = this._at.get(Math.round(f.x) * 4096 + Math.round(f.y));
+          const ang = Math.atan2(f.ty - f.y, f.tx - f.x);
+          const m = w ? wardMuzzle(w, ang, this._m) : [f.x, f.y];
+          if (this.tracers.length < 60) this.tracers.push({ x: m[0], y: m[1], tx: f.tx, ty: f.ty, life: f.big ? 0.32 : 0.18, max: f.big ? 0.32 : 0.18, big: f.big, spot: f.spot > 0 });
+          P.burst(m[0], m[1], f.big ? 8 : 3, { color: KINETIC, speed: 120, life: 0.2, size: 2.4, ang, spread: 0.8 });
+          P.burst(f.tx, f.ty, f.big ? 14 : 4, { color: KINETIC, speed: f.big ? 220 : 160, life: 0.3, size: 2.6 });
+          if (f.big) { // a Headhunter round: a shock ring where it lands and one at the muzzle
+            this.ring(f.tx, f.ty, 4, 34, 0.3, '#ffffff', 3.5, 'rgba(233,238,246,0.25)', true);
+            this.ring(m[0], m[1], 3, 18, 0.2, '#ffffff', 2.5, null, true);
           }
-          if (f.spot) this.ring(f.tx, f.ty, 6, f.spot, 0.45, '#ecc8ff', 1.8, 'rgba(236,200,255,0.10)');
+          if (f.flak) {
+            this.ring(f.tx, f.ty, 4, f.flak, 0.25, KINETIC, 2.5, 'rgba(233,238,246,0.16)', true);
+            P.burst(f.tx, f.ty, 8, { color: '#c9d0dc', speed: f.flak * 3, life: 0.35, size: 2.4 });
+            P.burst(f.tx, f.ty, 4, { color: '#8a8f9c', speed: f.flak * 1.2, life: 0.8, size: 4.5, grav: -20 });
+          }
+          if (f.spot) this.ring(f.tx, f.ty, 6, f.spot, 0.45, '#ffffff', 1.8, 'rgba(255,255,255,0.08)');
           break;
         }
         case 'burst':
@@ -385,8 +420,10 @@ export class Renderer {
     }
   }
 
+  // Upgrades flash in the ward's own damage colour (path colours live only in the upgrade panel).
   upgradeFx(f) {
-    const col = PATH_COLORS[f.path];
+    const w = this.game.towers.find((t) => t.id === f.id);
+    const col = w ? wardColor(w.type) : '#ffffff';
     const P = this.parts;
     this.pops.set(f.id, POP_TIME);
     const big = f.tier >= 3;
@@ -453,60 +490,58 @@ export class Renderer {
       }
     }
 
-    const es = game.enemies;
-    // Walkers first, then flyers above them.
+    if (sel) { // the selection ring lies on the ground around the ward's footprint
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.lineDashOffset = -this.time * 16;
+      ctx.beginPath(); ctx.ellipse(sel.x, sel.y + 2, 24, 10, 0, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Upright wards and walking Gloom are drawn back to front, so whatever stands nearer the
+    // bottom of the screen covers what's behind it. Flyers go over everything.
+    const es = game.enemies, walk = this._walk, wards = this._wards;
+    walk.length = 0;
     let flyers = 0;
-    for (let i = 0; i < es.length; i++) { if (es[i].def.flying) flyers++; else drawEnemy(ctx, es[i], lite); }
+    for (let i = 0; i < es.length; i++) { if (es[i].def.flying) flyers++; else walk.push(es[i]); }
+    walk.sort(byY);
+    wards.length = 0;
+    for (const t of game.towers) wards.push(t);
+    wards.sort(byY);
+    this.drawBeams(ctx);
+    let wi = 0;
+    for (let i = 0; i < walk.length; i++) {
+      const e = walk[i];
+      while (wi < wards.length && wards[wi].y + 3 <= e.y) this.drawWardAt(ctx, wards[wi++], dt);
+      drawEnemy(ctx, e, lite);
+    }
+    while (wi < wards.length) this.drawWardAt(ctx, wards[wi++], dt);
     if (flyers) for (let i = 0; i < es.length; i++) if (es[i].def.flying) drawEnemy(ctx, es[i], lite);
 
-    this.drawBeams(ctx);
-    const st = this._st;
     for (const t of game.towers) {
-      let pop = this.pops.get(t.id) || 0;
-      if (pop > 0) {
-        pop -= dt;
-        if (pop <= 0) this.pops.delete(t.id); else this.pops.set(t.id, pop);
-      }
-      ctx.save();
-      ctx.translate(t.x, t.y);
-      st.ang = t.ang; st.recoil = t.recoil; st.time = this.time + t.id * 0.37; st.pulse = t.pulseAnim;
-      const tg = t.target;
-      if (tg && tg.alive) { st.tx = tg.x - t.x; st.ty = tg.y - t.y; } else { st.tx = null; st.ty = null; }
-      // pop: quick overshoot then settle
-      st.pop = pop > 0 ? Math.sin((1 - pop / POP_TIME) * Math.PI) * (pop / POP_TIME + 0.3) : 0;
-      drawTower(ctx, t.type, t.tiers, st);
-      ctx.restore();
       // A Beacon's boost: a small golden chevron over the ward
       if (t.aura) {
-        const y = t.y - 26 * towerScale(t.tiers) + Math.sin(this.time * 4 + t.id) * 1.5;
+        const y = wardTop(t) - 5 + Math.sin(this.time * 4 + t.id) * 1.5;
         ctx.fillStyle = game.rally ? '#fff1a0' : '#ffd23a';
         ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(t.x - 5, y + 3); ctx.lineTo(t.x, y - 2); ctx.lineTo(t.x + 5, y + 3); ctx.lineTo(t.x + 5, y + 6); ctx.lineTo(t.x, y + 1); ctx.lineTo(t.x - 5, y + 6); ctx.closePath();
         ctx.fill(); ctx.stroke();
       }
-      // Overdraw: a spinning golden aura while the buff lasts
+      // Overdraw: a spinning ring on the ground in the ward's colour while the buff lasts
       if (t.buffT > 0) {
-        ctx.strokeStyle = '#ffe45c';
+        ctx.strokeStyle = wardColor(t.type);
         ctx.lineWidth = 3;
         ctx.setLineDash([10, 8]);
         ctx.lineDashOffset = -this.time * 60;
-        ctx.beginPath(); ctx.arc(t.x, t.y, 30 + Math.sin(this.time * 20) * 2, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(t.x, t.y + 2, 28 + Math.sin(this.time * 20) * 2, 12, 0, 0, TAU); ctx.stroke();
         ctx.setLineDash([]);
       }
-      // capstone towers shed motes of light
+      // tier 4 wards shed motes of light in their damage colour, rising off the body
       if (dt > 0 && (t.tiers[0] >= 4 || t.tiers[1] >= 4 || t.tiers[2] >= 4) && Math.random() < 0.35) {
-        const pi = t.tiers.indexOf(4);
-        const an = Math.random() * TAU, d = 14 + Math.random() * 18;
-        this.parts.burst(t.x + Math.cos(an) * d, t.y + Math.sin(an) * d, 1, { color: PATH_COLORS[pi], speed: 30, life: 0.9, size: 2.6, grav: -60, ang: -Math.PI / 2, spread: 1 });
+        const an = Math.random() * TAU, d = 8 + Math.random() * 14;
+        this.parts.burst(t.x + Math.cos(an) * d, t.y - 6 + Math.sin(an) * d * 0.6, 1, { color: wardColor(t.type), speed: 30, life: 0.9, size: 2.6, grav: -60, ang: -Math.PI / 2, spread: 1 });
       }
-    }
-    if (sel) {
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 5]);
-      ctx.lineDashOffset = -this.time * 16;
-      ctx.beginPath(); ctx.arc(sel.x, sel.y, 25 * towerScale(sel.tiers), 0, TAU); ctx.stroke();
-      ctx.setLineDash([]);
     }
 
     this.drawProjectiles(ctx);
@@ -516,6 +551,7 @@ export class Renderer {
     this.drawArcs(ctx, dt);
     this.drawPillars(ctx, dt);
     this.parts.draw(ctx);
+    this.drawSnow(ctx, dt);
     this.drawCoins(ctx, dt);
     this.drawTexts(ctx, dt);
     this.drawPlacement(ctx, ui);
@@ -527,6 +563,42 @@ export class Renderer {
     this.drawBanner(ctx, dt);
     this.drawCallout(ctx, dt);
     this.drawFps(ctx);
+  }
+
+  // Endless Winter slows the whole map: light snow drifts across it while one stands.
+  drawSnow(ctx, dt) {
+    let on = false;
+    for (const t of this.game.towers) if (t.stats.globalSlow) { on = true; break; }
+    if (!on && !this.snow) return;
+    if (!this.snow) { this.snow = []; for (let i = 0; i < 90; i++) this.snow.push({ x: Math.random() * W, y: Math.random() * H, s: 1.2 + Math.random() * 2.2, v: 18 + Math.random() * 26, ph: Math.random() * TAU }); this.snowA = 0; }
+    this.snowA = Math.max(0, Math.min(1, this.snowA + (on ? dt : -dt) * 0.8));
+    if (!on && this.snowA <= 0) { this.snow = null; return; }
+    ctx.fillStyle = '#ffffff';
+    for (const f of this.snow) {
+      f.y += f.v * dt; f.x += Math.sin(this.time * 0.8 + f.ph) * 12 * dt - 6 * dt;
+      if (f.y > H + 4) { f.y = -4; f.x = Math.random() * W; }
+      if (f.x < -4) f.x = W + 4;
+      ctx.globalAlpha = this.snowA * (0.35 + f.s * 0.12);
+      ctx.fillRect(f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  drawWardAt(ctx, t, dt) {
+    let pop = this.pops.get(t.id) || 0;
+    if (pop > 0) {
+      pop -= dt;
+      if (pop <= 0) this.pops.delete(t.id); else this.pops.set(t.id, pop);
+    }
+    const st = this._st;
+    st.ang = t.ang; st.recoil = t.recoil; st.time = this.time + t.id * 0.37; st.pulse = t.pulseAnim; st.id = t.id;
+    const fl = t.def.kind === 'flame' && this.flameFx.state.get(t.id);
+    st.fire = fl ? fl.k : 0;
+    const tg = t.target;
+    if (tg && tg.alive) { st.tx = tg.x - t.x; st.ty = tg.y - t.y; } else { st.tx = null; st.ty = null; }
+    // pop: quick overshoot then settle
+    st.pop = pop > 0 ? Math.sin((1 - pop / POP_TIME) * Math.PI) * (pop / POP_TIME + 0.3) : 0;
+    drawWard(ctx, t, st);
   }
 
   drawFlash(ctx, dt) {
@@ -699,8 +771,8 @@ export class Renderer {
       list[w++] = tr;
       const a = tr.life / tr.max;
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = tr.spot ? `rgba(236,200,255,${0.5 * a})` : `rgba(255,230,150,${0.5 * a})`;
-      ctx.lineWidth = tr.big ? 7 : 4;
+      ctx.strokeStyle = `rgba(233,238,246,${(tr.spot ? 0.4 : 0.5) * a})`;
+      ctx.lineWidth = tr.big ? 9 : 4;
       ctx.beginPath(); ctx.moveTo(tr.x, tr.y); ctx.lineTo(tr.tx, tr.ty); ctx.stroke();
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = `rgba(255,255,255,${a})`;
@@ -741,25 +813,46 @@ export class Renderer {
       const p = ps[i];
       if (p.kind === 'bolt') {
         const sz = p.s.boltSize || 1;
+        // Bolts leave the crossbow up on the ward and drop to the target's height as they fly: the
+        // offset from the footprint to the muzzle fades out over the first flight.
+        if (p._ox === undefined) {
+          const w = p.src, m = w ? wardMuzzle(w, Math.atan2(p.vy, p.vx), this._m) : null;
+          const g = w ? Math.hypot(p.vx, p.vy) || 1 : 1;
+          p._ox = m ? m[0] - (w.x + (p.vx / g) * 16) : 0; p._oy = m ? m[1] - (w.y + (p.vy / g) * 16) : 0;
+          p._sx = p.x; p._sy = p.y;
+          const tg = p.target;
+          p._D = tg ? Math.max(50, Math.hypot(tg.x - p.x, tg.y - p.y)) : 80;
+        }
+        const fade = p.hit.length ? 0 : Math.max(0, 1 - Math.hypot(p.x - p._sx, p.y - p._sy) / p._D);
+        const x = p.x + p._ox * fade, y = p.y + p._oy * fade;
         if (p.s.lance) {
-          // Siege Lance: a long blazing streak
-          const k = 0.09;
+          // Siege Lance: a long white-hot streak of silver light
+          const k = 0.1;
           ctx.globalCompositeOperation = 'lighter';
-          ctx.strokeStyle = 'rgba(255,190,60,0.55)';
-          ctx.lineWidth = 12;
-          ctx.beginPath(); ctx.moveTo(p.x - p.vx * k, p.y - p.vy * k); ctx.lineTo(p.x, p.y); ctx.stroke();
+          ctx.strokeStyle = 'rgba(233,238,246,0.35)';
+          ctx.lineWidth = 18;
+          ctx.beginPath(); ctx.moveTo(x - p.vx * k, y - p.vy * k); ctx.lineTo(x, y); ctx.stroke();
+          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+          ctx.lineWidth = 9;
+          ctx.stroke();
           ctx.globalCompositeOperation = 'source-over';
-          ctx.strokeStyle = '#fff6d0';
-          ctx.lineWidth = 4.5;
-          ctx.beginPath(); ctx.moveTo(p.x - p.vx * k * 0.7, p.y - p.vy * k * 0.7); ctx.lineTo(p.x, p.y); ctx.stroke();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.moveTo(x - p.vx * k * 0.7, y - p.vy * k * 0.7); ctx.lineTo(x, y); ctx.stroke();
           continue;
         }
         const k = 0.022 + sz * 0.006;
-        const col = p.s.markPct ? '#ecc8ff' : p.s.shots > 1 ? '#b8f6ff' : '#fff4c2';
+        if (sz >= 2 || p.s.shots >= 8) { // heavy bolts and the Storm of Bolts leave a faint streak
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.strokeStyle = 'rgba(233,238,246,0.22)';
+          ctx.lineWidth = 2 + sz * 1.6;
+          ctx.beginPath(); ctx.moveTo(x - p.vx * k * 1.6, y - p.vy * k * 1.6); ctx.lineTo(x, y); ctx.stroke();
+          ctx.globalCompositeOperation = 'source-over';
+        }
         ctx.strokeStyle = INK;
         ctx.lineWidth = 2 + sz * 1.6;
-        ctx.beginPath(); ctx.moveTo(p.x - p.vx * k, p.y - p.vy * k); ctx.lineTo(p.x, p.y); ctx.stroke();
-        ctx.strokeStyle = col;
+        ctx.beginPath(); ctx.moveTo(x - p.vx * k, y - p.vy * k); ctx.lineTo(x, y); ctx.stroke();
+        ctx.strokeStyle = KINETIC;
         ctx.lineWidth = 0.8 + sz * 1.2;
         ctx.stroke();
       } else {
@@ -903,11 +996,8 @@ export class Renderer {
       this.mapWide(ctx);
       this.rangeCircle(ctx, x, y, 26, ok);   // just the footprint
     } else this.rangeCircle(ctx, x, y, def.base.range, ok, def.base.minRange);
-    ctx.save();
-    ctx.translate(x, y);
     ctx.globalAlpha = ok ? 0.9 : 0.5;
-    drawTower(ctx, ui.placing, [0, 0, 0], { ang: -Math.PI / 2, recoil: 0, time: this.time, pulse: 0, tx: null, ty: null, pop: 0 });
-    ctx.restore();
+    drawWard(ctx, { type: ui.placing, tiers: GHOST_TIERS, x, y, id: 0 }, { ang: Math.PI * 0.15, recoil: 0, time: this.time, pulse: 0, fire: 0, tx: null, ty: null, pop: 0, id: 0 });
     ctx.globalAlpha = 1;
     if (!ok) {
       ctx.lineCap = 'round';

@@ -1,0 +1,68 @@
+// Ward art check: renders every converted ward in BOTH skins (base, T2 and T4 on each path, and a
+// mixed build) into a contact sheet, and checks the height cap (a ward must not stand more than
+// 48 px above its footprint, so it never hides the enemies behind it).
+//
+//   CANVAS_MODULES=<dir>/node_modules node tools/wards.mjs [out.png]
+//
+// Needs @napi-rs/canvas, which is NOT a game dependency: install it anywhere outside the game,
+// e.g. mkdir -p ~/scratch/rnd && cd ~/scratch/rnd && npm i @napi-rs/canvas@0.1.65
+// Exits non-zero if a ward breaks the cap or a skin is missing a ward the other skin has.
+import { createRequire } from 'node:module';
+import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
+import { initWardArt, setSkin, drawWard, SKINS, wardScale } from '../public/js/render/wardArt.js';
+
+const req = createRequire(process.env.CANVAS_MODULES ? join(process.env.CANVAS_MODULES, 'x.js') : import.meta.url);
+const { createCanvas, GlobalFonts } = req('@napi-rs/canvas');
+if (process.env.FONT_DIR) GlobalFonts.registerFromPath(join(process.env.FONT_DIR, 'DejaVuSans.ttf'), 'Sans');
+const out = process.argv[2] || 'wards.png';
+const CAP = 48;
+
+const STATES = [[0, 0, 0], [2, 0, 0], [4, 0, 0], [0, 2, 0], [0, 4, 0], [0, 0, 2], [0, 0, 4], [4, 2, 0], [0, 2, 4]];
+const skins = Object.keys(SKINS);
+const types = [...new Set(skins.flatMap((s) => Object.keys(SKINS[s].art)))];
+let bad = 0;
+for (const s of skins) for (const t of types) if (!SKINS[s].art[t]) { console.log(`MISSING: ${t} has no ${SKINS[s].name} art`); bad++; }
+
+// Height above the footprint: render at 1x on a clear canvas and find the topmost opaque pixel.
+// Worst case over eight aim directions (an aimed part pointing up the screen stands tallest).
+function height(type, tiers) {
+  let worst = 0;
+  initWardArt(() => createCanvas(1, 1), 1);
+  for (let k = 0; k < 8; k++) {
+    const c = createCanvas(120, 120), ctx = c.getContext('2d');
+    drawWard(ctx, { type, tiers, x: 60, y: 90, id: 1 }, { ang: (k / 8) * Math.PI * 2, recoil: 0, time: 0.3, pulse: 0, fire: 0, pop: 0, id: 1 });
+    const px = ctx.getImageData(0, 0, 120, 120).data;
+    let top = 120;
+    for (let y = 0; y < 120 && top === 120; y++) for (let x = 0; x < 120; x++) if (px[(y * 120 + x) * 4 + 3] > 60) { top = y; break; }
+    worst = Math.max(worst, 90 + (14 - 11) * wardScale(tiers) - top);
+  }
+  return worst;
+}
+
+const Z = 2, CW = 70 * Z, CH = 80 * Z, LBL = 18;
+const W = 90 + STATES.length * CW, H = types.length * skins.length * (CH + LBL) + 30;
+const sheet = createCanvas(W, H), g = sheet.getContext('2d');
+g.fillStyle = '#2f9a74'; g.fillRect(0, 0, W, H);
+g.font = '12px Sans, sans-serif'; g.fillStyle = '#fff';
+STATES.forEach((s, i) => g.fillText(s.join('/'), 90 + i * CW + CW / 2 - 14, 18));
+let row = 0;
+for (const t of types) for (const s of skins) {
+  setSkin(s);
+  const y0 = 30 + row * (CH + LBL);
+  g.fillStyle = '#fff'; g.fillText(`${t}`, 6, y0 + CH / 2); g.fillText(SKINS[s].name, 6, y0 + CH / 2 + 15);
+  STATES.forEach((tiers, i) => {
+    const h = height(t, tiers);
+    const over = h > CAP;
+    if (over) { console.log(`TOO TALL: ${t} ${tiers.join('/')} (${SKINS[s].name}) stands ${h.toFixed(1)} px (cap ${CAP})`); bad++; }
+    initWardArt(() => createCanvas(1, 1), Z);
+    g.save(); g.translate(90 + i * CW, y0); g.scale(Z, Z);
+    drawWard(g, { type: t, tiers, x: 35, y: 62, id: i }, { ang: 0.6, recoil: 0, time: 0.3 + i, pulse: 0, fire: 0, pop: 0, id: i });
+    g.restore();
+    g.fillStyle = over ? '#ff6060' : '#d8ffe8'; g.fillText(`${h.toFixed(0)}px`, 90 + i * CW + 4, y0 + CH + 12);
+  });
+  row++;
+}
+writeFileSync(out, sheet.toBuffer('image/png'));
+console.log(`wrote ${out}: ${types.length} wards x ${skins.length} skins${bad ? `, ${bad} problem(s)` : ', all within the cap'}`);
+process.exit(bad ? 1 : 0);
