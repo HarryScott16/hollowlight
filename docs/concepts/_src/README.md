@@ -27,6 +27,7 @@ A full run takes a minute or two and uses well under 200 MB.
 | `render-crowd.mjs` | `crowd-test.png`, and prints heights and occlusion numbers |
 | `render-ideas.mjs` | `kindlings/ideas/*.png`: all 13 new-ward ideas in the Kindlings style |
 | `render-chosen.mjs` | `chosen/*.png`: the four chosen wards in both skins, the Wandering Light attack sheets and the lineup |
+| `render-progression.mjs` | `progression/*.png`: the proposed upgrade progression on the Bolt Ward, both skins (`dir-bolt-progression.mjs`) |
 
 Library files:
 - `sheet.mjs`: canvas, labels, turf, greyscale, silhouette and blur
