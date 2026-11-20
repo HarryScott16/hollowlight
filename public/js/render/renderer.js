@@ -6,9 +6,9 @@ import { RULES } from '../data/rules.js';
 import { Particles } from './particles.js';
 import { FlameFx } from './flames.js';
 import { paintBackground } from './background.js';
-import { drawWard, wardMuzzle, wardTop, wardBox, wardColor, initWardArt, setSkin, skinFromQuery } from './wardArt.js';
-import { DMG } from './wards/kit.js';
-import { drawEnemy, initSprites, ENEMY_COLORS } from './enemyArt.js';
+import { drawWard, wardMuzzle, wardTop, wardBox, wardColor, initWardArt, setSkin, skinFromQuery, setWardRefresh, pruneWardCache } from './wardArt.js';
+import { DMG, DETAIL } from './wards/kit.js';
+import { drawEnemy, drawEnemyBody, flushEnemyBars, setEnemyBase, initSprites, ENEMY_COLORS } from './enemyArt.js';
 
 const TAU = Math.PI * 2;
 const W = MAP.width, H = MAP.height;
@@ -56,6 +56,9 @@ export class Renderer {
     this.numBudget = 0;
     this.showFps = false;
     this.fps = { frames: 0, t: performance.now(), value: 0, worst: 0, last: performance.now() };
+    // Per-frame cost breakdown for the FPS overlay (` key): ms per frame, averaged twice a second.
+    this.perf = { acc: Object.create(null), sum: Object.create(null), shown: null, frames: 0, steps: 0, wardT: 0 };
+    this.quality = 2;     // 2 full, 1 crowd, 0 huge crowd (set each frame from the enemy count)
     this._st = { ang: 0, recoil: 0, time: 0, pulse: 0, fire: 0, tx: null, ty: null, pop: 0, id: 0 };
     this._walk = [];      // walkers sorted by depth, drawn interleaved with the wards
     this._wards = [];
@@ -119,7 +122,7 @@ export class Renderer {
   }
 
   ring(x, y, r0, r1, life, color, width, fill, add) {
-    if (this.rings.length > 160) this.rings.shift();
+    if (this.rings.length > (this.ringCap || 160)) this.rings.shift();
     this.rings.push({ x, y, r0, r1, life, max: life, color, width, fill, add });
   }
 
@@ -154,8 +157,8 @@ export class Renderer {
             // A layer breaking: a quick pop. Most of a wave is these, so they stay light.
             P.burst(f.x, f.y, 7, { color, speed: 100 + f.r * 6, life: 0.45, size: 2.4 + f.r * 0.12 });
             P.burst(f.x, f.y, 2, { color: '#ffffff', speed: 80, life: 0.25, size: 2.2 });
-            this.ring(f.x, f.y, f.r * 0.4, f.r * 1.9, 0.2, color, 2.5);
-            if (Math.random() < 0.2) this.stain(f.x, f.y, f.r, color);
+            if (this.quality > 0) this.ring(f.x, f.y, f.r * 0.4, f.r * 1.9, 0.2, color, 2.5);
+            if (Math.random() < (this.quality === 2 ? 0.2 : 0.05)) this.stain(f.x, f.y, f.r, color);
             if (f.gold > 0 && this.coins.length < 24 && this.popCount % 4 === 0) this.coins.push({ x: f.x, y: f.y, t: 0, dur: 0.5 + Math.random() * 0.2 });
             S.pop(this.game.streak);
             break;
@@ -373,8 +376,22 @@ export class Renderer {
   }
 
   stain(x, y, r, color) {
-    if (this.stains.length > 90) this.stains.shift();
+    if (this.stains.length > [20, 45, 90][this.quality]) this.stains.shift();
     this.stains.push({ x, y, r: r * (0.9 + Math.random() * 0.4), color, life: 7, rot: Math.random() * 6 });
+  }
+
+  // A soft blob per stain colour, drawn once (a stain is then two cheap calls).
+  stainSprite(color) {
+    const m = this._stainSprites || (this._stainSprites = new Map());
+    let c = m.get(color);
+    if (c) return c;
+    c = document.createElement('canvas'); c.width = c.height = 32;
+    const g = c.getContext('2d');
+    g.fillStyle = color; g.beginPath();
+    for (let k = 0; k < 7; k++) { const a = (k / 7) * TAU, r = k % 2 ? 9.5 : 15.5; g.lineTo(16 + Math.cos(a) * r, 16 + Math.sin(a) * r * 0.8); }
+    g.closePath(); g.fill();
+    m.set(color, c);
+    return c;
   }
 
   drawCoins(ctx, dt) {
@@ -451,26 +468,47 @@ export class Renderer {
 
   // ---- frame ----------------------------------------------------------------------------------
   // dt is effect time (0 while paused). ui: { placing, selected, mouse: { x, y, inside }, previewRange }
+  // Adds the time since t0 to a perf bucket and returns now (cheap enough to leave on).
+  mark(name, t0) { const t = performance.now(); this.addPerf(name, t - t0); return t; }
+  // perf.acc is the overlay's half-second window; perf.sum keeps running totals for tools/perf.mjs.
+  addPerf(name, ms) { const P = this.perf; P.acc[name] = (P.acc[name] || 0) + ms; P.sum[name] = (P.sum[name] || 0) + ms; }
+
   draw(dt, ui) {
+    let pt = performance.now();
     this.consume();
     this.time += dt;
+    pt = this.mark('effects', pt);
     this.parts.update(dt);
+    pt = this.mark('particles', pt);
     this.flushMulti(dt);
     this.shake *= Math.exp(-dt * 9);
     if (this.shake < 0.15) this.shake = 0;
 
     const { ctx, game } = this;
     const s = this.scale;
-    // With huge crowds, skip the small status overlays to keep the frame rate up.
-    const lite = game.enemies.length > 450;
-    const roar = this.flameFx.update(dt, game.towers, lite);
+    // Quality scales with the crowd so big waves stay smooth: 2 full, 1 crowd (no small status
+    // overlays, fewer particles and rings), 0 huge crowd (lighter still). Hysteresis stops flicker.
+    const n = game.enemies.length, q = this.quality;
+    this.quality = q === 2 ? (n > 200 ? 1 : 2) : q === 1 ? (n < 150 ? 2 : n > 650 ? 0 : 1) : (n < 560 ? 1 : 0);
+    const lite = this.quality < 2;
+    DETAIL.q = this.quality;
+    // Wards redraw their live layer every 2nd frame (every 3rd or 4th in big crowds), staggered.
+    this.frameN = (this.frameN || 0) + 1;
+    setWardRefresh([4, 3, 2][this.quality], this.frameN, [1.5, 2, 3][this.quality]);
+    if (this.frameN % 300 === 0) pruneWardCache(new Set(game.towers.map((t) => t.id)));
+    this.parts.cap = [500, 800, 1400][this.quality];
+    this.parts.share = [0.35, 0.6, 1][this.quality];
+    this.ringCap = [40, 90, 160][this.quality];
+    const roar = this.flameFx.update(dt, game.towers, lite, this.quality);
     if (this.sound) this.sound.roar(roar);
     const sx = this.shake ? (Math.random() - 0.5) * 2 * this.shake : 0;
     const sy = this.shake ? (Math.random() - 0.5) * 2 * this.shake : 0;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (this.shake) { ctx.fillStyle = '#1f6f63'; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
+    pt = this.mark('effects', pt);
     ctx.drawImage(this.bg, Math.round(sx * s), Math.round(sy * s));
     ctx.setTransform(s, 0, 0, s, sx * s, sy * s);
+    setEnemyBase(s, sx * s, sy * s);
 
     this.flameFx.drawHaze(ctx, this.bg, s, game.enemies.length);
     this.drawStains(ctx, dt);
@@ -505,24 +543,35 @@ export class Renderer {
 
     // Upright wards and walking Gloom are drawn back to front, so whatever stands nearer the
     // bottom of the screen covers what's behind it. Flyers go over everything.
+    pt = this.mark('ground', pt);
     const es = game.enemies, walk = this._walk, wards = this._wards;
     walk.length = 0;
     let flyers = 0;
-    for (let i = 0; i < es.length; i++) { if (es[i].def.flying) flyers++; else walk.push(es[i]); }
+    for (let i = 0; i < es.length; i++) {
+      const e = es[i];
+      if (e.x < -40 || e.x > W + 40 || e.y < -40 || e.y > H + 40) continue;   // not on screen yet
+      if (e.def.flying) flyers++; else walk.push(e);
+    }
     walk.sort(byY);
     wards.length = 0;
     for (const t of game.towers) wards.push(t);
     wards.sort(byY);
     this.drawBeams(ctx);
+    pt = this.mark('effects', pt);
+    this.perf.wardT = 0;
     let wi = 0;
     for (let i = 0; i < walk.length; i++) {
       const e = walk[i];
       while (wi < wards.length && wards[wi].y + 3 <= e.y) this.drawWardAt(ctx, wards[wi++], dt);
-      drawEnemy(ctx, e, lite);
+      drawEnemy(ctx, e, lite, this.quality);
     }
     while (wi < wards.length) this.drawWardAt(ctx, wards[wi++], dt);
+    { const t = performance.now(); this.addPerf('enemies', t - pt - this.perf.wardT); this.addPerf('wards', this.perf.wardT); pt = t; }
     this.drawGhosts(ctx, lite);
-    if (flyers) for (let i = 0; i < es.length; i++) if (es[i].def.flying) drawEnemy(ctx, es[i], lite);
+    pt = this.mark('ghosts', pt);
+    if (flyers) for (let i = 0; i < es.length; i++) { const e = es[i]; if (e.def.flying && e.x > -40 && e.x < W + 40 && e.y > -40 && e.y < H + 40) drawEnemy(ctx, e, lite, this.quality); }
+    flushEnemyBars(ctx);
+    pt = this.mark('enemies', pt);
 
     for (const t of game.towers) {
       // A Beacon's boost: a small golden chevron over the ward
@@ -549,14 +598,18 @@ export class Renderer {
       }
     }
 
+    pt = this.mark('wards', pt);
     this.drawProjectiles(ctx);
     this.flameFx.draw(ctx, { s, e: sx * s, f: sy * s });
     this.drawTracers(ctx, dt);
     this.drawRings(ctx, dt);
     this.drawArcs(ctx, dt);
     this.drawPillars(ctx, dt);
+    pt = this.mark('effects', pt);
     this.parts.draw(ctx);
+    pt = this.mark('particles', pt);
     this.drawSnow(ctx, dt);
+    pt = this.mark('effects', pt);
     this.drawCoins(ctx, dt);
     this.drawTexts(ctx, dt);
     this.drawPlacement(ctx, ui);
@@ -567,6 +620,7 @@ export class Renderer {
     this.drawStreak(ctx);
     this.drawBanner(ctx, dt);
     this.drawCallout(ctx, dt);
+    this.mark('overlay', pt);
     this.drawFps(ctx);
   }
 
@@ -609,7 +663,7 @@ export class Renderer {
         n++;
         if (!open) { open = true; ctx.save(); ctx.beginPath(); ctx.rect(box[0], box[1], box[2] - box[0], box[3] - box[1]); ctx.clip(); }
         ctx.globalAlpha = 0.5;
-        drawEnemy(ctx, e, true);
+        drawEnemyBody(ctx, e);
         ctx.globalAlpha = 0.75; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.3;
         ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 1, 0, TAU); ctx.stroke();
       }
@@ -618,6 +672,12 @@ export class Renderer {
   }
 
   drawWardAt(ctx, t, dt) {
+    const t0 = performance.now();
+    this.drawWardAt0(ctx, t, dt);
+    this.perf.wardT += performance.now() - t0;
+  }
+
+  drawWardAt0(ctx, t, dt) {
     let pop = this.pops.get(t.id) || 0;
     if (pop > 0) {
       pop -= dt;
@@ -643,27 +703,38 @@ export class Renderer {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // Toggled with F: frames per second, worst frame time, and object counts.
+  // Toggled with `: frames per second, worst frame time, a per-frame cost breakdown and counts.
   drawFps(ctx) {
-    const f = this.fps, now = performance.now();
+    const f = this.fps, now = performance.now(), P = this.perf;
     f.worst = Math.max(f.worst, now - f.last);
     f.last = now;
-    f.frames++;
+    f.frames++; P.frames++;
     if (now - f.t >= 500) {
       f.value = Math.round((f.frames * 1000) / (now - f.t));
       f.shownWorst = Math.round(f.worst);
+      const n = Math.max(1, P.frames), a = P.acc, sh = {};
+      for (const k in a) sh[k] = a[k] / n;
+      sh.steps = P.steps / n;
+      P.shown = sh; P.acc = Object.create(null); P.frames = 0; P.steps = 0;
       f.frames = 0; f.t = now; f.worst = 0;
     }
     if (!this.showFps) return;
-    const g = this.game;
-    const label = `${f.value} fps  (worst ${f.shownWorst || 0} ms)  ·  ${g.enemies.length} enemies  ·  ${g.projectiles.length} shots  ·  ${this.parts.list.length} particles`;
+    const g = this.game, sh = P.shown || {}, ms = (k) => (sh[k] || 0).toFixed(1);
+    const total = ['sim', 'ui', 'effects', 'ground', 'enemies', 'wards', 'ghosts', 'particles', 'overlay'].reduce((t, k) => t + (sh[k] || 0), 0);
+    const lines = [
+      `${f.value} fps  (worst ${f.shownWorst || 0} ms)  ·  quality ${this.quality === 2 ? 'full' : this.quality === 1 ? 'crowd' : 'huge crowd'}`,
+      `ms/frame  sim ${ms('sim')} (${(sh.steps || 0).toFixed(1)} steps)  ·  enemies ${ms('enemies')}  ·  wards ${ms('wards')}  ·  see-through ${ms('ghosts')}`,
+      `effects ${ms('effects')}  ·  particles ${ms('particles')}  ·  ground ${ms('ground')}  ·  overlay ${ms('overlay')}  ·  ui ${ms('ui')}  ·  total ${total.toFixed(1)}`,
+      `${g.enemies.length} enemies  ·  ${g.towers.length} wards  ·  ${g.projectiles.length} shots  ·  ${this.parts.list.length} particles  ·  ${this.flameFx.flame.length} flame  ·  ${this.rings.length} rings`,
+    ];
     ctx.font = `700 12px ${FONT}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
-    ctx.fillStyle = 'rgba(29,16,48,0.75)';
-    ctx.fillRect(6, H - 24, ctx.measureText(label).width + 12, 18);
-    ctx.fillStyle = f.value >= 55 ? '#5dff8a' : f.value >= 40 ? '#ffd23a' : '#ff5a4a';
-    ctx.fillText(label, 12, H - 9);
+    let w = 0; for (const l of lines) w = Math.max(w, ctx.measureText(l).width);
+    const y0 = H - 8 - lines.length * 16;
+    ctx.fillStyle = 'rgba(29,16,48,0.8)';
+    ctx.fillRect(6, y0 - 4, w + 12, lines.length * 16 + 6);
+    lines.forEach((l, i) => { ctx.fillStyle = i ? '#e8eef5' : f.value >= 55 ? '#5dff8a' : f.value >= 40 ? '#ffd23a' : '#ff5a4a'; ctx.fillText(l, 12, y0 + 14 + i * 16); });
   }
 
   drawStains(ctx, dt) {
@@ -675,13 +746,7 @@ export class Renderer {
       if (s.life <= 0) continue;
       st[w++] = s;
       ctx.globalAlpha = Math.min(0.4, s.life * 0.12);
-      ctx.fillStyle = s.color;
-      ctx.beginPath();
-      for (let k = 0; k < 7; k++) {
-        const a = s.rot + (k / 7) * TAU, r = s.r * (k % 2 ? 0.6 : 1.05);
-        ctx.lineTo(s.x + Math.cos(a) * r, s.y + Math.sin(a) * r * 0.8);
-      }
-      ctx.closePath(); ctx.fill();
+      ctx.drawImage(this.stainSprite(s.color), s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
     }
     st.length = w;
     ctx.globalAlpha = 1;
@@ -1033,7 +1098,7 @@ export class Renderer {
       this.rangeCircle(ctx, x, y, 26, ok);   // just the footprint
     } else this.rangeCircle(ctx, x, y, def.base.range, ok, def.base.minRange);
     ctx.globalAlpha = ok ? 0.9 : 0.5;
-    drawWard(ctx, { type: ui.placing, tiers: GHOST_TIERS, x, y, id: 0 }, { ang: Math.PI * 0.15, recoil: 0, time: this.time, pulse: 0, fire: 0, tx: null, ty: null, pop: 0, id: 0 });
+    drawWard(ctx, { type: ui.placing, tiers: GHOST_TIERS, x, y, id: 0 }, { ang: Math.PI * 0.15, recoil: 0, time: this.time, pulse: 0, fire: 0, tx: null, ty: null, pop: 0, id: 0, direct: true });
     ctx.globalAlpha = 1;
     if (!ok) {
       ctx.lineCap = 'round';

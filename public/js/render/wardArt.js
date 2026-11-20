@@ -49,7 +49,7 @@ let makeCanvas = () => null, pxScale = 1;
 export function initWardArt(factory, scale) {
   makeCanvas = factory; pxScale = scale;
   setCanvasFactory(factory);
-  sprites.clear();
+  sprites.clear(); live.clear();
 }
 function sprite(type, art, P) {
   const key = `${type}|${P.tiers[0]}${P.tiers[1]}${P.tiers[2]}`;
@@ -69,15 +69,20 @@ function sprite(type, art, P) {
 }
 
 // ---- drawing -----------------------------------------------------------------------------------
-// t: { type, tiers, x, y, id }. st: { ang, recoil, time, pulse, fire, pop, tx, ty, id }.
-export function drawWard(ctx, t, st) {
-  const art = artFor(t.type);
-  if (!art) return;
-  const P = pathInfo(t.tiers), d = WARD_DMG[t.type];
-  const sp = sprite(t.type, art, P);
-  const pop = st.pop || 0, S = wardScale(t.tiers) * (1 + pop * 0.3);
-  ctx.save();
-  ctx.translate(t.x, t.y); ctx.scale(S, S); ctx.translate(0, -PLINTH_Y);
+// The live layer (aim, flicker, idle animation) is costly to draw every frame for a full defence,
+// so while the renderer has it switched on (setWardRefresh) each ward draws into its own small
+// canvas, refreshed every `every` frames (staggered by ward id), and the frame pays one drawImage
+// per ward. Upgrade pops and the placement preview (st.direct) always draw live.
+// Redraws also share a time budget per frame: once it's spent, wards that are due keep their last
+// image and go first next frame (a ward is never more than twice its interval out of date), so a
+// huge defence costs no more than the budget.
+const LIVE = { on: false, every: 2, frame: 0, budget: 3, spent: 0 };
+export function setWardRefresh(every, frame, budgetMs = 3) { LIVE.on = true; LIVE.every = every; LIVE.frame = frame; LIVE.budget = budgetMs; LIVE.spent = 0; }
+const live = new Map();   // ward id -> { cv, key }
+const LX = -72, LY = -80, LW = 144, LH = 114;   // ward units: room for gear, beams and searchlights
+export function pruneWardCache(ids) { for (const id of live.keys()) if (!ids.has(id)) live.delete(id); }
+
+function drawLive(ctx, art, P, d, sp, st, pop) {   // ctx is already in ward units
   if (art.back) art.back(ctx, P, st, d);
   // Kindlings breathe: a slow, volume-keeping squash about the ground line.
   const b = art.breathe ? Math.sin(st.time * 2.4 + (st.id || 0)) * 0.025 : 0;
@@ -89,7 +94,41 @@ export function drawWard(ctx, t, st) {
     ctx.beginPath(); ctx.ellipse(0, -8, 20, 26, 0, 0, Math.PI * 2); ctx.fill();
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   }
-  ctx.restore();
+}
+
+// t: { type, tiers, x, y, id }. st: { ang, recoil, time, pulse, fire, pop, tx, ty, id, direct }.
+export function drawWard(ctx, t, st) {
+  const art = artFor(t.type);
+  if (!art) return;
+  const P = pathInfo(t.tiers), d = WARD_DMG[t.type];
+  const sp = sprite(t.type, art, P);
+  const pop = st.pop || 0;
+  if (!LIVE.on || pop > 0 || st.direct) {
+    const S = wardScale(t.tiers) * (1 + pop * 0.3);
+    ctx.save();
+    ctx.translate(t.x, t.y); ctx.scale(S, S); ctx.translate(0, -PLINTH_Y);
+    drawLive(ctx, art, P, d, sp, st, pop);
+    ctx.restore();
+    return;
+  }
+  const S = wardScale(t.tiers), k = S * pxScale;
+  const key = `${skin}|${t.type}|${P.tiers[0]}${P.tiers[1]}${P.tiers[2]}|${k.toFixed(3)}`;
+  let c = live.get(t.id), fresh = false;
+  if (!c || c.key !== key) {
+    const cv = (c && c.cv) || makeCanvas();
+    cv.width = Math.ceil(LW * k); cv.height = Math.ceil(LH * k);
+    c = { cv, key, last: -1e9 }; live.set(t.id, c); fresh = true;
+  }
+  const age = LIVE.frame - c.last;
+  if (fresh || age >= LIVE.every * 2 || (age >= LIVE.every && LIVE.spent < LIVE.budget)) {
+    const t0 = performance.now(), g = c.cv.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.cv.width, c.cv.height);
+    g.setTransform(k, 0, 0, k, -LX * k, -LY * k);
+    drawLive(g, art, P, d, sp, st, 0);
+    c.last = LIVE.frame - ((LIVE.frame + t.id) % LIVE.every);   // keeps refreshes staggered across wards
+    LIVE.spent += performance.now() - t0;
+  }
+  ctx.drawImage(c.cv, t.x + LX * S, t.y + (LY - PLINTH_Y) * S, LW * S, LH * S);
 }
 
 // Map position where a ward's shots leave (out = [x, y]).

@@ -5,64 +5,13 @@
 //   CANVAS_MODULES=<dir>/node_modules [FONT_DIR=<dir with DejaVuSans.ttf>] node tools/frame.mjs <outdir>
 //
 // Needs @napi-rs/canvas, which is NOT a game dependency (see tools/wards.mjs).
-import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { startGame } from './harness.mjs';
 
-const req = createRequire(process.env.CANVAS_MODULES ? join(process.env.CANVAS_MODULES, 'x.js') : import.meta.url);
-const { createCanvas, GlobalFonts } = req('@napi-rs/canvas');
-if (process.env.FONT_DIR) for (const f of ['system-ui', 'sans-serif']) GlobalFonts.registerFromPath(join(process.env.FONT_DIR, 'DejaVuSans-Bold.ttf'), f);
 const outDir = process.argv[2] || 'frames';
 mkdirSync(outDir, { recursive: true });
-
-function anything(name = 'stub') {
-  const fn = function () {};
-  return new Proxy(fn, {
-    get(t, k) {
-      if (k === Symbol.iterator) return function* () {};
-      if (k === Symbol.toPrimitive) return () => 0;
-      if (k === 'then') return undefined;
-      if (k in overrides) return overrides[k];
-      if (!t.cache) t.cache = {};
-      if (!(k in t.cache)) t.cache[k] = anything(`${name}.${String(k)}`);
-      return t.cache[k];
-    },
-    set(t, k, v) { (t.cache || (t.cache = {}))[k] = v; return true; },
-    apply() { return anything(`${name}()`); },
-    construct() { return anything(`new ${name}`); },
-  });
-}
-const overrides = { clientWidth: 1200, clientHeight: 800, width: 1120, height: 720, left: 0, top: 0, offsetWidth: 100, measureText: () => ({ width: 50 }), getChannelData: () => new Float32Array(16) };
-
-const DPR = Number(process.env.DPR) || 1.6;
-const game = createCanvas(10, 10);
-Object.assign(game, {
-  style: {}, classList: { toggle() {}, add() {}, remove() {} }, addEventListener() {},
-  parentElement: { clientWidth: 1136, clientHeight: 736 },
-  getBoundingClientRect: () => ({ left: 0, top: 0, width: 1120, height: 720 }),
-});
-const elements = new Map([['game', game]]);
-globalThis.document = {
-  getElementById(id) { if (!elements.has(id)) elements.set(id, anything(`#${id}`)); return elements.get(id); },
-  // Real canvases (for sprites and icons) with the few DOM bits the UI touches stubbed on.
-  createElement: (tag) => (tag === 'canvas' ? Object.assign(createCanvas(1, 1), { style: {}, dataset: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, addEventListener() {}, append() {}, remove() {} }) : anything(`<${tag}>`)),
-  querySelector: (q) => anything(q),
-  querySelectorAll: () => [],
-  body: anything('body'),
-};
-const listeners = {};
-let now = 0, frameCb = null;
-Object.assign(globalThis, {
-  window: { addEventListener: (type, cb) => { (listeners[type] ||= []).push(cb); }, devicePixelRatio: DPR, AudioContext: function () { return anything('audio'); } },
-  localStorage: { getItem: () => null, setItem: () => {} },
-  requestAnimationFrame: (cb) => { frameCb = cb; },
-});
-Object.defineProperty(globalThis, 'performance', { value: { now: () => now }, configurable: true });
-const frames = (n, dtMs = 16.7) => { for (let i = 0; i < n; i++) { now += dtMs; const cb = frameCb; frameCb = null; cb(now); } };
-const key = (k) => { for (const cb of listeners.keydown || []) cb({ key: k, shiftKey: false, preventDefault() {} }); };
-
-await import('../public/js/main.js');
-const { game: g, ui } = globalThis.window.hollowlight;
+const { createCanvas, canvas: game, g, ui, frames, key } = await startGame();
 g.gold = 1e7;
 
 // Wards along the bottom straight of the path (y = 580): a row behind it and a row in front,

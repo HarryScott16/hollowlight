@@ -377,41 +377,88 @@ function sack(ctx, e, r, fill, hi, spots) {
 // non-boss type is pre-rendered into FRAMES animation frames at the current canvas scale and
 // blitted. Bosses (one at a time) stay fully procedural.
 const FRAMES = 12;
-const sprites = new Map();
+let sprites = Object.create(null);   // type -> [frame canvases]
+let overlays = new Map();            // cached overlays: shield bubbles, freeze crystals, crack sets, shadows
 let spriteScale = 0;
 let makeCanvas = null;
 
 export function initSprites(factory, scale) {
   makeCanvas = factory;
-  if (Math.abs(scale - spriteScale) > 0.001) { spriteScale = scale; sprites.clear(); }
+  if (Math.abs(scale - spriteScale) > 0.001) { spriteScale = scale; sprites = Object.create(null); overlays = new Map(); }
 }
 
-const spriteHalf = (r) => Math.ceil(r * 1.6 + 7);
+// A sprite's half-size: measured once per type from what its art actually draws (over every wobble
+// frame), so the GPU doesn't fill hundreds of mostly empty squares in a big wave. Falls back to a
+// generous box where the canvas can't be read back.
+const halves = Object.create(null);
+function spriteHalf(type, r) {
+  let h = halves[type];
+  if (h) return h;
+  h = Math.ceil(r * 1.6 + 7);
+  try {
+    const N = Math.ceil(r * 2.4 + 24), c = makeCanvas(), g = c.getContext('2d');
+    c.width = c.height = N * 2;
+    let ext = 0;
+    for (let f = 0; f < FRAMES; f++) {
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, N * 2, N * 2); g.translate(N, N);
+      ART[type](g, { wob: (f / FRAMES) * TAU, r });
+      const px = g.getImageData(0, 0, N * 2, N * 2).data;
+      for (let y = 0; y < N * 2; y++) for (let x = 0; x < N * 2; x++) if (px[(y * N * 2 + x) * 4 + 3] > 8) { const d = Math.max(Math.abs(x - N), Math.abs(y - N)); if (d > ext) ext = d; }
+    }
+    if (ext > 0) h = Math.min(N, ext + 2);
+  } catch { /* no read-back (stub canvas): keep the generous box */ }
+  if (!(h > 0)) h = Math.ceil(r * 1.6 + 7);
+  halves[type] = h;
+  return h;
+}
 
 function sprite(type, r, frame) {
-  const key = type + frame;
-  let c = sprites.get(key);
+  const list = sprites[type] || (sprites[type] = []);
+  let c = list[frame];
   if (c) return c;
-  const half = spriteHalf(r);
+  const half = spriteHalf(type, r);
   c = makeCanvas();
   c.width = c.height = Math.ceil(half * 2 * spriteScale);
   const g = c.getContext('2d');
   g.setTransform(spriteScale, 0, 0, spriteScale, half * spriteScale, half * spriteScale);
   ART[type](g, { wob: (frame / FRAMES) * TAU, r });
-  sprites.set(key, c);
+  list[frame] = c;
+  return c;
+}
+// A cached overlay drawn once into a canvas of `half` (map units) around the origin.
+function overlay(key, half, draw) {
+  let c = overlays.get(key);
+  if (c) return c;
+  c = makeCanvas();
+  c.width = c.height = Math.ceil(half * 2 * spriteScale);
+  const g = c.getContext('2d');
+  g.setTransform(spriteScale, 0, 0, spriteScale, half * spriteScale, half * spriteScale);
+  draw(g);
+  overlays.set(key, c);
   return c;
 }
 
-// Draws an enemy at its world position, with status overlays and health bar.
-// lite: skip the small status overlays (used when hundreds of enemies are on screen).
-export function drawEnemy(ctx, e, lite) {
-  ctx.save();
-  ctx.translate(e.x, e.y);
+// The renderer's base transform (its scale and screen-shake offset). drawEnemy sets the whole
+// transform for each enemy in one call rather than save/translate/rotate/restore, and leaves the
+// base transform set when it returns. Tools drawing on a plain canvas can leave the default.
+let BS = 1, BX = 0, BY = 0;
+export function setEnemyBase(s, ox, oy) { BS = s; BX = ox; BY = oy; }
+
+// Health bars are queued and drawn together after all the enemies (a few calls for hundreds of bars).
+const bars = [];
+let nBars = 0;
+
+// Draws an enemy at its world position, with status overlays and a queued health bar.
+// quality: 2 full, 1 crowd, 0 huge crowd. lite (old flag) means quality 1.
+export function drawEnemy(ctx, e, lite, quality = lite ? 1 : 2) {
+  const x = e.x, y = e.y, r = e.r, ox = BX + x * BS, oy = BY + y * BS;
   if (e.def.flying) {
-    ctx.fillStyle = 'rgba(10,0,20,0.28)';
-    ctx.beginPath(); ctx.ellipse(-4, 16, e.r * 0.9, e.r * 0.4, 0, 0, TAU); ctx.fill();
+    const sh = overlay(`sh${Math.round(r)}`, r + 2, (g) => { g.fillStyle = 'rgba(10,0,20,0.28)'; g.beginPath(); g.ellipse(0, 0, r * 0.9, r * 0.4, 0, 0, TAU); g.fill(); });
+    ctx.setTransform(BS, 0, 0, BS, ox, oy);
+    ctx.drawImage(sh, -4 - (r + 2), 16 - (r + 2), (r + 2) * 2, (r + 2) * 2);
   }
-  if (e.def.haste && !lite) {
+  if (e.def.haste && quality === 2) {
+    ctx.setTransform(BS, 0, 0, BS, ox, oy);
     ctx.strokeStyle = 'rgba(255,176,32,0.22)';
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 8]);
@@ -419,34 +466,43 @@ export function drawEnemy(ctx, e, lite) {
     ctx.beginPath(); ctx.arc(0, 0, e.def.haste.radius, 0, TAU); ctx.stroke();
     ctx.setLineDash([]);
   }
-  ctx.save();
-  ctx.rotate(e.ang);
-  // Squash-and-stretch pop when hit.
-  if (e.hitT > 0) { const k = e.hitT * 2.2; ctx.scale(1 - k * 0.5, 1 + k); }
-  // Veiled enemies are see-through until a ward reveals them.
+  // the body: one transform (position, facing and the squash-and-stretch hit pop), one image
+  const c = Math.cos(e.ang), sn = Math.sin(e.ang);
+  let kx = BS, ky = BS;
+  if (e.hitT > 0) { const k = e.hitT * 2.2; kx *= 1 - k * 0.5; ky *= 1 + k; }
+  ctx.setTransform(c * kx, sn * kx, -sn * ky, c * ky, ox, oy);
   const veil = e.veiled && e.revealT <= 0;
   if (veil) ctx.globalAlpha = 0.38;
   if (makeCanvas && !e.def.boss && ART[e.type]) {
-    const frame = Math.floor(((e.wob % TAU) / TAU) * FRAMES) % FRAMES;
-    const half = spriteHalf(e.def.r);
+    const frame = Math.floor(((e.wob % TAU) / TAU) * FRAMES) % FRAMES, half = spriteHalf(e.type, e.def.r);
     ctx.drawImage(sprite(e.type, e.def.r, frame), -half, -half, half * 2, half * 2);
   } else {
     (ART[e.type] || ART.shambler)(ctx, e);
   }
+  // Shells and hulks crack as they lose health (cached crack sets, three variations).
+  if (e.def.hp > 10 && e.hp < e.maxHp && makeCanvas) {
+    const n = Math.min(7, Math.ceil((1 - e.hp / e.maxHp) * 7)), v = e.root % 3, h = r + 2;
+    ctx.drawImage(overlay(`ck${e.type}|${n}|${v}`, h, (g) => drawCracks(g, { r, def: e.def, root: v + 1, hp: 7 - n, maxHp: 7 })), -h, -h, h * 2, h * 2);
+  } else if (e.def.hp > 10 && e.hp < e.maxHp) drawCracks(ctx, e);
   if (veil) ctx.globalAlpha = 1;
-  // Shells and hulks crack as they lose health.
-  if (e.def.hp > 10 && e.hp < e.maxHp) drawCracks(ctx, e);
-  ctx.restore();
 
-  const r = e.r;
-  if (e.shield > 0) {
-    const f = e.shield / e.maxShield;
-    ctx.fillStyle = `rgba(95,224,255,${0.1 + f * 0.18})`;
-    ctx.strokeStyle = `rgba(160,240,255,${0.35 + f * 0.5})`;
-    ctx.lineWidth = 1.5 + f * 1.5;
-    ctx.beginPath(); ctx.arc(0, 0, r + 5, 0, TAU); ctx.fill(); ctx.stroke();
+  // status overlays, upright (cached where they're common); skipped entirely when there are none
+  const q2 = quality === 2;
+  if (!(e.shield > 0 || e.veiled || e.freezeT > 0 || (e.slowT > 0 && q2) || e.stunT > 0 || e.flash > 0 || (q2 && (e.burnT > 0 || e.searT > 0 || e.markT > 0 || e.chargedT > 0 || e.hasteT > 0)))) {
+    ctx.setTransform(BS, 0, 0, BS, BX, BY);
+    queueBar(e, x, y, r);
+    return;
   }
-  if (e.hasteT > 0 && !lite && !e.def.haste) {
+  ctx.setTransform(BS, 0, 0, BS, ox, oy);
+  if (e.shield > 0 && makeCanvas) {
+    const lvl = Math.min(3, Math.floor((e.shield / e.maxShield) * 4)), R = r + 7;
+    ctx.drawImage(overlay(`sd${Math.round(r)}|${lvl}`, R, (g) => {
+      const f = (lvl + 0.5) / 4;
+      g.fillStyle = `rgba(95,224,255,${0.1 + f * 0.18})`; g.strokeStyle = `rgba(160,240,255,${0.35 + f * 0.5})`; g.lineWidth = 1.5 + f * 1.5;
+      g.beginPath(); g.arc(0, 0, r + 5, 0, TAU); g.fill(); g.stroke();
+    }), -R, -R, R * 2, R * 2);
+  }
+  if (e.hasteT > 0 && quality === 2 && !e.def.haste) {
     ctx.strokeStyle = 'rgba(255,190,60,0.8)';
     ctx.lineWidth = 1.6;
     ctx.beginPath();
@@ -454,43 +510,69 @@ export function drawEnemy(ctx, e, lite) {
     ctx.stroke();
   }
   if (e.veiled) {
-    ctx.strokeStyle = e.revealT > 0 ? '#ff7ae0' : 'rgba(225,200,255,0.75)';
-    ctx.lineWidth = 1.6;
-    ctx.setLineDash([3, 4]);
-    ctx.lineDashOffset = e.wob * 4;
-    ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, TAU); ctx.stroke();
-    ctx.setLineDash([]);
+    if (quality === 2) {
+      ctx.strokeStyle = e.revealT > 0 ? '#ff7ae0' : 'rgba(225,200,255,0.75)';
+      ctx.lineWidth = 1.6;
+      ctx.setLineDash([3, 4]);
+      ctx.lineDashOffset = e.wob * 4;
+      ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      const rv = e.revealT > 0, R = r + 6;
+      ctx.drawImage(overlay(`vl${Math.round(r)}|${rv}`, R, (g) => { g.strokeStyle = rv ? '#ff7ae0' : 'rgba(225,200,255,0.75)'; g.lineWidth = 1.6; g.setLineDash([3, 4]); g.beginPath(); g.arc(0, 0, r + 4, 0, TAU); g.stroke(); }), -R, -R, R * 2, R * 2);
+    }
   }
   if (e.freezeT > 0) {
-    ctx.fillStyle = 'rgba(190,245,255,0.5)';
-    ctx.strokeStyle = '#2fb8ff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * TAU + 0.4, rr = r + (i % 2 ? 6 : 2);
-      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
-    }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-  } else if (e.slowT > 0 && !lite) {
-    ctx.strokeStyle = '#3fd0ff';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0, 0, r + 3, 0, TAU); ctx.stroke();
+    const R = r + 8;
+    ctx.drawImage(overlay(`fz${Math.round(r)}`, R, (g) => {
+      g.fillStyle = 'rgba(190,245,255,0.5)'; g.strokeStyle = '#2fb8ff'; g.lineWidth = 2;
+      g.beginPath();
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + 0.4, rr = r + (i % 2 ? 6 : 2); g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+      g.closePath(); g.fill(); g.stroke();
+    }), -R, -R, R * 2, R * 2);
+  } else if (e.slowT > 0 && q2) {
+    const R = r + 5;
+    ctx.drawImage(overlay(`sl${Math.round(r)}`, R, (g) => { g.strokeStyle = '#52e6ff'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, r + 3, 0, TAU); g.stroke(); }), -R, -R, R * 2, R * 2);
   }
-  if (e.burnT > 0 && !lite) {
-    ctx.fillStyle = 'rgba(255,120,30,0.85)';
-    const f = e.wob * 4;
-    for (let i = 0; i < 3; i++) {
-      const a = f + i * 2.1, h = 4 + Math.sin(f * 1.7 + i) * 2;
-      ctx.beginPath(); ctx.ellipse(Math.cos(a) * r * 0.5, -r * 0.4 + Math.sin(a) * r * 0.3, 2.2, h, 0, 0, TAU); ctx.fill();
+  if (quality === 2) {
+    if (e.burnT > 0) {
+      ctx.fillStyle = 'rgba(255,120,30,0.85)';
+      const f = e.wob * 4;
+      for (let i = 0; i < 3; i++) {
+        const a = f + i * 2.1, h = 4 + Math.sin(f * 1.7 + i) * 2;
+        ctx.beginPath(); ctx.ellipse(Math.cos(a) * r * 0.5, -r * 0.4 + Math.sin(a) * r * 0.3, 2.2, h, 0, 0, TAU); ctx.fill();
+      }
     }
-  }
-  if (e.searT > 0 && !lite) {
-    // Scorched: a ring of ash (a branded one glows), so a player can see healing is shut off
-    ctx.strokeStyle = e.brand ? 'rgba(255,61,127,0.85)' : 'rgba(60,45,50,0.8)';
-    ctx.lineWidth = 2.5;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, TAU); ctx.stroke();
-    ctx.setLineDash([]);
+    if (e.searT > 0) {
+      // Scorched: a ring of ash (a branded one glows), so a player can see healing is shut off
+      ctx.strokeStyle = e.brand ? 'rgba(220,30,40,0.85)' : 'rgba(60,45,50,0.8)';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(0, 0, r + 4, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (e.markT > 0) {
+      ctx.strokeStyle = '#e9eef6';
+      ctx.lineWidth = 2.2;
+      const m = r + 6;
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * TAU + Math.PI / 4 + e.wob * 0.3;
+        ctx.moveTo(Math.cos(a) * m, Math.sin(a) * m);
+        ctx.lineTo(Math.cos(a) * (m - 6), Math.sin(a) * (m - 6));
+      }
+      ctx.stroke();
+    }
+    if (e.chargedT > 0) {
+      ctx.strokeStyle = '#c8a0ff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const a = e.wob * 5;
+      ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      ctx.lineTo(Math.cos(a + 1) * (r + 5), Math.sin(a + 1) * (r + 5));
+      ctx.lineTo(Math.cos(a + 2) * r, Math.sin(a + 2) * r);
+      ctx.stroke();
+    }
   }
   if (e.stunT > 0) {
     ctx.fillStyle = '#fff36b';
@@ -499,49 +581,54 @@ export function drawEnemy(ctx, e, lite) {
       ctx.fillRect(Math.cos(a) * (r + 3) - 2, Math.sin(a) * (r + 3) * 0.5 - r - 2, 4, 4);
     }
   }
-  if (e.markT > 0 && !lite) {
-    ctx.strokeStyle = '#d36bff';
-    ctx.lineWidth = 2.2;
-    const m = r + 6;
-    ctx.beginPath();
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * TAU + Math.PI / 4 + e.wob * 0.3;
-      ctx.moveTo(Math.cos(a) * m, Math.sin(a) * m);
-      ctx.lineTo(Math.cos(a) * (m - 6), Math.sin(a) * (m - 6));
-    }
-    ctx.stroke();
-  }
-  if (e.chargedT > 0 && !lite) {
-    ctx.strokeStyle = '#7fe8ff';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    const a = e.wob * 5;
-    ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-    ctx.lineTo(Math.cos(a + 1) * (r + 5), Math.sin(a + 1) * (r + 5));
-    ctx.lineTo(Math.cos(a + 2) * r, Math.sin(a + 2) * r);
-    ctx.stroke();
-  }
   if (e.flash > 0) {
+    const R = r * 1.05 + 1;
     ctx.globalAlpha = Math.min(1, e.flash * 10);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(0, 0, r * 1.05, 0, TAU); ctx.fill();
+    ctx.drawImage(overlay(`fl${Math.round(r)}`, R, (g) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(0, 0, r * 1.05, 0, TAU); g.fill(); }), -R, -R, R * 2, R * 2);
     ctx.globalAlpha = 1;
   }
+  ctx.setTransform(BS, 0, 0, BS, BX, BY);
+  queueBar(e, x, y, r);
+}
+// Health bars are queued (bosses get a big bar at the top of the screen instead).
+function queueBar(e, x, y, r) {
+  if (e.def.boss || e.def.hp <= 10 || (e.hp >= e.maxHp && !(e.shield > 0))) return;
+  const k = nBars * 5;
+  bars[k] = x; bars[k + 1] = y - r - 9; bars[k + 2] = Math.max(18, r * 2.1); bars[k + 3] = Math.max(0, e.hp / e.maxHp); bars[k + 4] = e.shield > 0 ? e.shield / e.maxShield : 0;
+  nBars++;
+}
 
-  // health bar (bosses get a big bar at the top of the screen instead)
-  if (!e.def.boss && e.def.hp > 10 && (e.hp < e.maxHp || e.shield > 0)) {
-    const w = Math.max(18, r * 2.1), y = -r - 9;
-    ctx.fillStyle = INK;
-    ctx.fillRect(-w / 2 - 1.5, y - 1.5, w + 3, 6);
-    const f = Math.max(0, e.hp / e.maxHp);
-    ctx.fillStyle = f > 0.5 ? '#5dff5a' : f > 0.25 ? '#ffd23a' : '#ff4a3a';
-    ctx.fillRect(-w / 2, y, w * f, 3);
-    if (e.shield > 0) {
-      ctx.fillStyle = '#5fe0ff';
-      ctx.fillRect(-w / 2, y - 3, w * (e.shield / e.maxShield), 2);
+// Just the body, for the see-through ghosts (no overlays, no health bar).
+export function drawEnemyBody(ctx, e) {
+  const c = Math.cos(e.ang), sn = Math.sin(e.ang);
+  ctx.setTransform(c * BS, sn * BS, -sn * BS, c * BS, BX + e.x * BS, BY + e.y * BS);
+  if (makeCanvas && !e.def.boss && ART[e.type]) {
+    const frame = Math.floor(((e.wob % TAU) / TAU) * FRAMES) % FRAMES, half = spriteHalf(e.type, e.def.r);
+    ctx.drawImage(sprite(e.type, e.def.r, frame), -half, -half, half * 2, half * 2);
+  } else (ART[e.type] || ART.shambler)(ctx, e);
+  ctx.setTransform(BS, 0, 0, BS, BX, BY);
+}
+
+// Draws every queued health bar in a handful of calls: one path per colour.
+const BAR_FILL = ['#5dff5a', '#ffd23a', '#ff4a3a'];
+export function flushEnemyBars(ctx) {
+  if (!nBars) return;
+  ctx.beginPath();
+  for (let i = 0; i < nBars; i++) { const k = i * 5, w = bars[k + 2]; ctx.rect(bars[k] - w / 2 - 1.5, bars[k + 1] - 1.5, w + 3, 6); }
+  ctx.fillStyle = INK; ctx.fill();
+  for (let band = 0; band < 3; band++) {
+    ctx.beginPath(); let any = false;
+    for (let i = 0; i < nBars; i++) {
+      const k = i * 5, f = bars[k + 3], b = f > 0.5 ? 0 : f > 0.25 ? 1 : 2;
+      if (b !== band || f <= 0) continue;
+      const w = bars[k + 2]; ctx.rect(bars[k] - w / 2, bars[k + 1], w * f, 3); any = true;
     }
+    if (any) { ctx.fillStyle = BAR_FILL[band]; ctx.fill(); }
   }
-  ctx.restore();
+  ctx.beginPath(); let sh = false;
+  for (let i = 0; i < nBars; i++) { const k = i * 5, f = bars[k + 4]; if (f > 0) { const w = bars[k + 2]; ctx.rect(bars[k] - w / 2, bars[k + 1] - 3, w * f, 2); sh = true; } }
+  if (sh) { ctx.fillStyle = '#5fe0ff'; ctx.fill(); }
+  nBars = 0;
 }
 
 const crackRand = (seed, i) => { const x = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453; return x - Math.floor(x); };
@@ -564,7 +651,6 @@ function drawCracks(ctx, e) {
   ctx.lineCap = 'butt';
 }
 
-// Icon for the wave preview.
 export function drawEnemyIcon(canvas, type) {
   const ctx = canvas.getContext('2d');
   const def = ENEMIES[type];

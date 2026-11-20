@@ -5,6 +5,21 @@ Checks: `node tools/smoke.js` (browser code against a stub DOM), `node tools/bot
 Test mode for checking art: `?test=1` or Shift+T (unlimited gold and lives, wave jumping; `ui/testmode.js`).
 It lives only in the UI layer and must never touch the simulation, the bots or balance.
 
+## Performance
+
+- The FPS overlay (`` ` ``) shows ms per frame for the simulation, enemies, wards, the see-through
+  ghosts, effects, particles, ground and overlay, plus counts. `node tools/perf.mjs wave=80 speed=5
+  mode=normal|test defence=few|full` profiles a stress scene headless (same breakdown, plus canvas
+  calls per section; `CALLS=1` lists them by method). Its milliseconds come from a software canvas:
+  compare runs and canvas-call counts, not milliseconds against a browser.
+- In a browser the cost is mostly the number of canvas calls. Keep per-enemy and per-particle work
+  to a few calls: cached sprites and overlays, one setTransform per enemy, batched health bars and
+  particles, no per-frame gradients, shadowBlur or filters.
+- Quality scales with the crowd (`Renderer.quality`: 2 full, 1 crowd, 0 huge crowd, with
+  hysteresis): fewer small overlays, particles, rings, stains and flame, and no decorative ward
+  idle details. Wards redraw their live layer into a per-ward canvas every 2nd frame (3rd or 4th in
+  crowds). The simulation has an 8 ms per-frame budget at high speed (see `main.js`).
+
 ## Art rules
 
 The ward design system is in `docs/visual-design-system.md`; the code is in

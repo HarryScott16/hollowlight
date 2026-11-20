@@ -103,7 +103,9 @@ export class FlameFx {
   }
 
   // Advances the effect and returns the roar level for the sound (about 1 per Censer at full blast).
-  update(dt, towers, lite) {
+  // quality: the renderer's crowd level (2 full, 1 crowd, 0 huge crowd); crowds pour thinner flame.
+  update(dt, towers, lite, quality = lite ? 1 : 2) {
+    this.quality = quality;
     this.active.length = 0;
     if (dt <= 0) {
       // Paused: keep drawing what's there, but nothing moves or roars.
@@ -119,7 +121,7 @@ export class FlameFx {
     let firing = 0;
     for (const t of towers) if (t.def.kind === 'flame' && t.firing) firing++;
     // Past a handful of Censers, each pours a little thinner so the total stays bounded.
-    const share = (firing > 5 ? 5 / firing : 1) * (lite ? 0.5 : 1);
+    const share = (firing > 5 ? 5 / firing : 1) * [0.3, 0.5, 1][quality];
     let level = 0;
     for (const t of towers) {
       if (t.def.kind !== 'flame') continue;
@@ -364,7 +366,7 @@ export class FlameFx {
     if (fl.length) {
       const sp = this.sprites.flame, S = m.s;
       const tm = this.time * 30;
-      for (let pass = 0; pass < 2; pass++) {
+      for (let pass = 0; pass < (this.quality === 0 ? 1 : 2); pass++) {   // the glow pass is dropped for huge crowds
         if (pass) ctx.globalCompositeOperation = 'lighter';
         for (let i = 0; i < fl.length; i++) {
           const p = fl[i];

@@ -146,6 +146,9 @@ export function aimPlane(ctx, ang) { ctx.scale(1, FORE); ctx.rotate(ang); }
 // head flames, Lantern windows drawn live) skip itself: tools/wards.mjs uses it to measure how much
 // of each ward's body box (art.self) its gear covers.
 export const FACE = { skip: false };
+// Detail level, set by the renderer from the crowd size (2 full, 1 crowd, 0 huge crowd): in big
+// crowds the purely decorative idle details (twinkles, rising motes, the dashed T4 ground ring)
+// are dropped. Weapons, faces, glows and tier markers always draw.
 export function gearInFront(ang, side = 1) { const c = Math.cos(ang) * side, s = Math.sin(ang); return c > 0.15 || s > 0.6; }
 
 // Aim direction squashed for the three-quarter view (for eyes and other non-rotating cues).
@@ -164,6 +167,7 @@ export function crown(ctx, x, y, d, s = 1) {
 export function groundAura(ctx, d, time, R = 22) {
   const D = DMG[d], col = D.glow ? D.core : '#ffffff';
   glow(ctx, 0, 11, R * 1.5, col, 0.35 + Math.sin(time * 3) * 0.08);
+  if (DETAIL.q < 1) return;
   ctx.save();
   ctx.translate(0, 11); ctx.scale(1, 0.38);
   ctx.globalCompositeOperation = 'lighter';
@@ -178,8 +182,9 @@ export function groundAura(ctx, d, time, R = 22) {
 
 // ---- small live details (cheap enough to draw every frame) -----------------------------------
 // A four-point twinkle.
+export const DETAIL = { q: 2 };
 export function twinkle(ctx, x, y, r, a, color = '#ffffff') {
-  if (a <= 0.02) return;
+  if (a <= 0.02 || DETAIL.q < 2) return;
   const ga = ctx.globalAlpha;
   ctx.globalAlpha = ga * Math.min(1, a);
   star(ctx, x, y, r, r * 0.28, 4, 0); ctx.fillStyle = color; ctx.fill();
@@ -187,6 +192,7 @@ export function twinkle(ctx, x, y, r, a, color = '#ffffff') {
 }
 // n motes rising from a strip (x0..x1 at y) and fading, looping every `period` seconds.
 export function risingMotes(ctx, t, n, x0, x1, y, h, color, size = 1.4, period = 1.6, seed = 0) {
+  if (DETAIL.q < 2) return;
   const ga = ctx.globalAlpha;
   ctx.fillStyle = color;
   for (let i = 0; i < n; i++) {

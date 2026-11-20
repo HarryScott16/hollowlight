@@ -6,6 +6,11 @@ import { Sound } from './audio/sound.js';
 
 const STEP = 1 / 60;        // fixed simulation step
 const MAX_STEPS = 20;       // per frame (5x speed needs ~5 at 60 fps), so a slow frame can't spiral
+// The simulation also gets a time budget per frame: if stepping takes longer than this (a huge
+// crowd at 5x on a slow machine), the backlog is dropped and the game runs a little slower than
+// the chosen speed for a moment, rather than the frame rate collapsing. Results are unchanged:
+// every step is still a full fixed step.
+const SIM_BUDGET_MS = 8;
 
 const canvas = document.getElementById('game');
 const game = new Game();
@@ -28,10 +33,18 @@ function frame(now) {
   } else if (running) {
     acc += real * ui.speed;
     let n = 0;
-    while (acc >= STEP && n < MAX_STEPS) { game.step(STEP); acc -= STEP; n++; }
+    const t0 = performance.now();
+    while (acc >= STEP && n < MAX_STEPS) {
+      game.step(STEP); acc -= STEP; n++;
+      if (performance.now() - t0 > SIM_BUDGET_MS) { acc = Math.min(acc, STEP); break; }
+    }
+    renderer.mark('sim', t0);
+    renderer.perf.steps += n; renderer.addPerf('steps', n);
     if (n === MAX_STEPS) acc = 0;
   }
+  const tu = performance.now();
   ui.update();
+  renderer.mark('ui', tu);
   renderer.draw(ui.paused ? 0 : real * (game.over ? 1 : ui.speed), ui);
   requestAnimationFrame(frame);
 }
