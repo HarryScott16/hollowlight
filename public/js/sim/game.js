@@ -329,8 +329,16 @@ export class Game {
       for (let i = 1; i < scratch.length; i++) if (scratch[i]._score > best._score) best = scratch[i];
       out.push(best);
     } else {
-      scratch.sort((a, b) => b._score - a._score);
-      for (let i = 0; i < n && i < scratch.length; i++) out.push(scratch[i]);
+      // The best n, best first, ties in the order found: the same as a stable sort of everything
+      // and taking the first n, without sorting the whole crowd.
+      for (let i = 0; i < scratch.length; i++) {
+        const e = scratch[i], sc = e._score;
+        if (out.length === n && sc <= out[n - 1]._score) continue;
+        let k = out.length;
+        while (k > 0 && out[k - 1]._score < sc) k--;
+        out.splice(k, 0, e);
+        if (out.length > n) out.length = n;
+      }
     }
     return out;
   }
@@ -688,12 +696,48 @@ export class Game {
     this.emit('lastlight', { x: g.x, y: g.y, r: LAST_LIGHT.radius, n });
   }
 
+  // Herald auras: every enemy within a Herald's radius (other than that Herald) runs faster. Done
+  // from the enemies' side (each checks only the Heralds near it, stopping at the first in reach):
+  // the same result as each Herald scanning everyone near it, far cheaper in a dense crowd.
+  hasteAuras(es) {
+    const H = this._heralds || (this._heralds = { cells: new Map(), list: [], r: 0 });
+    H.list.length = 0;
+    let r = 0;
+    for (let i = 0; i < es.length; i++) { const e = es[i]; if (e.alive && e.def.haste) { H.list.push(e); if (e.def.haste.radius > r) r = e.def.haste.radius; } }
+    if (!H.list.length) return;
+    const cells = H.cells;
+    for (const c of cells.values()) c.length = 0;
+    const key = (cx, cy) => cx * 4096 + cy;
+    for (const h of H.list) {
+      const k = key(Math.floor(h.x / r), Math.floor(h.y / r));
+      let c = cells.get(k);
+      if (!c) { c = []; cells.set(k, c); }
+      c.push(h);
+    }
+    for (let i = 0; i < es.length; i++) {
+      const o = es[i];
+      if (!o.alive) continue;
+      const cx = Math.floor(o.x / r), cy = Math.floor(o.y / r);
+      let pct = -1;
+      for (let dx = -1; dx <= 1 && pct < 0; dx++) {
+        for (let dy = -1; dy <= 1 && pct < 0; dy++) {
+          const c = cells.get(key(cx + dx, cy + dy));
+          if (!c) continue;
+          for (let j = 0; j < c.length; j++) {
+            const h = c[j];
+            if (h === o) continue;
+            const R = h.def.haste.radius, ex = o.x - h.x, ey = o.y - h.y;
+            if (ex * ex + ey * ey <= R * R) { pct = h.def.haste.pct; break; }
+          }
+        }
+      }
+      if (pct >= 0) { o.hasteT = 0.25; o.hasteF = pct; }
+    }
+    if (cells.size > 4000) cells.clear();
+  }
+
   updateSpecial(e, dt) {
     const d = e.def;
-    if (d.haste) {
-      this.grid.query(e.x, e.y, d.haste.radius, buf);
-      for (const o of buf) if (o !== e) { o.hasteT = 0.25; o.hasteF = d.haste.pct; }
-    }
     // A Scorched Mender can't heal, and Scorched Gloom can't be healed.
     if (d.heal && (e.healCd -= dt) <= 0 && e.searT <= 0) {
       e.healCd = d.heal.every;
@@ -751,6 +795,7 @@ export class Game {
       for (const e of list) if (e.veiled && e.alive) e.revealT = 0.25;
     }
     // Heralds, Menders and summoning bosses act on the Gloom around them.
+    this.hasteAuras(es);
     for (let i = 0, n = es.length; i < n; i++) if (es[i].def.special && es[i].alive) this.updateSpecial(es[i], dt);
     for (let i = 0; i < this.towers.length; i++) updateTower(this, this.towers[i], dt);
     if (this.orbs.length) updateOrbs(this, dt);

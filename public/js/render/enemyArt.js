@@ -497,7 +497,7 @@ let nBars = 0;
 // quality: 2 full, 1 crowd, 0 huge crowd. lite (old flag) means quality 1.
 export function drawEnemy(ctx, e, lite, quality = lite ? 1 : 2) {
   const x = e.x, y = e.y, r = e.r, ox = BX + x * BS, oy = BY + y * BS;
-  if (e.def.flying) {
+  if (e.def.flying && quality > 0) {   // (a huge crowd skips the flyers' ground shadows)
     const sh = overlay(`sh${Math.round(r)}`, r + 2, (g) => { g.fillStyle = 'rgba(10,0,20,0.28)'; g.beginPath(); g.ellipse(0, 0, r * 0.9, r * 0.4, 0, 0, TAU); g.fill(); });
     ctx.setTransform(BS, 0, 0, BS, ox, oy);
     ctx.drawImage(sh, -4 - (r + 2), 16 - (r + 2), (r + 2) * 2, (r + 2) * 2);
@@ -646,7 +646,7 @@ function drawCrowdEnemy(ctx, e, x, y, r, quality) {
   let img, h;
   if (n || vs) { img = combo(e, frame, n, vs); h = img.half; } else { h = spriteHalf(e.type, e.def.r); img = sprite(e.type, e.def.r, frame); }
   ctx.drawImage(img, -h, -h, h * 2, h * 2);
-  if (e.flash > 0) {
+  if (e.flash > 0 && (quality > 0 || e.def.heavy)) {   // a huge crowd flashes only the hulks
     const lv = Math.min(FLASH_LV, Math.ceil(e.flash * 10 * FLASH_LV)), R = r * 1.05 + 1;
     ctx.drawImage(overlay(`fq${Math.round(r)}|${lv}`, R, (g) => { g.fillStyle = '#fff'; g.globalAlpha = lv / FLASH_LV; g.beginPath(); g.arc(0, 0, r * 1.05, 0, TAU); g.fill(); }), -R, -R, R * 2, R * 2);
   }
@@ -679,7 +679,8 @@ function drawCrowdEnemy(ctx, e, x, y, r, quality) {
       }), -R, -R, R * 2, R * 2);
     }
   }
-  queueBar(e, x, y, r);
+  // A huge crowd shows health bars only on hulks and shields (hundreds of small bars are noise).
+  if (quality > 0 || e.def.heavy || e.shield > 0) queueBar(e, x, y, r);
 }
 // Health bars are queued (bosses get a big bar at the top of the screen instead).
 function queueBar(e, x, y, r) {

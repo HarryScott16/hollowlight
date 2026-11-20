@@ -21,6 +21,10 @@ const ARCANE = DMG.arcane.core, RADIANT = DMG.radiant.core, HEARTH = DMG.hearth.
 const FROST = DMG.frost.core, KINETIC = DMG.kinetic.core;
 const POP_TIME = 0.45;
 const noop = () => {};
+// Reused particle options for the commonest events (no allocation per hit or pop).
+const HIT_SPARK = { color: '#fff', speed: 120, life: 0.25, size: 2.4 };
+const POP_A = { color: '#fff', speed: 100, life: 0.45, size: 2.4 };
+const POP_B = { color: '#ffffff', speed: 80, life: 0.25, size: 2.2 };
 const byY = (a, b) => a.y - b.y;
 const GHOST_TIERS = [0, 0, 0];
 // Stand-in when no Sound is attached (and for unknown events).
@@ -124,8 +128,11 @@ export class Renderer {
   }
 
   ring(x, y, r0, r1, life, color, width, fill, add) {
-    if (this.rings.length > (this.ringCap || 160)) this.rings.shift();
-    this.rings.push({ x, y, r0, r1, life, max: life, color, width, fill, add });
+    const pool = this.ringPool || (this.ringPool = []);
+    if (this.rings.length > (this.ringCap || 160)) pool.push(this.rings.shift());
+    const r = pool.pop() || {};
+    r.x = x; r.y = y; r.r0 = r0; r.r1 = r1; r.life = life; r.max = life; r.color = color; r.width = width; r.fill = fill; r.add = add;
+    this.rings.push(r);
   }
 
   // ---- simulation events -> effects -----------------------------------------------------------
@@ -146,7 +153,11 @@ export class Renderer {
       switch (f.type) {
         case 'hit': {
           const col = f.resisted ? '#aab4c4' : (DAMAGE_TYPES[f.dtype] || DAMAGE_TYPES.kinetic).color;
-          P.burst(f.x, f.y, f.resisted ? 2 : 3, { color: col, speed: 120, life: 0.25, size: 2.4 });
+          // In crowds most small hits are drowned out by the pops anyway: only some get a spark.
+          if (this.quality === 2 || f.big || f.heavy || (f.amt || 0) >= 50 || Math.random() < 0.35) {
+            HIT_SPARK.color = col;
+            P.burst(f.x, f.y, f.resisted ? 2 : 3, HIT_SPARK);
+          }
           // Damage numbers only for big hits (most hits just break a layer, and the pop says so).
           const a = f.amt || 0;
           if (this.numBudget > 0 && (a >= 50 || f.big || (f.heavy && a >= 20))) {
@@ -163,8 +174,9 @@ export class Renderer {
           if (f.src) this.countMulti(f);
           if (f.gold <= 1 && !f.heavy) {
             // A layer breaking: a quick pop. Most of a wave is these, so they stay light.
-            P.burst(f.x, f.y, 7, { color, speed: 100 + f.r * 6, life: 0.45, size: 2.4 + f.r * 0.12 });
-            P.burst(f.x, f.y, 2, { color: '#ffffff', speed: 80, life: 0.25, size: 2.2 });
+            POP_A.color = color; POP_A.speed = 100 + f.r * 6; POP_A.size = 2.4 + f.r * 0.12;
+            P.burst(f.x, f.y, 7, POP_A);
+            P.burst(f.x, f.y, 2, POP_B);
             if (this.quality > 0) this.ring(f.x, f.y, f.r * 0.4, f.r * 1.9, 0.2, color, 2.5);
             if (Math.random() < (this.quality === 2 ? 0.2 : 0.05)) this.stain(f.x, f.y, f.r, color);
             if (f.gold > 0 && this.coins.length < 24 && this.popCount % 4 === 0) this.coins.push({ x: f.x, y: f.y, t: 0, dur: 0.5 + Math.random() * 0.2 });
@@ -661,7 +673,7 @@ export class Renderer {
     const sy = this.shake ? (Math.random() - 0.5) * 2 * this.shake : 0;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (this.shake) { ctx.fillStyle = '#1f6f63'; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
-    pt = this.mark('effects', pt);
+    pt = this.mark('flamesim', pt);
     ctx.drawImage(this.bg, Math.round(sx * s), Math.round(sy * s));
     ctx.setTransform(s, 0, 0, s, sx * s, sy * s);
     setEnemyBase(s, sx * s, sy * s);
@@ -729,7 +741,7 @@ export class Renderer {
     }
     wards.sort(byY);
     this.drawBeams(ctx);
-    pt = this.mark('effects', pt);
+    pt = this.mark('beams', pt);
     this.perf.wardT = 0;
     let wi = 0;
     for (let i = 0; i < walk.length; i++) {
@@ -749,8 +761,9 @@ export class Renderer {
     flushEnemyBars(ctx);
     ctx.setTransform(s, 0, 0, s, sx * s, sy * s);
     this.drawTethers(ctx);
-    this.drawTier5(ctx, dt);
     pt = this.mark('enemies', pt);
+    this.drawTier5(ctx, dt);
+    pt = this.mark('t5fx', pt);
 
     for (const t of game.towers) {
       // A Beacon's boost: a small golden chevron over the ward
@@ -791,7 +804,7 @@ export class Renderer {
     this.parts.draw(ctx);
     pt = this.mark('particles', pt);
     this.drawSnow(ctx, dt);
-    pt = this.mark('effects', pt);
+    pt = this.mark('snow', pt);
     this.drawCoins(ctx, dt);
     this.drawTexts(ctx, dt);
     this.drawPlacement(ctx, ui);
@@ -876,8 +889,13 @@ export class Renderer {
       f.y += f.v * dt; f.x += Math.sin(this.time * 0.8 + f.ph) * 12 * dt - 6 * dt;
       if (f.y > H + 4) { f.y = -4; f.x = Math.random() * W; }
       if (f.x < -4) f.x = W + 4;
-      ctx.globalAlpha = this.snowA * (0.35 + f.s * 0.12);
-      ctx.fillRect(f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
+    }
+    // three sizes of flake, one fill each
+    for (let b = 0; b < 3; b++) {
+      ctx.globalAlpha = this.snowA * (0.35 + (1.6 + b * 0.75) * 0.12);
+      ctx.beginPath();
+      for (const f of this.snow) { if (Math.min(2, Math.floor((f.s - 1.2) / 0.75)) !== b) continue; ctx.rect(f.x - f.s / 2, f.y - f.s / 2, f.s, f.s); }
+      ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
@@ -1074,12 +1092,14 @@ export class Renderer {
     }
     if (!this.showFps) return;
     const g = this.game, sh = P.shown || {}, ms = (k) => (sh[k] || 0).toFixed(1);
-    sh.effects = ['events', 'shots', 'flames', 'rings', 'effects'].reduce((t, k) => t + (sh[k] || 0), 0);
+    const FX = ['events', 'flamesim', 'beams', 'shots', 'flames', 'rings', 't5fx', 'snow'];
+    sh.effects = FX.reduce((t, k) => t + (sh[k] || 0), 0);
     const total = ['sim', 'ui', 'effects', 'ground', 'enemies', 'wards', 'ghosts', 'particles', 'overlay'].reduce((t, k) => t + (sh[k] || 0), 0);
     const lines = [
       `${f.value} fps  (worst ${f.shownWorst || 0} ms)  ·  quality ${this.quality === 2 ? 'full' : this.quality === 1 ? 'crowd' : 'huge crowd'}`,
       `ms/frame  sim ${ms('sim')} (${(sh.steps || 0).toFixed(1)} steps)  ·  enemies ${ms('enemies')}  ·  wards ${ms('wards')}  ·  see-through ${ms('ghosts')}`,
-      `effects ${ms('effects')} (shots ${ms('shots')}, flames ${ms('flames')}, rings ${ms('rings')})  ·  particles ${ms('particles')}  ·  ground ${ms('ground')}  ·  overlay ${ms('overlay')}  ·  ui ${ms('ui')}  ·  total ${total.toFixed(1)}`,
+      `effects ${ms('effects')} (events ${ms('events')}, flame sim ${ms('flamesim')}, beams ${ms('beams')}, shots ${ms('shots')}, flames ${ms('flames')}, rings ${ms('rings')}, tier 5 ${ms('t5fx')}, snow ${ms('snow')})`,
+      `particles ${ms('particles')}  ·  ground ${ms('ground')}  ·  overlay ${ms('overlay')}  ·  ui ${ms('ui')}  ·  total ${total.toFixed(1)}`,
       `${g.enemies.length} enemies  ·  ${g.towers.length} wards  ·  ${g.projectiles.length} shots  ·  ${this.parts.list.length} particles  ·  ${this.flameFx.flame.length} flame  ·  ${this.rings.length} rings`,
     ];
     ctx.font = `700 12px ${FONT}`;
@@ -1205,8 +1225,11 @@ export class Renderer {
   }
 
   // Prism beams: thicker and brighter as they charge; gold during Sunlance.
+  // Three passes over every beam (glow, core, hot spot), so the blend mode switches a few times a
+  // frame instead of four times per beam; each pass strokes beams of similar strength together.
   drawBeams(ctx) {
-    ctx.lineCap = 'round';
+    const list = this._beamList || (this._beamList = []);
+    list.length = 0;
     for (const t of this.game.towers) {
       if (t.def.kind !== 'beam') continue;
       const s = t.stats, sun = t.sunT > 0;
@@ -1214,22 +1237,40 @@ export class Renderer {
         const e = b.e;
         if (!e || !e.alive) continue;
         const k = (b.charge - 1) / Math.max(1, s.maxCharge - 1);
-        const flick = 0.85 + Math.sin(this.time * 40 + t.id) * 0.15;
-        const m = wardMuzzle(t, Math.atan2(e.y - t.y, e.x - t.x), this._m), sx = m[0], sy = m[1];   // from the drawn lens or crystal
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = sun ? `rgba(255,190,60,${0.5 * flick})` : `rgba(255,224,58,${(0.25 + k * 0.35) * flick})`;
-        ctx.lineWidth = (4 + k * 9) * (sun ? 1.4 : 1);
-        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(e.x, e.y); ctx.stroke();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = sun ? '#ffffff' : k > 0.6 ? '#fffbe0' : '#fff3b0';
-        ctx.lineWidth = 1.5 + k * 2.5;
-        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(e.x, e.y); ctx.stroke();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = `rgba(255,240,200,${0.3 + k * 0.4})`;
-        ctx.beginPath(); ctx.arc(e.x, e.y, 5 + k * 7 * flick, 0, TAU); ctx.fill();
-        ctx.globalCompositeOperation = 'source-over';
+        const m = wardMuzzle(t, Math.atan2(e.y - t.y, e.x - t.x), this._m);   // from the drawn lens or crystal
+        list.push({ sx: m[0], sy: m[1], ex: e.x, ey: e.y, k: Math.round(k * 3) / 3, sun, id: t.id });
       }
     }
+    if (!list.length) return;
+    const flick = 0.85 + Math.sin(this.time * 40) * 0.15;
+    ctx.lineCap = 'round';
+    ctx.globalCompositeOperation = 'lighter';
+    for (const lvl of [0, 1 / 3, 2 / 3, 1]) for (const sun of [false, true]) {   // glows, by strength
+      let any = false;
+      for (const b of list) { if (b.k !== lvl || b.sun !== sun) continue; if (!any) { ctx.beginPath(); any = true; } ctx.moveTo(b.sx, b.sy); ctx.lineTo(b.ex, b.ey); }
+      if (!any) continue;
+      ctx.strokeStyle = sun ? `rgba(255,190,60,${0.5 * flick})` : `rgba(255,224,58,${(0.25 + lvl * 0.35) * flick})`;
+      ctx.lineWidth = (4 + lvl * 9) * (sun ? 1.4 : 1);
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    for (const lvl of [0, 1 / 3, 2 / 3, 1]) for (const sun of [false, true]) {   // white cores
+      let any = false;
+      for (const b of list) { if (b.k !== lvl || b.sun !== sun) continue; if (!any) { ctx.beginPath(); any = true; } ctx.moveTo(b.sx, b.sy); ctx.lineTo(b.ex, b.ey); }
+      if (!any) continue;
+      ctx.strokeStyle = sun ? '#ffffff' : lvl > 0.6 ? '#fffbe0' : '#fff3b0';
+      ctx.lineWidth = 1.5 + lvl * 2.5;
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    for (const lvl of [0, 1 / 3, 2 / 3, 1]) {   // hot spots on the targets
+      let any = false;
+      for (const b of list) { if (b.k !== lvl) continue; if (!any) { ctx.beginPath(); any = true; } const r = 5 + lvl * 7 * flick; ctx.moveTo(b.ex + r, b.ey); ctx.arc(b.ex, b.ey, r, 0, TAU); }
+      if (!any) continue;
+      ctx.fillStyle = `rgba(255,240,200,${0.3 + lvl * 0.4})`;
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
     ctx.lineCap = 'butt';
   }
 
@@ -1305,6 +1346,28 @@ export class Renderer {
     ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y, r * 0.3, 0, TAU); ctx.fill();
   }
 
+  // kind 0: a shell's shadow; kind 1: the shell (ink rim, body, lit fuse), drawn at r = 8 and scaled.
+  shellSprite(kind, hot) {
+    const m = this._shells || (this._shells = new Map()), key = kind * 2 + (hot ? 1 : 0);
+    let c = m.get(key);
+    if (c) return c;
+    c = document.createElement('canvas');
+    const g = c.getContext('2d');
+    if (kind === 0) {
+      c.width = 24; c.height = 16;
+      g.fillStyle = 'rgba(10,40,30,0.35)'; g.beginPath(); g.ellipse(12, 8, 10, 6, 0, 0, TAU); g.fill();
+    } else {
+      const r = 8, R = r + 1.2, k = 3;   // drawn at 3x for crispness
+      c.width = c.height = Math.ceil(R * 2 * k);
+      g.scale(k, k);
+      g.fillStyle = INK; g.beginPath(); g.arc(R, R, R, 0, TAU); g.fill();
+      g.fillStyle = hot ? '#ff5a1a' : '#4a4050'; g.beginPath(); g.arc(R, R, r, 0, TAU); g.fill();
+      g.fillStyle = DMG.blast.core; g.beginPath(); g.arc(R - r * 0.3, R - r * 0.3, r * 0.4, 0, TAU); g.fill();
+    }
+    m.set(key, c);
+    return c;
+  }
+
   drawProjectiles(ctx) {
     const ps = this.game.projectiles;
     ctx.lineCap = 'round';
@@ -1370,16 +1433,12 @@ export class Renderer {
         // shells leave the mortar's drawn mouth; that offset fades out over the flight
         if (p._ox === undefined) { const w = p.src, m = w && !p.sub ? wardMuzzle(w, Math.atan2(p.ty - p.sy, p.tx - p.sx), this._m) : null; p._ox = m ? m[0] - p.sx : 0; p._oy = m ? m[1] - p.sy : 0; }
         const ox = p._ox * (1 - u), oy = p._oy * (1 - u);
-        ctx.fillStyle = 'rgba(10,40,30,0.35)';
-        ctx.beginPath(); ctx.ellipse(p.x, p.y, 5, 3, 0, 0, TAU); ctx.fill();
-        const r = (p.sub ? 3.2 : 5) + lift * 0.035;
-        ctx.fillStyle = INK;
-        ctx.beginPath(); ctx.arc(p.x + ox, p.y - lift + oy, r + 1.2, 0, TAU); ctx.fill();
-        ctx.fillStyle = p.s.poolDps ? '#ff5a1a' : '#4a4050';
-        ctx.beginPath(); ctx.arc(p.x + ox, p.y - lift + oy, r, 0, TAU); ctx.fill();
-        ctx.fillStyle = DMG.blast.core;   // the Blast colour: a lit fuse
-        ctx.beginPath(); ctx.arc(p.x + ox - r * 0.3, p.y - lift + oy - r * 0.3, r * 0.4, 0, TAU); ctx.fill();
-        if (!p.sub) {
+        // shadow and shell are cached sprites (a Grand Battery has dozens of shells in the air)
+        const sh = this.shellSprite(0, false);
+        ctx.drawImage(sh, p.x - 6, p.y - 4, 12, 8);
+        const r = (p.sub ? 3.2 : 5) + lift * 0.035, img = this.shellSprite(1, !!p.s.poolDps), R = r + 1.2;
+        ctx.drawImage(img, p.x + ox - R, p.y - lift + oy - R, R * 2, R * 2);
+        if (!p.sub && this.quality === 2) {
           ctx.strokeStyle = `rgba(255,80,40,${0.3 + u * 0.6})`;
           ctx.lineWidth = 2;
           ctx.beginPath(); ctx.arc(p.tx, p.ty, 4 + (1 - u) * 12, 0, TAU); ctx.stroke();
@@ -1389,25 +1448,34 @@ export class Renderer {
     ctx.lineCap = 'butt';
   }
 
+  // Plain rings first, then the additive ones in a single blend-mode pass (switching the blend mode
+  // per ring is costly on a GPU canvas).
   drawRings(ctx, dt) {
-    const rings = this.rings;
-    let w = 0;
+    const rings = this.rings, pool = this.ringPool || (this.ringPool = []);
+    let w = 0, adds = 0;
     for (let i = 0; i < rings.length; i++) {
       const r = rings[i];
       r.life -= dt;
-      if (r.life <= 0) continue;
+      if (r.life <= 0) { pool.push(r); continue; }
       rings[w++] = r;
-      const u = 1 - r.life / r.max;
-      const rad = r.r0 + (r.r1 - r.r0) * (1 - (1 - u) * (1 - u));
-      ctx.globalAlpha = 1 - u;
-      if (r.add) ctx.globalCompositeOperation = 'lighter';
-      if (r.fill) { ctx.fillStyle = r.fill; ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, TAU); ctx.fill(); }
-      ctx.strokeStyle = r.color;
-      ctx.lineWidth = r.width;
-      ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, TAU); ctx.stroke();
-      if (r.add) ctx.globalCompositeOperation = 'source-over';
+      if (r.add) adds++;
     }
     rings.length = w;
+    for (let pass = 0; pass < 2; pass++) {
+      if (pass === 1) { if (!adds) break; ctx.globalCompositeOperation = 'lighter'; }
+      for (let i = 0; i < w; i++) {
+        const r = rings[i];
+        if (!!r.add !== (pass === 1)) continue;
+        const u = 1 - r.life / r.max;
+        const rad = r.r0 + (r.r1 - r.r0) * (1 - (1 - u) * (1 - u));
+        ctx.globalAlpha = 1 - u;
+        if (r.fill) { ctx.fillStyle = r.fill; ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, TAU); ctx.fill(); }
+        ctx.strokeStyle = r.color;
+        ctx.lineWidth = r.width;
+        ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, TAU); ctx.stroke();
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
 

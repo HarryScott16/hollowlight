@@ -4,6 +4,27 @@ const buf = [];
 // A flyer circling a Moth Lantern (or still grounded by Flypaper) flies low: anything can hit it.
 export const isLow = (e) => e.lureW > 0.5 || e.groundT > 0;
 
+// Every bolt and shell is built here with the same fields (renderer's own included), so they all
+// share one shape: V8 keeps property access fast only while objects share a hidden class.
+export function newBolt(f) {
+  return {
+    kind: 'bolt', x: f.x, y: f.y, vx: f.vx, vy: f.vy, speed: f.speed, target: f.target, homing: f.homing,
+    dmg: f.dmg, pierce: f.pierce, hit: f.hit, bounces: f.bounces || 0, life: f.life, src: f.src, s: f.s, dead: false,
+    rend: f.rend || 0, star: !!f.star, comet: !!f.comet, ox: f.ox || 0, oy: f.oy || 0, big: !!f.big, sky: !!f.sky,
+    gen: f.gen || 0, split: !!f.split, sx: 0, sy: 0, tx: 0, ty: 0, t: 0, flight: 0, sub: false, quake: false,
+    _ox: undefined, _oy: undefined, _sx: undefined, _sy: undefined, _D: undefined,
+  };
+}
+export function newShell(f) {
+  return {
+    kind: 'shell', x: f.x, y: f.y, vx: 0, vy: 0, speed: 0, target: null, homing: false,
+    dmg: 0, pierce: 0, hit: null, bounces: 0, life: 0, src: f.src, s: f.s, dead: false,
+    rend: 0, star: false, comet: false, ox: 0, oy: 0, big: false, sky: false,
+    gen: 0, split: false, sx: f.sx, sy: f.sy, tx: f.tx, ty: f.ty, t: 0, flight: f.flight, sub: !!f.sub, quake: !!f.quake,
+    _ox: undefined, _oy: undefined, _sx: undefined, _sy: undefined, _D: undefined,
+  };
+}
+
 const marks = [];
 export function mark(game, e, s, src) {
   e.markT = Math.max(e.markT, s.markDur);
@@ -77,11 +98,11 @@ function split(game, p, e, s) {
   for (let i = 0; i < s.splitKill; i++) {
     const o = splitTo[i] || null;
     const a = o ? Math.atan2(o.y - e.y, o.x - e.x) : game.rand() * 6.283;
-    game.projectiles.push({
-      kind: 'bolt', x: e.x, y: e.y, vx: Math.cos(a) * p.speed, vy: Math.sin(a) * p.speed, speed: p.speed,
+    game.projectiles.push(newBolt({
+      x: e.x, y: e.y, vx: Math.cos(a) * p.speed, vy: Math.sin(a) * p.speed, speed: p.speed,
       target: o, homing: !!o, dmg: p.dmg, pierce: 1, hit: [e.root], bounces: 0, life: 240,
-      src: p.src, s, dead: false, gen: (p.gen || 0) + 1, split: true,
-    });
+      src: p.src, s, gen: (p.gen || 0) + 1, split: true,
+    }));
   }
 }
 
@@ -160,19 +181,16 @@ export function explode(game, x, y, s, src, sub, kind = 'shell') {
   if (s.poolDps) addZone(game, { x, y, r: r * (s.poolRadiusMul || 1) * 0.9, dps: s.poolDps, t: s.poolDur, tick: 0, scorch: s.scorch || 0, magma: s.magma || 0, src });
   for (let i = 0; i < (s.cluster || 0); i++) {
     const a = game.rand() * 6.283, d = r * (0.5 + game.rand() * 0.7);
-    game.projectiles.push({
-      kind: 'shell', x, y, sx: x, sy: y, tx: x + Math.cos(a) * d, ty: y + Math.sin(a) * d,
-      t: 0, flight: 0.3 + game.rand() * 0.15, sub: true, src, s, dead: false,
-    });
+    game.projectiles.push(newShell({
+      x, y, sx: x, sy: y, tx: x + Math.cos(a) * d, ty: y + Math.sin(a) * d,
+      flight: 0.3 + game.rand() * 0.15, sub: true, src, s,
+    }));
   }
 }
 
 // Lobs one of a mortar's shells at a point (used by the Saturation ability).
 export function launchShell(game, src, tx, ty, flight) {
-  game.projectiles.push({
-    kind: 'shell', x: src.x, y: src.y, sx: src.x, sy: src.y, tx, ty, t: 0, flight,
-    sub: false, src, s: src.stats, dead: false,
-  });
+  game.projectiles.push(newShell({ x: src.x, y: src.y, sx: src.x, sy: src.y, tx, ty, flight, sub: false, src, s: src.stats }));
 }
 
 function updateShell(game, p, dt) {

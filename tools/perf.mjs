@@ -1,7 +1,7 @@
 // Frame-cost profiler: plays a stress scene in the real game (no browser) and prints the same
 // per-frame breakdown as the FPS overlay (` key).
 //
-//   CANVAS_MODULES=<dir>/node_modules node tools/perf.mjs [wave=80] [speed=1] [mode=normal|test] [defence=few|full|t5] [frames=120]
+//   CANVAS_MODULES=<dir>/node_modules node tools/perf.mjs [wave=80] [speed=1] [mode=normal|test] [defence=few|full|t5] [wards=22] [crowd=0] [frames=120]
 //
 // The crowd is built up by running the simulation alone for `warm` seconds, then `frames` frames
 // are rendered at 60 fps steps and timed with the real clock. Absolute times come from a software
@@ -48,7 +48,7 @@ for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map
 if (!spots.length) for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map.buildable(x, y)) spots.push([x, y]);
 // t5: the full defence with every ward pushed to tier 5 where the one-of-each limit allows.
 const FULL = DEF === 'full' || DEF === 't5';
-const want = FULL ? 22 : 5;
+const want = FULL ? Number(arg('wards', 22)) : 5;
 for (let i = 0, k = 0; i < spots.length && k < want; i += 5) {
   const type = types[k % types.length];
   let t;
@@ -56,7 +56,7 @@ for (let i = 0, k = 0; i < spots.length && k < want; i += 5) {
   else t = g.place(type, spots[i][0], spots[i][1]);
   if (!t) continue;
   ui.select(t);
-  const main = k % 3;
+  const main = (k + Math.floor(k / 12)) % 3;   // each copy of a type takes another path (one of each tier 5)
   for (let u = 0; u < (DEF === 't5' ? 5 : FULL ? 4 : 2); u++) ui.buyUpgrade(main);
   if (FULL) for (let u = 0; u < 2; u++) ui.buyUpgrade((main + 1) % 3);
   k++;
@@ -66,17 +66,29 @@ g.endless = true; g.over = null;
 g.wave = g.rewarded = WAVE - 1;
 g.startWave();
 ui.setSpeed(SPEED);
+// crowd=N: waves overlap (as if called early) while fewer than N enemies are alive, to hold a big
+// late crowd against a strong defence (as in test mode with wave jumping).
+const CROWD = Number(arg('crowd', 0));
+const keep = () => {
+  g.lives = Math.max(g.lives, 150); if (g.over) g.over = null;
+  if (CROWD && g.enemies.length < CROWD && g.spawners.length < 30) { const sp = g.spawners.slice(); g.spawners.length = 0; g.startWave(); g.spawners.push(...sp); }
+};
 // Build the crowd: the simulation alone, WARM seconds of game time.
-for (let i = 0; i < WARM * 60; i++) { g.step(1 / 60); g.lives = Math.max(g.lives, 150); if (g.over) g.over = null; }
+for (let i = 0; i < WARM * 60; i++) { g.step(1 / 60); keep(); g.fx.length = 0; }
+// count the simulation's events the renderer handles each frame
+let events = 0;
+r.consume = ((orig) => function () { events += g.fx.length; return orig.call(r); })(r.consume);
 frames(5);
 r.pops.clear();   // the upgrade pops from setting up the defence would otherwise still be playing
-r.perf.sum = Object.create(null); for (const k in callSum) delete callSum[k]; for (const k in byName) delete byName[k]; for (const k in bySec) delete bySec[k]; for (const k in cur) delete cur[k]; lastCalls = calls;
+r.perf.sum = Object.create(null); for (const k in callSum) delete callSum[k]; for (const k in byName) delete byName[k]; for (const k in bySec) delete bySec[k]; for (const k in cur) delete cur[k]; lastCalls = calls; events = 0;
 let enemies = 0, parts = 0, shots = 0;
 const t0 = performance.now();
-for (let i = 0; i < N; i++) { frames(1); g.lives = Math.max(g.lives, 150); if (g.over) g.over = null; enemies += g.enemies.length; parts += r.parts.list.length; shots += g.projectiles.length; }
+for (let i = 0; i < N; i++) { frames(1); keep(); enemies += g.enemies.length; parts += r.parts.list.length; shots += g.projectiles.length; }
 const wall = (performance.now() - t0) / N;
 const a = r.perf.sum, f = (k) => ((a[k] || 0) / N).toFixed(1).padStart(5);
-console.log(`wave ${WAVE} ${MODE.padEnd(6)} ${SPEED}x ${DEF.padEnd(4)}| ${String(Math.round(enemies / N)).padStart(4)} enemies ${String(Math.round(parts / N)).padStart(4)} particles ${String(Math.round(shots / N)).padStart(3)} shots | ms/frame: sim${f('sim')} (${((a.steps || 0) / N).toFixed(1)} steps) enemies${f('enemies')} wards${f('wards')} ghosts${f('ghosts')} effects${f('effects')} particles${f('particles')} ground${f('ground')} overlay${f('overlay')} ui${f('ui')} | wall ${wall.toFixed(1)} | quality ${r.quality}`);
+console.log(`   ${Math.round(events / N)} simulation events per frame`);
+console.log(`wave ${WAVE} ${MODE.padEnd(6)} ${SPEED}x ${DEF.padEnd(4)}| ${String(Math.round(enemies / N)).padStart(4)} enemies ${String(Math.round(parts / N)).padStart(4)} particles ${String(Math.round(shots / N)).padStart(3)} shots | ms/frame: sim${f('sim')} (${((a.steps || 0) / N).toFixed(1)} steps) enemies${f('enemies')} wards${f('wards')} ghosts${f('ghosts')} effects${f('events') && ''}${((['events', 'flamesim', 'beams', 'shots', 'flames', 'rings', 't5fx', 'snow'].reduce((t, k) => t + (a[k] || 0), 0)) / N).toFixed(1).padStart(5)} particles${f('particles')} ground${f('ground')} overlay${f('overlay')} ui${f('ui')} | wall ${wall.toFixed(1)} | quality ${r.quality}`);
+console.log('   every section, ms/frame:', Object.keys(a).filter((k) => k !== 'steps').sort((x, y) => a[y] - a[x]).map((k) => `${k} ${(a[k] / N).toFixed(2)}`).join(', '));
 const c = (k) => String(Math.round((callSum[k] || 0) / N)).padStart(6);
 // (calls between two marks land in the later bucket: 'ghosts' and 'enemies' hold the walker pass with
 // the wards and ghosts inside it, then the flyers and the health bars)

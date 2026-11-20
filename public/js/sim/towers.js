@@ -2,7 +2,7 @@
 import { TOWERS } from '../data/towers.js';
 import { RULES } from '../data/rules.js';
 import { applySlow } from './enemies.js';
-import { mark, addZone } from './projectiles.js';
+import { mark, addZone, newBolt, newShell } from './projectiles.js';
 
 const TAU = Math.PI * 2;
 
@@ -118,6 +118,7 @@ export function createTower(game, type, x, y) {
     charges: def.base.charges || 0, bloomT: 0, mineT: 0, rootCd: 0, heavyCd: 0, pathDist: 0,   // Snare
     lights: [], bank: 0, warm: false, goldEarned: 0, // Wandering Light's lights; Ember Vault's embers
     disc: 0,                                         // upgrade discount (a Golden Age Beacon)
+    fresh: 0, freshWave: -1, groundBonus: 0, lured: 0, pathNear: undefined, phx: null, sold: false,   // set later (one shape for every ward)
     t5T: 0, t5N: 0, splitTokens: 0, eruptTokens: 0, markTokens: 0,   // tier 5 timers and rate limits
   };
   // The game it stands in (not enumerable: keeps the tower plain to copy and inspect).
@@ -180,14 +181,14 @@ function bolt(game, t, dt) {
     // Extra bolts at the same target fan out slightly.
     const fan = i >= targets.length ? ((i % 2 ? 1 : -1) * Math.ceil(i / 2)) * 0.09 : 0;
     const a = Math.atan2(e.y - t.y, e.x - t.x) + fan;
-    game.projectiles.push({
+    game.projectiles.push(newBolt({
       kind: 'bolt', x: t.x + Math.cos(a) * 16, y: t.y + Math.sin(a) * 16,
       vx: Math.cos(a) * s.projSpeed, vy: Math.sin(a) * s.projSpeed, speed: s.projSpeed,
       target: e, homing: fan === 0 && !s.lance, dmg: s.damage * (rend && i === 0 ? s.rendMul : 1), pierce: s.pierce, hit: [],
       bounces: s.bounces || 0, rend: rend && i === 0 ? s.rendStun : 0,
       // A Siege Lance keeps flying until it leaves the map.
       life: s.lance ? 1600 : s.range * 1.5 + 60, src: t, s, dead: false,
-    });
+    }));
   }
   game.emit('fire', { x: t.x, y: t.y, ang: t.ang, kind: 'bolt', rend });
 }
@@ -225,10 +226,10 @@ function mortar(game, t, dt) {
     let tx = aim.x, ty = aim.y;
     if (i >= targets.length) { tx += (game.rand() - 0.5) * 50; ty += (game.rand() - 0.5) * 50; }
     if (i === 0) t.ang = Math.atan2(ty - t.y, tx - t.x);
-    game.projectiles.push({
+    game.projectiles.push(newShell({
       kind: 'shell', x: t.x, y: t.y, sx: t.x, sy: t.y, tx, ty, t: 0, flight: s.flight * (quakeShot && i === 0 ? 1.3 : 1),
       sub: false, src: t, s, dead: false, quake: quakeShot && i === 0,
-    });
+    }));
   }
   game.emit('fire', { x: t.x, y: t.y, ang: t.ang, kind: 'mortar' });
 }
@@ -906,12 +907,12 @@ function wander(game, t, dt) {
 export function castStar(game, t, s, L, e, k, dmg, big = false, sky = false) {
   const a = Math.atan2(e.y - L.y, e.x - L.x) + (k ? (k % 2 ? 1 : -1) * 0.5 : 0);
   const sp = s.projSpeed * (big ? 1.2 : 1);
-  game.projectiles.push({
+  game.projectiles.push(newBolt({
     kind: 'bolt', star: true, comet: !!s.comet || big, x: L.x + Math.cos(a) * 8, y: L.y + Math.sin(a) * 8, ox: L.x, oy: L.y,
     vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, speed: sp,
     target: e, homing: true, dmg, pierce: s.pierce, hit: [], bounces: s.starBounce || 0, big, sky,
     life: big ? 3000 : s.range * 2 + 120, src: t, s, dead: false,
-  });
+  }));
 }
 
 // --- vault: banks embers (game.kill and the wave clear fill it); Hearthwarm warms nearby wards -----

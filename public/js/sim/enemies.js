@@ -33,6 +33,9 @@ export function createEnemy(game, type, dist, wave, mods, root) {
     shatterT: 0, shatterDmg: 0, shatterRadius: 0, shatterSrc: null,
     rootT: 0, snaredBy: 0,                                  // held by a Thornlight Snare; the snare that bit it
     lure: null, lureT: 0, lureW: 0, lureA: 0, lureImm: 0, lureAmp: 0, groundT: 0,   // Moth Lantern
+    // Set later by wards (declared here so every enemy has the same shape: V8 keeps property access
+    // fast only while objects share a hidden class).
+    snareAt: 0, magmaT: 0, magmaSrc: null, markSrc: null, doomT: 0, _score: 0, _d2: 0,
   };
   path.posAt(dist, e, e.off);
   return e;
