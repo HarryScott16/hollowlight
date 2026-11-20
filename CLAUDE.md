@@ -2,14 +2,33 @@
 
 Canvas game, no dependencies and no build step. `npm start` serves `public/` on :3001.
 Checks: `node tools/smoke.js` (browser code against a stub DOM; it also places every ward by click, drag
-and key through the real UI handlers, upgrades every path, and uses its R action and ability),
-`node tools/bot.js` (balance). The frame loop in `main.js` guards the simulation, interface and drawing
+and key through the real UI handlers, takes every path to tier 5, checks the one-of-each limit, and
+uses its R action and ability), `node tools/bot.js` (balance; `--endless --cap=120` keeps going into
+endless; the `endless12` builds are for that), `node tools/tier5.js` (each tier 5 against its tier 4),
+`node tools/endless.js` (the endless health curve), `node tools/report.js` (power per gold by tier). The frame loop in `main.js` guards the simulation, interface and drawing
 separately: an error is logged as `[Hollowlight] error in the ...` and counted in
 `window.hollowlight.frameErrors`, and the loop keeps running (smoke.js fails on any).
 Test mode for checking art: `?test=1` or Shift+T (unlimited gold and lives, wave jumping; `ui/testmode.js`).
 Keys: wards 1-9, 0, -, = (shop order); Q W E upgrade; R the selected ward's action (cash out an Ember
 Vault, move a Wandering Light's post); abilities A S D F G H J K, then Z C V B; X the Flare.
 It lives only in the UI layer and must never touch the simulation, the bots or balance.
+
+## Tier 5
+
+Every path has a fifth tier, a capstone: about 4.5x its tier 4's cost, 3-5x its power, and one
+signature mechanic each (`docs/tier5-design.md`; research in `docs/tier5-research.md`). Only one of
+each tier 5 may stand on the map (`RULES.uniqueTier5`, checked in `upgradeInfo`). The data is the
+`TIER5` block at the end of `data/towers.js`. Art: a tier 5 is drawn as its skin's tier 4 form
+(`artPath`: `P.mt` 4, `P.t5` set) plus the shared second form in `render/wards/ascend.js` (both skins
+get it, with their own materials); height cap 76 px. Tier 5 effects on the map are in
+`Renderer.drawTier5` and the fx cases marked "tier 5 signatures".
+
+## Endless
+
+`sim/endless.js`: a health budget per wave that picks up from wave 40 and grows 5.5% a wave to 60,
+7% to 80 and 8% after (speed capped at x1.7). The mix rotates through five stretches every 5 waves,
+and a modifier switches on every 5 waves from 45 to 90. Above the spawn cap, groups are thinned
+evenly and tough enemies carry the lost health. `node tools/endless.js` prints the curve.
 
 ## Layout
 
@@ -57,9 +76,12 @@ every ward for each skin; `bolt-parts.js` and `parts.js` hold props both skins s
   extra lights are drawn as wards of their own (`Renderer.lightWard`).
 - Wards are upright (three-quarter view) and grow with every tier on their main path, so a tier 4
   is clearly bigger and more imposing than a tier 0 (about x1.35). Height caps (checked by
-  `tools/wards.mjs`): about 46 px for a base ward, 68 px for a tier 4. Enemies behind a ward show
-  through it as outlined ghosts (`Renderer.drawGhosts`), so size never hides them. Leave visual room
-  above tier 4 for a future tier 5.
+  `tools/wards.mjs`): about 46 px for a base ward, 68 px for a tier 4, 76 px for a tier 5 (x1.4).
+  Enemies behind a ward show through it as outlined ghosts (`Renderer.drawGhosts`), so size never
+  hides them. A tier 5's second form goes beside or behind the body (`wards/ascend.js`), and its
+  diadem is the only pure white on an idle ward. On this machine run `tools/wards.mjs` in groups of
+  four wards (`node tools/wards.mjs out.png bolt mortar rime coil`): all twelve at once runs out of
+  memory.
 - Each ward is coloured and dressed for its role and damage type in both skins (e.g. the Censer is
   ember-orange and charred, the Rime frosted blue with icicles), with idle life (breathing,
   flicker, sparks), and must stay instantly distinguishable from every other ward.

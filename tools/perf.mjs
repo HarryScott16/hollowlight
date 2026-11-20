@@ -1,7 +1,7 @@
 // Frame-cost profiler: plays a stress scene in the real game (no browser) and prints the same
 // per-frame breakdown as the FPS overlay (` key).
 //
-//   CANVAS_MODULES=<dir>/node_modules node tools/perf.mjs [wave=80] [speed=1] [mode=normal|test] [defence=few|full] [frames=120]
+//   CANVAS_MODULES=<dir>/node_modules node tools/perf.mjs [wave=80] [speed=1] [mode=normal|test] [defence=few|full|t5] [frames=120]
 //
 // The crowd is built up by running the simulation alone for `warm` seconds, then `frames` frames
 // are rendered at 60 fps steps and timed with the real clock. Absolute times come from a software
@@ -46,7 +46,9 @@ const types = process.env.WARDS === '8' ? ['bolt', 'mortar', 'rime', 'coil', 'lo
 const spots = [];
 for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map.buildable(x, y) && g.map.path.distTo?.(x, y) < 70) spots.push([x, y]);
 if (!spots.length) for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map.buildable(x, y)) spots.push([x, y]);
-const want = DEF === 'full' ? 22 : 5;
+// t5: the full defence with every ward pushed to tier 5 where the one-of-each limit allows.
+const FULL = DEF === 'full' || DEF === 't5';
+const want = FULL ? 22 : 5;
 for (let i = 0, k = 0; i < spots.length && k < want; i += 5) {
   const type = types[k % types.length];
   let t;
@@ -55,8 +57,8 @@ for (let i = 0, k = 0; i < spots.length && k < want; i += 5) {
   if (!t) continue;
   ui.select(t);
   const main = k % 3;
-  for (let u = 0; u < (DEF === 'full' ? 4 : 2); u++) ui.buyUpgrade(main);
-  if (DEF === 'full') for (let u = 0; u < 2; u++) ui.buyUpgrade((main + 1) % 3);
+  for (let u = 0; u < (DEF === 't5' ? 5 : FULL ? 4 : 2); u++) ui.buyUpgrade(main);
+  if (FULL) for (let u = 0; u < 2; u++) ui.buyUpgrade((main + 1) % 3);
   k++;
 }
 ui.select(null);

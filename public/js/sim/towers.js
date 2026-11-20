@@ -584,9 +584,9 @@ function wyrm(game, t, s) {
   const path = game.map.path;
   if (t.pathNear === undefined) t.pathNear = path.nearest(t.x, t.y) * path.step;
   const pts = [];
-  for (let k = 0; k <= s.wyrmLen; k += 35) {
+  for (let k = 0; k <= s.wyrmLen; k += 56) {
     path.posAt(t.pathNear + 20 - k, aim, 0);
-    game.zones.push({ x: aim.x, y: aim.y, r: 30, dps: s.wyrmDps, t: s.wyrmDur, tick: k * 0.002, scorch: 0, src: t, type: 'fire', fire: true });
+    game.zones.push({ x: aim.x, y: aim.y, r: 38, dps: s.wyrmDps, t: s.wyrmDur, tick: k * 0.002, scorch: 0, src: t, type: 'fire', fire: true });
     pts.push(aim.x, aim.y);
   }
   game.emit('wyrm', { x: t.x, y: t.y, pts });

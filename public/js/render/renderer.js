@@ -270,12 +270,14 @@ export class Renderer {
           this.flash = { color: '220,245,255', t: 0.35, max: 0.35, a: 0.22 };
           break;
         case 'erupt': // Magma Heart: a dying Gloom erupts from the magma
-          this.ring(f.x, f.y, 4, f.r, 0.35, '#ffb347', 3, 'rgba(255,90,20,0.4)', true);
+          if (this.quality === 2) this.ring(f.x, f.y, 4, f.r, 0.35, '#ffb347', 3, 'rgba(255,90,20,0.4)', true);
           P.burst(f.x, f.y, 10, { color: '#ff7a2a', speed: 180, life: 0.5, size: 3.4, grav: 160, ang: -Math.PI / 2, spread: 1.2 });
           break;
         case 'shrapnel': // shrapnel flies out of a flak burst and bursts again
-          if (this.tracers.length < 60) this.tracers.push({ x: f.x0, y: f.y0, tx: f.x, ty: f.y, life: 0.15, max: 0.15, big: false, spot: false });
-          this.ring(f.x, f.y, 3, f.r, 0.2, KINETIC, 2, 'rgba(233,238,246,0.12)', true);
+          if (this.quality === 2) {
+            if (this.tracers.length < 60) this.tracers.push({ x: f.x0, y: f.y0, tx: f.x, ty: f.y, life: 0.15, max: 0.15, big: false, spot: false });
+            this.ring(f.x, f.y, 3, f.r, 0.2, KINETIC, 2, 'rgba(233,238,246,0.12)', true);
+          } else P.burst(f.x, f.y, 2, { color: KINETIC, speed: 120, life: 0.25, size: 2.4 });
           break;
         case 'wyrm': { // Elder Wyrm: a river of dragonfire poured down the road
           S.boom(false);
