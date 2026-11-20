@@ -1,6 +1,7 @@
 // Ward art check: renders every converted ward in BOTH skins (base, T2 and T4 on each path, and a
-// mixed build) into a contact sheet, and checks the height cap (a ward must not stand more than
-// 48 px above its footprint, so it never hides the enemies behind it).
+// mixed build) into a contact sheet, and checks the height caps: wards grow with tier, but a base
+// ward stays under ~46 px and a tier 4 under ~68 px above its footprint. (Enemies behind a ward
+// show through it, see Renderer.drawGhosts, so growth never hides them.)
 //
 //   CANVAS_MODULES=<dir>/node_modules node tools/wards.mjs [out.png]
 //
@@ -16,7 +17,7 @@ const req = createRequire(process.env.CANVAS_MODULES ? join(process.env.CANVAS_M
 const { createCanvas, GlobalFonts } = req('@napi-rs/canvas');
 if (process.env.FONT_DIR) GlobalFonts.registerFromPath(join(process.env.FONT_DIR, 'DejaVuSans.ttf'), 'Sans');
 const out = process.argv[2] || 'wards.png';
-const CAP = 48;
+const CAPS = [46, 50, 56, 62, 68];   // by main-path tier (the Longeye is the tall one)
 
 const STATES = [[0, 0, 0], [2, 0, 0], [4, 0, 0], [0, 2, 0], [0, 4, 0], [0, 0, 2], [0, 0, 4], [4, 2, 0], [0, 2, 4]];
 const skins = Object.keys(SKINS);
@@ -52,9 +53,9 @@ for (const t of types) for (const s of skins) {
   const y0 = 30 + row * (CH + LBL);
   g.fillStyle = '#fff'; g.fillText(`${t}`, 6, y0 + CH / 2); g.fillText(SKINS[s].name, 6, y0 + CH / 2 + 15);
   STATES.forEach((tiers, i) => {
-    const h = height(t, tiers);
-    const over = h > CAP;
-    if (over) { console.log(`TOO TALL: ${t} ${tiers.join('/')} (${SKINS[s].name}) stands ${h.toFixed(1)} px (cap ${CAP})`); bad++; }
+    const h = height(t, tiers), cap = CAPS[Math.max(...tiers)];
+    const over = h > cap;
+    if (over) { console.log(`TOO TALL: ${t} ${tiers.join('/')} (${SKINS[s].name}) stands ${h.toFixed(1)} px (cap ${cap})`); bad++; }
     initWardArt(() => createCanvas(1, 1), Z);
     g.save(); g.translate(90 + i * CW, y0); g.scale(Z, Z);
     drawWard(g, { type: t, tiers, x: 35, y: 62, id: i }, { ang: 0.6, recoil: 0, time: 0.3 + i, pulse: 0, fire: 0, pop: 0, id: i });

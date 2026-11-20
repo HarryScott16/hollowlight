@@ -17,10 +17,14 @@ The ward design system is in `docs/visual-design-system.md`; the code is in
   projectile or effect), put it in shared code so both skins get it.
 - The Longeye in the Kindlings skin is the Lantern body with a Kindling eye (`longeyeArt` in
   `lanterns.js`, reused by `kindlings.js`).
-- Wards are upright (three-quarter view) and stay within the height cap: about 32 px for a base
-  ward and at most 48 px for a tier 4, so they never hide the enemies behind them. Leave visual
-  room above tier 4 for a future tier 5: put tier 4 drama in effects (projectiles, flames, beams,
-  auras), not height.
+- Wards are upright (three-quarter view) and grow with every tier on their main path, so a tier 4
+  is clearly bigger and more imposing than a tier 0 (about x1.35). Height caps (checked by
+  `tools/wards.mjs`): about 46 px for a base ward, 68 px for a tier 4. Enemies behind a ward show
+  through it as outlined ghosts (`Renderer.drawGhosts`), so size never hides them. Leave visual room
+  above tier 4 for a future tier 5.
+- Each ward is coloured and dressed for its role and damage type in both skins (e.g. the Censer is
+  ember-orange and charred, the Rime frosted blue with icicles), with idle life (breathing,
+  flicker, sparks), and must stay instantly distinguishable from every other ward.
 - One channel per fact: role = silhouette, damage type = signature colour + glyph
   (`DMG` in `wards/kit.js`, also used for projectiles, effects and damage numbers), tier = notches
   on the plinth, path = shape (Might / Many / Craft). **No path colours on the battlefield:** they

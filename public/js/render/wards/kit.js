@@ -2,8 +2,8 @@
 //
 // Wards are drawn upright, in a three-quarter view, in "ward units": the plinth's centre is at
 // (0, 11) and the ground line at y = 14; up is -y. wardArt.js maps ward units onto the map (the
-// plinth centre lands on the ward's position) and scales them so a base ward stands ~32 px tall
-// and a tier 4 at most ~48 px.
+// plinth centre lands on the ward's position) and scales them so wards grow with tier: a base
+// ward stands ~35-45 px tall and a tier 4 up to ~68 px (wardScale; tools/wards.mjs checks it).
 //
 // One channel per fact:
 //   role          -> silhouette (each skin draws its own body per role family)
@@ -166,4 +166,39 @@ export function groundAura(ctx, d, time, R = 22) {
   ctx.fillStyle = rgba(col, 0.9);
   for (let i = 0; i < 6; i++) { const a = time * 0.8 + (i / 6) * TAU; circle(ctx, Math.cos(a) * R, Math.sin(a) * R, 2.4); ctx.fill(); }
   ctx.restore();
+}
+
+// ---- small live details (cheap enough to draw every frame) -----------------------------------
+// A four-point twinkle.
+export function twinkle(ctx, x, y, r, a, color = '#ffffff') {
+  if (a <= 0.02) return;
+  const ga = ctx.globalAlpha;
+  ctx.globalAlpha = ga * Math.min(1, a);
+  star(ctx, x, y, r, r * 0.28, 4, 0); ctx.fillStyle = color; ctx.fill();
+  ctx.globalAlpha = ga;
+}
+// n motes rising from a strip (x0..x1 at y) and fading, looping every `period` seconds.
+export function risingMotes(ctx, t, n, x0, x1, y, h, color, size = 1.4, period = 1.6, seed = 0) {
+  const ga = ctx.globalAlpha;
+  ctx.fillStyle = color;
+  for (let i = 0; i < n; i++) {
+    const u = (t / period + i / n + seed * 0.37) % 1;
+    const x = x0 + (x1 - x0) * ((i * 0.618 + seed) % 1) + Math.sin(t * 3 + i * 2.1) * 1.5;
+    ctx.globalAlpha = ga * (u < 0.15 ? u / 0.15 : 1 - u);
+    ctx.fillRect(x - size / 2, y - u * h - size / 2, size, size);
+  }
+  ctx.globalAlpha = ga;
+}
+// Eyebrows give a Kindling its character: 'stern' (angled in), 'sharp' (flat and low), 'soft'.
+export function brows(ctx, x, y, sep, r, kind) {
+  ctx.lineCap = 'round'; ctx.strokeStyle = '#3a2a40'; ctx.lineWidth = Math.max(1, r * 0.42);
+  for (const s of [-1, 1]) {
+    const ex = x + s * sep;
+    ctx.beginPath();
+    if (kind === 'stern') { ctx.moveTo(ex - s * r * 1.0, y - r * 1.75); ctx.lineTo(ex + s * r * 0.9, y - r * 1.25); }
+    else if (kind === 'sharp') { ctx.moveTo(ex - s * r * 1.1, y - r * 1.35); ctx.lineTo(ex + s * r * 1.0, y - r * 1.2); }
+    else { ctx.moveTo(ex - r * 0.9, y - r * 1.5); ctx.quadraticCurveTo(ex, y - r * 2.0, ex + r * 0.9, y - r * 1.5); }
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
 }

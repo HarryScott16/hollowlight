@@ -323,7 +323,7 @@ export class UI {
   }
 
   // Wards stand upright, so a click on a ward's body (above its footprint) selects it too.
-  wardAt(x, y) { return this.game.towerAt(x, y) || this.game.towerAt(x, y + 18); }
+  wardAt(x, y) { return this.game.towerAt(x, y) || this.game.towerAt(x, y + 18) || this.game.towerAt(x, y + 34); }
 
   // Hidden test switch between the two ward skins (also ?skin=lantern / ?skin=kindling).
   toggleSkin() {

@@ -25,10 +25,12 @@ export function skinName() { return SKINS[skin].name; }
 export function setSkin(name) { if (SKINS[name] && name !== skin) { skin = name; sprites.clear(); } }
 export function nextSkin() { const keys = Object.keys(SKINS); setSkin(keys[(keys.indexOf(skin) + 1) % keys.length]); return skin; }
 
-// Ward units -> map pixels. A base ward stands ~32 px tall; tiers add a little, tier 4 a bit more,
-// and the tallest tier 4 stays under ~48 px (tools/wards.mjs checks this).
-const K = 0.78;
-export function wardScale(tiers) { const P = mainPath(tiers); return K * (1 + P.lvl * 0.01 + (P.mt >= 4 ? 0.05 : 0)); }
+// Ward units -> map pixels. Wards grow with every tier on their main path, so a tier 4 is clearly
+// bigger than a tier 0 (about x1.35); tiers on the second path add a little. tools/wards.mjs
+// checks the heights. Enemies behind a ward show through it (see Renderer.drawGhosts).
+const K = 0.86;
+const GROW = [1, 1.06, 1.13, 1.22, 1.35];
+export function wardScale(tiers) { const P = mainPath(tiers); return K * (GROW[P.mt] + (P.lvl - P.mt) * 0.02); }
 const PLINTH_Y = 11;   // ward units: the plinth centre sits on the ward's map position
 
 const pcache = new Map();
@@ -42,8 +44,8 @@ function artFor(type) { return SKINS[skin].art[type] || null; }
 export function isConverted(type) { return !!artFor(type); }
 
 // ---- sprite cache ------------------------------------------------------------------------------
-// Box (ward units) every body fits in: x -34..34, y -66..20.
-const BX = -34, BY = -66, BW = 68, BH = 86;
+// Box (ward units) every body fits in: x -38..38, y -70..22.
+const BX = -38, BY = -70, BW = 76, BH = 92;
 const sprites = new Map();
 let makeCanvas = () => null, pxScale = 1;
 export function initWardArt(factory, scale) {
@@ -79,6 +81,9 @@ export function drawWard(ctx, t, st) {
   ctx.save();
   ctx.translate(t.x, t.y); ctx.scale(S, S); ctx.translate(0, -PLINTH_Y);
   if (art.back) art.back(ctx, P, st, d);
+  // Kindlings breathe: a slow, volume-keeping squash about the ground line.
+  const b = art.breathe ? Math.sin(st.time * 2.4 + (st.id || 0)) * 0.025 : 0;
+  if (b) { ctx.translate(0, 14); ctx.scale(1 - b * 0.5, 1 + b); ctx.translate(0, -14); }
   ctx.drawImage(sp.cv, BX, BY, BW, BH);
   art.front(ctx, P, st, d);
   if (pop > 0) { // white flash during the upgrade pop
@@ -106,6 +111,12 @@ export function wardTop(t) {
   const art = artFor(t.type);
   if (!art) return t.y - 26 * oldScale(t.tiers);
   return t.y + (sprite(t.type, art, pathInfo(t.tiers)).top - PLINTH_Y) * wardScale(t.tiers);
+}
+// Screen box of a ward's body (map units): where enemies behind it need to show through.
+export function wardBox(t, out) {
+  const S = wardScale(t.tiers);
+  out[0] = t.x - 17 * S; out[1] = wardTop(t); out[2] = t.x + 17 * S; out[3] = t.y + 3 * S;
+  return out;
 }
 // Signature colour of a ward's damage type, for effects.
 export function wardColor(type) { const D = DMG[WARD_DMG[type] || 'kinetic']; return D.core; }

@@ -6,7 +6,7 @@ import { RULES } from '../data/rules.js';
 import { Particles } from './particles.js';
 import { FlameFx } from './flames.js';
 import { paintBackground } from './background.js';
-import { drawWard, wardMuzzle, wardTop, wardColor, initWardArt, setSkin, skinFromQuery } from './wardArt.js';
+import { drawWard, wardMuzzle, wardTop, wardBox, wardColor, initWardArt, setSkin, skinFromQuery } from './wardArt.js';
 import { DMG } from './wards/kit.js';
 import { drawEnemy, initSprites, ENEMY_COLORS } from './enemyArt.js';
 
@@ -517,6 +517,7 @@ export class Renderer {
       drawEnemy(ctx, e, lite);
     }
     while (wi < wards.length) this.drawWardAt(ctx, wards[wi++], dt);
+    this.drawGhosts(ctx, lite);
     if (flyers) for (let i = 0; i < es.length; i++) if (es[i].def.flying) drawEnemy(ctx, es[i], lite);
 
     for (const t of game.towers) {
@@ -582,6 +583,34 @@ export class Renderer {
       ctx.fillRect(f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
     }
     ctx.globalAlpha = 1;
+  }
+
+  // Upright wards can stand in front of the Gloom. Rather than fading the ward (which would flicker
+  // as crowds pass and blur the ward exactly when it matters), any walker behind a ward shows
+  // through it as a faint ghost with a light outline, clipped to the ward's body. The ward stays
+  // solid and readable, and nothing hides behind it.
+  drawGhosts(ctx, lite) {
+    const box = this._box || (this._box = [0, 0, 0, 0]), buf = this._gbuf || (this._gbuf = []);
+    const grid = this.game.grid;
+    for (const t of this.game.towers) {
+      wardBox(t, box);
+      const cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2;
+      grid.query(cx, cy, Math.hypot(box[2] - box[0], box[3] - box[1]) / 2 + 16, buf);
+      let open = false, n = 0;
+      for (let i = 0; i < buf.length && n < 6; i++) {
+        const e = buf[i];
+        if (e.def.flying || e.y >= t.y + 3) continue;   // only walkers drawn behind this ward
+        // ...whose middle the ward actually covers (one peeking out at the edge is visible anyway)
+        if (e.x < box[0] || e.x > box[2] || e.y < box[1]) continue;
+        n++;
+        if (!open) { open = true; ctx.save(); ctx.beginPath(); ctx.rect(box[0], box[1], box[2] - box[0], box[3] - box[1]); ctx.clip(); }
+        ctx.globalAlpha = 0.5;
+        drawEnemy(ctx, e, true);
+        ctx.globalAlpha = 0.75; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 1, 0, TAU); ctx.stroke();
+      }
+      if (open) { ctx.globalAlpha = 1; ctx.restore(); }
+    }
   }
 
   drawWardAt(ctx, t, dt) {
