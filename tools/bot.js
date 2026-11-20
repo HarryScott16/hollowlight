@@ -246,7 +246,7 @@ function upgradeValue(game, t, pi, strat) {
   // shuts down Menders and shields, which the damage estimate doesn't see.
   const util = t.def.kind === 'pulse' ? 3 : t.def.kind === 'flame' ? 1.5 : 1;
   const fav = strat.favour && (strat.favourSet ? strat.favourSet.includes(t.type) : NEW_WARDS.has(t.type)) ? strat.favour : 1;
-  return { t, pi, cost: info.up.cost, value: (gain * util * fav) / info.up.cost };
+  return { t, pi, cost: info.cost, value: (gain * util * fav) / info.cost };
 }
 
 // Builds that read the banners get one Frost Sight spire (Blizzard tier 2) once Veiled waves
@@ -256,7 +256,7 @@ function ensureReveal(game, strat) {
   const rime = game.towers.filter((t) => t.type === 'rime' && upgradeInfo(t, 2).ok).sort((a, b) => b.tiers[2] - a.tiers[2])[0];
   if (!rime) return true;
   const info = upgradeInfo(rime, 2);
-  if (game.gold < info.up.cost) return false;   // save for it
+  if (game.gold < info.cost) return false;   // save for it
   game.upgrade(rime, 2);
   return true;
 }

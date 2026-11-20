@@ -10,7 +10,7 @@ import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { buildMap, mulberry32 } from './path.js';
 import { Grid } from './grid.js';
 import { createEnemy, updateEnemy, inherit, applySlow, regrow } from './enemies.js';
-import { createTower, computeStats, upgradeInfo, updateTower, snipeHit, ignite, startLure, castStar } from './towers.js';
+import { createTower, computeStats, upgradeInfo, updateTower, snipeHit, ignite, startLure, castStar, updateOrbs } from './towers.js';
 import { updateProjectiles, updateZones, launchShell, updateMines, isLow } from './projectiles.js';
 import { endlessWave } from './endless.js';
 
@@ -44,6 +44,7 @@ export class Game {
     this.projectiles = [];
     this.zones = [];
     this.mines = [];          // Flashmines on the path
+    this.orbs = [];           // Ball Lightning orbs rolling up the path
     this.vaults = [];
     this.spawners = [];
     this.pending = [];        // deferred shatter explosions
@@ -164,10 +165,10 @@ export class Game {
 
   upgrade(tower, pi) {
     const info = upgradeInfo(tower, pi);
-    if (!info.ok || this.over || this.gold < info.up.cost) return false;
-    this.gold -= info.up.cost;
-    tower.spent += info.up.cost;
-    this.spend(tower, info.up.cost);
+    if (!info.ok || this.over || this.gold < info.cost) return false;
+    this.gold -= info.cost;
+    tower.spent += info.cost;
+    this.spend(tower, info.cost);
     tower.tiers[pi]++;
     tower.stats = computeStats(tower.def, tower.tiers);
     // Reaching tier 4 unlocks the ward type's ability, one-third charged.
@@ -194,8 +195,10 @@ export class Game {
     if (!t || !t.bank || this.over) return 0;
     const n = Math.floor(t.bank);
     t.bank -= n;
-    t.goldEarned = (t.goldEarned || 0) + n;
-    this.addGold(n);
+    // Dragon's Hoard: a big cash-out pays extra.
+    const extra = t.stats.hoardBonus && n >= t.stats.hoardMin ? Math.floor(n * t.stats.hoardBonus) : 0;
+    t.goldEarned = (t.goldEarned || 0) + n + extra;
+    this.addGold(n + extra);
     if (t.warm && t.stats.warmRate) { t.warm = false; this.refreshGlobals(); }
     this.emit('cashout', { x: t.x, y: t.y, amount: n });
     return n;
@@ -244,7 +247,7 @@ export class Game {
       let rate = 0, dmg = 0, range = 0, detect = false, air = false;
       for (const b of beacons) {
         const bs = b.stats;
-        if (b !== rally && (b.x - t.hx) ** 2 + (b.y - t.hy) ** 2 > bs.range * bs.range) continue;
+        if (b !== rally && !bs.auraGlobal && (b.x - t.hx) ** 2 + (b.y - t.hy) ** 2 > bs.range * bs.range) continue;
         rate = Math.max(rate, bs.auraRate || 0);
         dmg = Math.max(dmg, bs.auraDmg || 0);
         range = Math.max(range, bs.auraRange || 0);
@@ -271,9 +274,13 @@ export class Game {
       }
       t.stats = s;
     }
-    let slow = 0;
-    for (const t of this.towers) if (t.stats.globalSlow > slow) slow = t.stats.globalSlow;
+    let slow = 0, disc = 0;
+    for (const t of this.towers) {
+      if (t.stats.globalSlow > slow) slow = t.stats.globalSlow;
+      if (t.stats.discount > disc) disc = t.stats.discount;   // a Golden Age Beacon
+    }
     this.globalSlow = slow;
+    for (const t of this.towers) t.disc = disc;
   }
 
   towerAt(x, y) {
@@ -430,7 +437,22 @@ export class Game {
     // Shatter: a chilled enemy explodes, as often as the spire's shatter rate allows.
     if (e.shatterT > 0 && e.shatterSrc && e.shatterSrc.shatterTokens >= 1) {
       e.shatterSrc.shatterTokens--;
-      this.pending.push({ x: e.x, y: e.y, r: e.shatterRadius, dmg: e.shatterDmg, src: e.shatterSrc });
+      this.pending.push({ x: e.x, y: e.y, r: e.shatterRadius, dmg: e.shatterDmg, src: e.shatterSrc, chain: !!e.shatterSrc.stats.shatterChain });
+    }
+    // Magma Heart: Gloom that die in magma erupt.
+    const ms = e.magmaT > this.time ? e.magmaSrc : null;
+    if (ms && ms.eruptTokens >= 1 && ms.stats.eruptDmg) {
+      ms.eruptTokens--;
+      this.pending.push({ x: e.x, y: e.y, r: ms.stats.eruptRadius, dmg: ms.stats.eruptDmg, src: ms, type: 'blast', fx: 'erupt' });
+    }
+    // Dawnbringer: marked Gloom that die mark everything around them.
+    const mk = e.markT > 0 && e.markSrc && e.markSrc.stats.markBurst ? e.markSrc : null;
+    if (mk && mk.markTokens >= 1) {
+      mk.markTokens--;
+      const ms2 = mk.stats;
+      this.grid.query(e.x, e.y, ms2.markBurst, buf);
+      for (const o of buf) if (o !== e && o.alive) { o.markT = Math.max(o.markT, ms2.markDur); o.markPct = Math.max(o.markPct, ms2.markPct); o.markSrc = mk; }
+      this.emit('markburst', { x: e.x, y: e.y, r: ms2.markBurst });
     }
     // Wildfire: a burning enemy's fire leaps to the Gloom around it.
     const fs = e.burnT > 0 && e.burnType === 'fire' && e.burnSrc ? e.burnSrc : null;
@@ -461,8 +483,8 @@ export class Game {
       const s = v.stats;
       if (v.bank >= s.cap) continue;
       const inside = (v.x - e.x) ** 2 + (v.y - e.y) ** 2 <= s.range * s.range;
-      if (!inside && !s.gleanAll) continue;
-      v.bank = Math.min(s.cap, v.bank + base * s.glean * (inside ? 1 : 0.5));
+      if (!inside && !s.gleanAll && !s.gleanFull) continue;
+      v.bank = Math.min(s.cap, v.bank + base * s.glean * (inside || s.gleanFull ? 1 : 0.5));
       if (inside && this.fxOn && this.rand() < 0.35) this.emit('glean', { x: e.x, y: e.y, id: v.id });
     }
   }
@@ -485,7 +507,17 @@ export class Game {
 
   leak(e) {
     if (this.lastLight && !e.def.boss) { this.triggerLastLight(e); return; }
-    const cost = this.leakLives(e);
+    let cost = this.leakLives(e);
+    // Second Heartfire: a Vault pays embers for the lives instead.
+    for (const v of this.vaults) {
+      const g = v.stats.guard;
+      if (!g || cost <= 0) continue;
+      const n = Math.min(cost, Math.floor(v.bank / g));
+      if (n <= 0) continue;
+      v.bank -= n * g; cost -= n;
+      this.emit('guard', { x: v.x, y: v.y, n, gx: MAP.goal.x, gy: MAP.goal.y });
+    }
+    if (cost <= 0) { this.leaked++; return; }
     this.lives -= cost;
     this.leaked++;
     this.streak = 0;
@@ -714,25 +746,30 @@ export class Game {
     // whole map).
     for (let i = 0; i < this.towers.length; i++) {
       const t = this.towers[i];
-      if (!t.stats.reveal) continue;
-      const list = t.stats.global ? es : this.grid.query(t.x, t.y, t.stats.range, buf);
+      if (!t.stats.reveal && !t.stats.globalReveal) continue;
+      const list = t.stats.global || t.stats.globalReveal ? es : this.grid.query(t.x, t.y, t.stats.range, buf);
       for (const e of list) if (e.veiled && e.alive) e.revealT = 0.25;
     }
     // Heralds, Menders and summoning bosses act on the Gloom around them.
     for (let i = 0, n = es.length; i < n; i++) if (es[i].def.special && es[i].alive) this.updateSpecial(es[i], dt);
     for (let i = 0; i < this.towers.length; i++) updateTower(this, this.towers[i], dt);
+    if (this.orbs.length) updateOrbs(this, dt);
     this.updateAbilities(dt);
     updateProjectiles(this, dt);
     updateZones(this, dt);
     updateMines(this, dt);
 
-    // shatter explosions (may chain: the list can grow while we walk it)
+    // shatter explosions and magma eruptions (may chain: the list can grow while we walk it)
     for (let i = 0; i < this.pending.length; i++) {
       const p = this.pending[i];
       this.grid.query(p.x, p.y, p.r + 20, buf);
       const list = buf.slice();
-      for (const e of list) this.damage(e, p.dmg, 'frost', p.src, QUIET);
-      this.emit('shatter', { x: p.x, y: p.y, r: p.r });
+      for (const e of list) {
+        this.damage(e, p.dmg, p.type || 'frost', p.src, QUIET);
+        // Avalanche: a shatter chills what it hits, so it can shatter in turn.
+        if (p.chain && e.alive) { e.shatterT = 1; e.shatterDmg = p.dmg; e.shatterRadius = p.r; e.shatterSrc = p.src; applySlow(e, 0.35, 1); }
+      }
+      this.emit(p.fx || 'shatter', { x: p.x, y: p.y, r: p.r });
     }
     this.pending.length = 0;
 
@@ -756,6 +793,8 @@ export class Game {
         if (t.def.kind === 'snare') t.charges = t.stats.charges;
         else if (t.def.kind === 'vault' && t.bank > 0 && t.bank < t.stats.cap) t.bank = Math.min(t.stats.cap, t.bank * (1 + t.stats.growth));
       }
+      // Ember Tide: pays out by itself at each wave clear.
+      for (const t of this.towers) if (t.stats.autoCash && t.bank >= 1) this.cashOut(t);
       let total = 0;
       while (this.rewarded < this.wave) total += RULES.waveReward(++this.rewarded);
       this.addGold(total);

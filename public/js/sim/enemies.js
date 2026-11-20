@@ -137,6 +137,7 @@ function updateLure(e, dt) {
       e.lureImm = s.lureImm || 4;
       if (s.releaseSlow) applySlow(e, s.releaseSlow, s.releaseSlowDur);
       if (s.groundDur) e.groundT = Math.max(e.groundT, s.groundDur);
+      if (s.releaseHold) e.stunT = Math.max(e.stunT, s.releaseHold);   // Amber Trap: set in amber
       if (L.groundBonus) e.groundT = Math.max(e.groundT, L.groundBonus);
     }
     e.lureW = Math.min(1, e.lureW + dt * 2.5);

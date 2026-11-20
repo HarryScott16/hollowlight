@@ -1,13 +1,17 @@
 // Projectiles, explosions and lingering ground zones. No DOM access.
+import { applySlow } from './enemies.js';
 const buf = [];
 // A flyer circling a Moth Lantern (or still grounded by Flypaper) flies low: anything can hit it.
 export const isLow = (e) => e.lureW > 0.5 || e.groundT > 0;
 
 const marks = [];
-function mark(game, e, s, src) {
+export function mark(game, e, s, src) {
   e.markT = Math.max(e.markT, s.markDur);
   e.markPct = Math.max(e.markPct, s.markPct);
-  if (s.execute && !e.def.heavy && e.hp < e.maxHp * s.execute) {
+  e.markSrc = src;   // a Dawnbringer's marks spread when the marked die
+  // Executions: marked enemies close to death (Wild Hunt: hulks too; never bosses).
+  const ex = e.def.boss ? 0 : e.def.heavy ? s.executeHeavy || 0 : s.execute || 0;
+  if (ex && e.hp < e.maxHp * ex) {
     game.damage(e, e.hp + e.shield + 1, 'true', src, EXECUTE);
     if (!e.alive) game.emit('execute', { x: e.x, y: e.y });
   }
@@ -18,6 +22,10 @@ function hitBolt(game, p, e) {
   const s = p.s;
   game.damage(e, p.dmg, s.type, p.src, s.armorPierce ? { armorPierce: s.armorPierce } : null);
   if (e.alive && s.knockback && !e.def.heavy) e.dist = Math.max(0, e.dist - s.knockback);
+  // Worldpiercer: the giant lance stuns everything it passes through.
+  if (p.rend && e.alive && !e.def.boss) e.stunT = Math.max(e.stunT, e.def.heavy ? p.rend * 0.4 : p.rend);
+  // Thousand Bolts: a bolt that kills splits into new bolts.
+  if (!e.alive && s.splitKill && (p.gen || 0) < 3 && p.src.splitTokens >= 1) split(game, p, e, s);
   if (s.markPct) {
     if (s.markRadius) {
       game.grid.query(e.x, e.y, s.markRadius, marks);
@@ -55,20 +63,46 @@ function hitBolt(game, p, e) {
   p.dead = true;
 }
 
+const splitTo = [];
+function split(game, p, e, s) {
+  p.src.splitTokens--;
+  game.grid.query(e.x, e.y, 140, marks);
+  splitTo.length = 0;
+  for (const o of marks) {
+    if (o.root === e.root || !game.targetable(o, s)) continue;
+    o._d2 = (o.x - e.x) ** 2 + (o.y - e.y) ** 2;
+    splitTo.push(o);
+  }
+  splitTo.sort((a, b) => a._d2 - b._d2);
+  for (let i = 0; i < s.splitKill; i++) {
+    const o = splitTo[i] || null;
+    const a = o ? Math.atan2(o.y - e.y, o.x - e.x) : game.rand() * 6.283;
+    game.projectiles.push({
+      kind: 'bolt', x: e.x, y: e.y, vx: Math.cos(a) * p.speed, vy: Math.sin(a) * p.speed, speed: p.speed,
+      target: o, homing: !!o, dmg: p.dmg, pierce: 1, hit: [e.root], bounces: 0, life: 240,
+      src: p.src, s, dead: false, gen: (p.gen || 0) + 1, split: true,
+    });
+  }
+}
+
 const STAR = { quiet: true, armorPierce: 0 };
 function starBurst(game, p, e, s) {
-  const x = e.x, y = e.y, r = s.starRadius * (p.big ? 1.3 : 1);
+  const x = e.x, y = e.y, r = p.sky ? s.skyRadius : s.starRadius * (p.big ? 1.3 : 1);
   game.grid.query(x, y, r + 20, marks);
   const list = marks.slice();
   let n = 0;
+  const cap = p.sky ? s.skyHits : s.starHits;
   STAR.armorPierce = s.armorPierce || 0;
+  // Falling Sky: the falling star stuns what it lands on (hulks excepted).
+  if (p.sky && e.alive && !e.def.heavy) e.stunT = Math.max(e.stunT, s.skyStun);
   for (const o of list) {
     if (o === e || !o.alive || !game.targetable(o, s, true)) continue;
     if ((o.x - x) ** 2 + (o.y - y) ** 2 > (r + o.r * 0.5) ** 2) continue;
     game.damage(o, p.dmg * s.starMul, s.type, p.src, STAR);
-    if (++n >= s.starHits) break;
+    if (p.sky && o.alive && !o.def.heavy) o.stunT = Math.max(o.stunT, s.skyStun);
+    if (++n >= cap) break;
   }
-  game.emit('starburst', { x, y, r, comet: !!p.comet });
+  game.emit('starburst', { x, y, r, comet: !!p.comet, sky: !!p.sky });
 }
 
 function updateBolt(game, p, dt) {
@@ -115,6 +149,7 @@ export function explode(game, x, y, s, src, sub, kind = 'shell') {
     game.damage(e, dmg, s.type, src);
     if (!e.alive) continue;
     if (s.stun && !e.def.heavy) e.stunT = Math.max(e.stunT, s.stun * (sub ? 0.5 : 1));
+    else if (s.heavyStun && e.def.heavy && !e.def.boss) e.stunT = Math.max(e.stunT, s.heavyStun);
     if (s.burnDps) {
       if (e.burnT <= 0 || s.burnDps >= e.burnDps) { e.burnDps = s.burnDps; e.burnType = 'blast'; e.burnSrc = src; }
       e.burnT = Math.max(e.burnT, s.burnDur);
@@ -123,7 +158,7 @@ export function explode(game, x, y, s, src, sub, kind = 'shell') {
   game.emit('explosion', { x, y, r, sub, kind });
   if (sub) return;
   if (s.poolDps) {
-    game.zones.push({ x, y, r: r * (s.poolRadiusMul || 1) * 0.9, dps: s.poolDps, t: s.poolDur, tick: 0, scorch: s.scorch || 0, src });
+    game.zones.push({ x, y, r: r * (s.poolRadiusMul || 1) * 0.9, dps: s.poolDps, t: s.poolDur, tick: 0, scorch: s.scorch || 0, magma: s.magma || 0, src });
   }
   for (let i = 0; i < (s.cluster || 0); i++) {
     const a = game.rand() * 6.283, d = r * (0.5 + game.rand() * 0.7);
@@ -149,8 +184,17 @@ function updateShell(game, p, dt) {
   p.y = p.sy + (p.ty - p.sy) * u;
   if (u >= 1) {
     p.dead = true;
-    explode(game, p.tx, p.ty, p.s, p.src, p.sub);
+    if (p.quake) explode(game, p.tx, p.ty, quake(p.s), p.src, false, 'quake');
+    else explode(game, p.tx, p.ty, p.s, p.src, p.sub);
   }
+}
+// Worldbreaker: the shell's stats as a falling mountain.
+const QK = {};
+function quake(s) {
+  Object.assign(QK, s);
+  QK.damage = s.damage * s.quakeMul; QK.radius = s.radius * s.quakeRadius; QK.maxHits = s.quakeHits;
+  QK.stun = s.quakeStun; QK.heavyStun = 0.5; QK.cluster = 0;
+  return QK;
 }
 
 export function updateProjectiles(game, dt) {
@@ -185,7 +229,9 @@ export function updateZones(game, dt) {
       if (game.time - e.zoneT < ZONE_TICK * 0.9) continue;
       e.zoneT = game.time;
       if (z.scorch) { e.scorchT = ZONE_TICK * 2; e.scorchPct = z.scorch; }
-      game.damage(e, z.dps * ZONE_TICK, 'blast', z.src, DOT);
+      // Magma Heart: magma mires what walks in it, and what dies in it erupts (game.kill).
+      if (z.magma) { applySlow(e, z.magma, ZONE_TICK * 1.6); e.magmaT = game.time + ZONE_TICK * 1.6; e.magmaSrc = z.src; }
+      game.damage(e, z.dps * ZONE_TICK, z.type || 'blast', z.src, DOT);
       if (++hits >= ZONE_MAX_HITS) break;
     }
   }
@@ -209,6 +255,20 @@ export function updateMines(game, dt) {
       MINE.radius = s.mineRadius; MINE.damage = s.mineDmg; MINE.maxHits = s.mineHits; MINE.stun = s.mineStun || 0;
       m.dead = true;
       explode(game, m.x, m.y, MINE, m.src, false, 'mine');
+      // Constellation: every mine of the same snare near a burst bursts with it, and so on.
+      if (s.mineChain) {
+        chained.length = 0; chained.push(m);
+        const r2 = s.mineChain * s.mineChain;
+        for (let k = 0; k < chained.length; k++) {
+          const c = chained[k];
+          for (const o of mines) {
+            if (o.dead || o.src !== m.src || (o.x - c.x) ** 2 + (o.y - c.y) ** 2 > r2) continue;
+            o.dead = true; chained.push(o);
+            game.emit('minelink', { x: c.x, y: c.y, x2: o.x, y2: o.y });
+            explode(game, o.x, o.y, MINE, m.src, false, 'mine');
+          }
+        }
+      }
       break;
     }
   }
@@ -216,4 +276,5 @@ export function updateMines(game, dt) {
   for (let i = 0; i < mines.length; i++) if (!mines[i].dead) mines[w++] = mines[i];
   mines.length = w;
 }
+const chained = [];
 const MINE = { radius: 40, damage: 20, maxHits: 8, stun: 0, type: 'kinetic', hitsAir: false };

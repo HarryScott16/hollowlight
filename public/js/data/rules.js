@@ -8,7 +8,8 @@ export const RULES = {
   snareSpacing: 60,      // Thornlight Snares: between two on the road,
   snareFromRift: 70,     // ...and how far along the path from the Rift
   snareFromGoal: 120,    // ...and before the Heartfire
-  maxTier: 4,            // tiers per upgrade path
+  maxTier: 5,            // tiers per upgrade path (tier 5: the capstones)
+  uniqueTier5: true,     // only one of each tier 5 (per ward type and path) on the map at a time
   maxPaths: 2,           // a tower may invest in this many paths
   minorTierCap: 2,       // only one path may go above this tier
   waveReward: (wave) => 100 + 25 * wave + 40 * Math.max(0, wave - 15),  // paid when a wave is fully cleared (wave is 1-based): 2,100 by wave 40

@@ -2,6 +2,7 @@
 import { TOWERS } from '../data/towers.js';
 import { RULES } from '../data/rules.js';
 import { applySlow } from './enemies.js';
+import { mark } from './projectiles.js';
 
 const TAU = Math.PI * 2;
 
@@ -80,7 +81,7 @@ export function estimateDps(kind, s, crowd = true) {
 
 export function createTower(game, type, x, y) {
   const def = TOWERS[type];
-  return {
+  const t = {
     id: game.nextId++, type, def, x, y,
     tiers: [0, 0, 0], stats: computeStats(def, [0, 0, 0]),
     cd: 0, ang: -Math.PI / 2, target: null, targetMode: def.target || 'first',
@@ -91,21 +92,32 @@ export function createTower(game, type, x, y) {
     hx: x, hy: y,                                    // a Wandering Light's post (it floats around it)
     charges: def.base.charges || 0, bloomT: 0, mineT: 0, rootCd: 0, heavyCd: 0, pathDist: 0,   // Snare
     lights: [], bank: 0, warm: false, goldEarned: 0, // Wandering Light's lights; Ember Vault's embers
+    disc: 0,                                         // upgrade discount (a Golden Age Beacon)
+    t5T: 0, t5N: 0, splitTokens: 0, eruptTokens: 0, markTokens: 0,   // tier 5 timers and rate limits
   };
+  // The game it stands in (not enumerable: keeps the tower plain to copy and inspect).
+  Object.defineProperty(t, 'game', { value: game, enumerable: false, writable: true });
+  return t;
 }
 
-// Returns { ok, up, reason } for buying the next tier of path `pi`.
+// Returns { ok, up, cost, reason } for buying the next tier of path `pi`. `cost` includes a Golden
+// Age discount (tiers 1-4 only). A tier 5 is unique: only one of each per ward type and path.
 export function upgradeInfo(tower, pi) {
   const tier = tower.tiers[pi];
   const path = tower.def.paths[pi];
-  if (tier >= RULES.maxTier) return { ok: false, up: null, reason: 'max' };
+  if (tier >= RULES.maxTier) return { ok: false, up: null, cost: 0, reason: 'max' };
   const up = path.tiers[tier];
+  const cost = tier < 4 && tower.disc ? Math.round(up.cost * (1 - tower.disc) / 5) * 5 : up.cost;
   const used = tower.tiers.filter((t) => t > 0).length;
-  if (tier === 0 && used >= RULES.maxPaths) return { ok: false, up, reason: 'paths' };
+  if (tier === 0 && used >= RULES.maxPaths) return { ok: false, up, cost, reason: 'paths' };
   if (tier + 1 > RULES.minorTierCap && tower.tiers.some((t, i) => i !== pi && t > RULES.minorTierCap)) {
-    return { ok: false, up, reason: 'cap' };
+    return { ok: false, up, cost, reason: 'cap' };
   }
-  return { ok: true, up, reason: null };
+  if (tier === 4 && RULES.uniqueTier5 && tower.game) {
+    const other = tower.game.towers.find((o) => o !== tower && o.type === tower.type && o.tiers[pi] >= 5);
+    if (other) return { ok: false, up, cost, reason: 'unique' };
+  }
+  return { ok: true, up, cost, reason: null };
 }
 
 function turnTo(t, tx, ty, dt, speed = 9) {
@@ -128,6 +140,7 @@ const buf = [];
 function bolt(game, t, dt) {
   const s = t.stats;
   track(t, dt);
+  if (s.hawkEvery && (t.t5T -= dt) <= 0) hawkDive(game, t, s);
   if (t.cd > 0) return;
   game.pickTargets(t, s.shots, targets);
   if (!targets.length) return;
@@ -135,6 +148,8 @@ function bolt(game, t, dt) {
   t.target = targets[0];
   t.ang = Math.atan2(targets[0].y - t.y, targets[0].x - t.x);
   t.recoil = 1;
+  t.shotN++;
+  const rend = s.rendEvery && t.shotN % s.rendEvery === 0;   // Worldpiercer
   for (let i = 0; i < s.shots; i++) {
     const e = targets[i % targets.length];
     // Extra bolts at the same target fan out slightly.
@@ -143,13 +158,27 @@ function bolt(game, t, dt) {
     game.projectiles.push({
       kind: 'bolt', x: t.x + Math.cos(a) * 16, y: t.y + Math.sin(a) * 16,
       vx: Math.cos(a) * s.projSpeed, vy: Math.sin(a) * s.projSpeed, speed: s.projSpeed,
-      target: e, homing: fan === 0 && !s.lance, dmg: s.damage, pierce: s.pierce, hit: [],
-      bounces: s.bounces || 0,
+      target: e, homing: fan === 0 && !s.lance, dmg: s.damage * (rend && i === 0 ? s.rendMul : 1), pierce: s.pierce, hit: [],
+      bounces: s.bounces || 0, rend: rend && i === 0 ? s.rendStun : 0,
       // A Siege Lance keeps flying until it leaves the map.
       life: s.lance ? 1600 : s.range * 1.5 + 60, src: t, s, dead: false,
     });
   }
-  game.emit('fire', { x: t.x, y: t.y, ang: t.ang, kind: 'bolt' });
+  game.emit('fire', { x: t.x, y: t.y, ang: t.ang, kind: 'bolt', rend });
+}
+// Wild Hunt: the spirit-hawk dives on the toughest enemy on the map and marks everything around it.
+const HAWK = { armorPierce: 1, big: true };
+function hawkDive(game, t, s) {
+  let best = null, bs = -1;
+  for (const e of game.enemies) if (e.alive && e.hp + e.shield > bs) { bs = e.hp + e.shield; best = e; }
+  if (!best) { t.t5T = 0.25; return; }
+  t.t5T = s.hawkEvery;
+  const x = best.x, y = best.y;
+  game.damage(best, s.damage * s.hawkMul, s.type, t, HAWK);
+  game.grid.query(x, y, s.markRadius || 110, buf);
+  const list = buf.slice();
+  for (const o of list) if (o.alive) mark(game, o, s, t);
+  game.emit('hawk', { x0: t.x, y0: t.y - 40, x, y, r: s.markRadius || 110 });
 }
 
 // --- mortar: lobbed shells that explode on the ground ---------------------------------------
@@ -162,6 +191,8 @@ function mortar(game, t, dt) {
   t.cd += 1 / s.rate;
   t.target = targets[0];
   t.recoil = 1;
+  t.shotN++;
+  const quakeShot = s.quakeEvery && t.shotN % s.quakeEvery === 0;   // Worldbreaker
   for (let i = 0; i < s.shells; i++) {
     const e = targets[i % targets.length];
     // Lead the target along the path (a flyer circling a Moth Lantern: where it is).
@@ -170,8 +201,8 @@ function mortar(game, t, dt) {
     if (i >= targets.length) { tx += (game.rand() - 0.5) * 50; ty += (game.rand() - 0.5) * 50; }
     if (i === 0) t.ang = Math.atan2(ty - t.y, tx - t.x);
     game.projectiles.push({
-      kind: 'shell', x: t.x, y: t.y, sx: t.x, sy: t.y, tx, ty, t: 0, flight: s.flight,
-      sub: false, src: t, s, dead: false,
+      kind: 'shell', x: t.x, y: t.y, sx: t.x, sy: t.y, tx, ty, t: 0, flight: s.flight * (quakeShot && i === 0 ? 1.3 : 1),
+      sub: false, src: t, s, dead: false, quake: quakeShot && i === 0,
     });
   }
   game.emit('fire', { x: t.x, y: t.y, ang: t.ang, kind: 'mortar' });
@@ -181,6 +212,7 @@ const aim = { x: 0, y: 0, ang: 0 };
 // --- pulse: frost nova around the tower -----------------------------------------------------
 function pulse(game, t, dt) {
   const s = t.stats;
+  if (s.waveEvery && (t.t5T -= dt) <= 0) frostWave(game, t, s);
   if (t.cd > 0) return;
   game.grid.query(t.x, t.y, s.range, buf);
   let any = false;
@@ -201,6 +233,10 @@ function pulse(game, t, dt) {
     if (s.shatterDmg) { e.shatterT = s.slowDur; e.shatterDmg = s.shatterDmg; e.shatterRadius = s.shatterRadius; e.shatterSrc = t; }
     if (freeze && !e.def.heavy && e.freezeImm <= 0) {
       e.freezeT = s.freezeDur; e.freezeImm = s.freezeDur + 1.5; e.frozenAmp = s.frozenAmp || 0;
+    } else if (freeze && e.def.boss) {
+      if (s.bossSlow) applySlow(e, s.bossSlow, 1.2);   // Permafrost: bosses crawl
+    } else if (freeze && e.def.heavy && s.freezeHeavy && e.freezeImm <= 0) {
+      e.freezeT = s.freezeHeavy; e.freezeImm = s.freezeHeavy + 2; e.frozenAmp = s.frozenAmp || 0;   // Permafrost: hulks freeze
     }
     game.damage(e, s.damage, s.type, t, QUIET);
   }
@@ -208,6 +244,19 @@ function pulse(game, t, dt) {
 }
 const QUIET = { quiet: true };
 const hitList = [];
+// Whiteout: a frost wave over the whole map (flyers too).
+function frostWave(game, t, s) {
+  const es = game.enemies;
+  if (!es.length) { t.t5T = 0.5; return; }
+  t.t5T = s.waveEvery;
+  for (let i = 0, n = es.length; i < n; i++) {
+    const e = es[i];
+    if (!e.alive) continue;
+    applySlow(e, s.slow, s.slowDur);
+    game.damage(e, s.damage, s.type, t, QUIET);
+  }
+  game.emit('whiteout', { x: t.x, y: t.y });
+}
 
 // --- chain: instant lightning that jumps between enemies ------------------------------------
 const chainHit = [];
@@ -225,7 +274,7 @@ function strike(game, t, s, first, smite) {
       if (!cur.def.heavy) {
         if (smite && j === 0) cur.stunT = Math.max(cur.stunT, 1);
         else if (s.stunChance && game.rand() < s.stunChance) cur.stunT = Math.max(cur.stunT, s.stunDur);
-      }
+      } else if (smite && j === 0 && s.stagger && !cur.def.boss) cur.stunT = Math.max(cur.stunT, s.stagger);   // Stormlord
       if (s.chargedPct) { cur.chargedT = s.chargedDur; cur.chargedPct = s.chargedPct; cur.chargedSlow = s.chargedSlow; }
     }
     if (j === 0 && smite) {
@@ -256,6 +305,8 @@ const forkTargets = [];
 function chain(game, t, dt) {
   const s = t.stats;
   track(t, dt);
+  if (s.orbEvery && (t.t5T -= dt) <= 0) spawnOrb(game, t, s);
+  if (s.field && (t.t5T -= dt) <= 0) stormField(game, t, s);
   if (t.cd > 0) return;
   game.pickTargets(t, s.forks, targets);
   if (!targets.length) return;
@@ -272,11 +323,64 @@ function chain(game, t, dt) {
   }
 }
 
+// Ball Lightning: an orb rolls up the path from near the coil, arcing into what it passes.
+const ORB_SPEED = 55, ORB_TICK = 0.4;
+function spawnOrb(game, t, s) {
+  if (!t.target) { t.t5T = 0.3; return; }
+  t.t5T = s.orbEvery;
+  const path = game.map.path;
+  if (t.pathNear === undefined) t.pathNear = path.nearest(t.x, t.y) * path.step;
+  const o = { x: 0, y: 0, d: t.pathNear + 60, life: s.orbLife, tick: ORB_TICK * 0.5, src: t };
+  path.posAt(o.d, o, 0);
+  game.orbs.push(o);
+}
+export function updateOrbs(game, dt) {
+  const path = game.map.path, list = game.orbs;
+  for (const o of list) {
+    o.life -= dt;
+    o.d -= ORB_SPEED * dt;
+    path.posAt(o.d, o, 0);
+    if ((o.tick -= dt) > 0 || o.src.sold) continue;
+    o.tick += ORB_TICK;
+    const s = o.src.stats;
+    game.grid.query(o.x, o.y, s.orbRadius, buf);
+    hitList.length = 0;
+    for (const e of buf) {
+      if (!game.targetable(e, s, true)) continue;
+      e._d2 = (e.x - o.x) ** 2 + (e.y - o.y) ** 2;
+      if (e._d2 <= s.orbRadius * s.orbRadius) hitList.push(e);
+    }
+    if (hitList.length > s.orbHits) { hitList.sort((a, b) => a._d2 - b._d2); hitList.length = s.orbHits; }
+    for (const e of hitList) {
+      if (!e.alive) continue;
+      const x = e.x, y = e.y;
+      game.damage(e, s.damage * s.orbMul, s.type, o.src, QUIET);
+      game.emit('arc', { pts: [o.x, o.y - 10, x, y], smite: false, orb: true });
+    }
+  }
+  let w = 0;
+  for (let i = 0; i < list.length; i++) if (list[i].life > 0 && list[i].d > 0 && !list[i].src.sold) list[w++] = list[i];
+  list.length = w;
+}
+// Eye of the Storm: everything in range is shocked and Charged, four times a second.
+function stormField(game, t, s) {
+  t.t5T = 0.25;
+  game.grid.query(t.x, t.y, s.range, buf);
+  let n = 0;
+  for (const e of buf) {
+    if (!game.targetable(e, s, true) || (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > (s.range + e.r * 0.5) ** 2) continue;
+    e.chargedT = s.chargedDur; e.chargedPct = s.chargedPct; e.chargedSlow = s.chargedSlow;
+    game.damage(e, s.damage * s.fieldMul, s.type, t, QUIET);
+    if (++n >= s.fieldHits) break;
+  }
+}
+
 // --- snipe: instant long-range shots ----------------------------------------------------------
 const shotList = [];
 function snipe(game, t, dt) {
   const s = t.stats;
   track(t, dt);
+  if (s.doom && (t.t5T -= dt) <= 0) doom(game, t, s);
   if (t.cd > 0) return;
   game.pickTargets(t, s.shots, targets);
   if (!targets.length) return;
@@ -293,11 +397,35 @@ function snipe(game, t, dt) {
   }
 }
 
+// Eye of Fate: the toughest enemies on the map are Doomed (marked for every ward, and seen).
+const doomed = [];
+function doom(game, t, s) {
+  t.t5T = 0.5;
+  doomed.length = 0;
+  for (const e of game.enemies) {
+    if (!e.alive) continue;
+    const v = e.hp + e.shield;
+    if (doomed.length < s.doom) { doomed.push(e); e._score = v; doomed.sort((a, b) => b._score - a._score); continue; }
+    if (v <= doomed[doomed.length - 1]._score) continue;
+    e._score = v; doomed[doomed.length - 1] = e; doomed.sort((a, b) => b._score - a._score);
+  }
+  for (const e of doomed) {
+    e.markT = Math.max(e.markT, 0.7); e.markPct = Math.max(e.markPct, s.doomPct);
+    e.revealT = Math.max(e.revealT, 0.7); e.doomT = game.time + 0.7;
+  }
+}
+
+const KING = { big: true };
 export function snipeHit(game, t, s, e, dmg, big) {
   const x = e.x, y = e.y;
   const opts = { armorPierce: s.armorPierce || 0, shieldMul: s.shieldMul || 0, big: big || dmg >= 300 };
   const k = (e.def.flying ? s.airMul || 1 : 1) * (e.def.heavy ? s.heavyMul || 1 : 1);
   game.damage(e, dmg * k, s.type, t, opts);
+  // Kingslayer: a share of a hulk's or boss's whole health, and a stagger.
+  if (s.pctHeavy && e.def.heavy && e.alive) {
+    game.damage(e, e.maxHp * (e.def.boss ? s.pctBoss : s.pctHeavy), 'true', t, KING);
+    if (e.alive) { if (e.def.boss) applySlow(e, 0.3, 1); else e.stunT = Math.max(e.stunT, s.stagger); }
+  }
   if (s.shieldStall && e.alive && e.maxShield > 0) e.shieldCd = Math.max(e.shieldCd, s.shieldStall);
   if (s.spotRadius) {
     game.grid.query(x, y, s.spotRadius, buf);
@@ -313,6 +441,24 @@ export function snipeHit(game, t, s, e, dmg, big) {
     }
     if (hitList.length > s.flakHits) { hitList.sort((a, b) => a._d2 - b._d2); hitList.length = s.flakHits; }
     for (const o of hitList) if (o.alive) game.damage(o, dmg * 0.5 * (o.def.flying ? s.airMul || 1 : 1), s.type, t, QUIET);
+    if (s.shrapnel) shrapnel(game, t, s, x, y, dmg);
+  }
+}
+// Shrapnel Storm: the burst throws shrapnel at enemies around it, each bursting again.
+const shards = [], shardHits = [];
+function shrapnel(game, t, s, x, y, dmg) {
+  game.grid.query(x, y, s.flakRadius * 2.2, buf);
+  shards.length = 0;
+  for (const o of buf) if (o.alive && game.targetable(o, s, true) && shards.length < s.shrapnel * 3) shards.push(o);
+  const r = s.flakRadius * 0.6;
+  for (let i = 0; i < s.shrapnel && shards.length; i++) {
+    const c = shards[Math.floor(game.rand() * shards.length)];
+    const cx = c.x, cy = c.y;
+    game.grid.query(cx, cy, r + 20, buf);
+    shardHits.length = 0;
+    for (const o of buf) if (o.alive && game.targetable(o, s, true) && (o.x - cx) ** 2 + (o.y - cy) ** 2 <= (r + o.r * 0.5) ** 2 && shardHits.length < 10) shardHits.push(o);
+    for (const o of shardHits) if (o.alive) game.damage(o, dmg * 0.25 * (o.def.flying ? s.airMul || 1 : 1), s.type, t, QUIET);
+    game.emit('shrapnel', { x0: x, y0: y, x: cx, y: cy, r });
   }
 }
 
@@ -329,6 +475,9 @@ const flameHits = [];
 function flame(game, t, dt) {
   const s = t.stats;
   const e0 = t.target;
+  if (s.phoenix) phoenix(game, t, s, dt);
+  if (s.wyrmEvery && (t.t5T -= dt) <= 0) wyrm(game, t, s);
+  if (s.pall && (t.t5T -= dt) <= 0) pall(game, t, s);
   // A full ring needs no aim: its three dragon heads spin while it breathes (purely for show).
   if (s.arc >= TAU - 0.01) { if (t.firing) t.ang = (t.ang + FLAME_SPIN * dt) % TAU; }
   else if (e0 && e0.alive) turnTo(t, e0.x, e0.y, dt, FLAME_TURN);
@@ -371,6 +520,61 @@ function flame(game, t, dt) {
     if (!e.alive) continue;
     ignite(e, s, t);   // before the hit, so the hit itself counts the Scorched bonus and the burn carries into what it sheds
     game.damage(e, dmg, s.type, t, opts);
+  }
+}
+
+// Phoenix: flies up and down the stretch of path near the censer, burning what it passes.
+const PHX_SPEED = 120, PHX_R = 36;
+function phoenix(game, t, s, dt) {
+  const path = game.map.path;
+  if (!t.phx) {
+    // the stretch of path within twice the flame's reach
+    const R = (s.range * 2) ** 2;
+    let lo = -1, hi = -1;
+    for (let i = 0; i < path.count; i++) if ((path.xs[i] - t.x) ** 2 + (path.ys[i] - t.y) ** 2 <= R) { if (lo < 0) lo = i; hi = i; }
+    if (lo < 0) { lo = hi = path.nearest(t.x, t.y); }
+    t.phx = { lo: lo * path.step, hi: Math.max(lo * path.step + 40, hi * path.step), d: lo * path.step, dir: 1, x: t.x, y: t.y, tick: 0 };
+  }
+  const P = t.phx;
+  if (!game.enemies.length) { P.x += (t.x - P.x) * Math.min(1, dt * 2); P.y += (t.y - 30 - P.y) * Math.min(1, dt * 2); P.idle = true; return; }
+  if (P.idle) { P.idle = false; }
+  P.d += P.dir * PHX_SPEED * dt;
+  if (P.d >= P.hi) { P.d = P.hi; P.dir = -1; } else if (P.d <= P.lo) { P.d = P.lo; P.dir = 1; }
+  path.posAt(P.d, aim, 0);
+  P.x += (aim.x - P.x) * Math.min(1, dt * 6); P.y += (aim.y - P.y) * Math.min(1, dt * 6);
+  if ((P.tick -= dt) > 0) return;
+  P.tick += FLAME_TICK;
+  game.grid.query(P.x, P.y, PHX_R + 20, buf);
+  const dmg = s.damage * s.phoenixMul * FLAME_TICK;
+  for (const e of buf) {
+    if (!game.targetable(e, s, true) || (e.x - P.x) ** 2 + (e.y - P.y) ** 2 > (PHX_R + e.r * 0.5) ** 2) continue;
+    ignite(e, s, t);
+    game.damage(e, dmg, s.type, t, DOT);
+  }
+}
+// Elder Wyrm: a river of dragonfire up the road from the stretch nearest the censer.
+function wyrm(game, t, s) {
+  if (!t.firing) { t.t5T = 0.3; return; }
+  t.t5T = s.wyrmEvery;
+  const path = game.map.path;
+  if (t.pathNear === undefined) t.pathNear = path.nearest(t.x, t.y) * path.step;
+  const pts = [];
+  for (let k = 0; k <= s.wyrmLen; k += 35) {
+    path.posAt(t.pathNear + 20 - k, aim, 0);
+    game.zones.push({ x: aim.x, y: aim.y, r: 30, dps: s.wyrmDps, t: s.wyrmDur, tick: k * 0.002, scorch: 0, src: t, type: 'fire', fire: true });
+    pts.push(aim.x, aim.y);
+  }
+  game.emit('wyrm', { x: t.x, y: t.y, pts });
+}
+// Pall of Ash: every enemy on the map is Scorched and branded.
+function pall(game, t, s) {
+  t.t5T = 0.5;
+  for (const e of game.enemies) {
+    if (!e.alive) continue;
+    if (e.searT <= 0) { e.searAmp = 0; e.brand = false; }
+    e.searT = Math.max(e.searT, 0.7);
+    if (s.pallAmp > e.searAmp) e.searAmp = s.pallAmp;
+    e.brand = true;
   }
 }
 
@@ -428,6 +632,12 @@ function beam(game, t, dt) {
     b.charge = t.sunT > 0 ? s.maxCharge : Math.min(s.maxCharge, b.charge + rise * dt);
     const dps = s.damage * b.charge * (t.sunT > 0 ? SUN_MUL : 1);
     game.damage(e, dps * dt, s.type, t, DOT);
+    // Dawnbreaker: at full charge the beam burns through everything along it.
+    if (s.pierceBeam && b.charge >= s.maxCharge * 0.98 && ((b.lineT = (b.lineT || 0) - dt) <= 0)) {
+      b.lineT = 0.1;
+      const dx = b.x - t.x, dy = b.y - t.y, L = Math.hypot(dx, dy) || 1;
+      lineHit(game, t, s, t.x, t.y, t.x + (dx / L) * (s.range + 30), t.y + (dy / L) * (s.range + 30), dps * s.pierceBeam * 0.1, e);
+    }
     if (!e.alive && s.burstMul && t.burstTokens >= 1) {
       t.burstTokens--;
       game.grid.query(b.x, b.y, s.burstRadius, near);
@@ -439,12 +649,64 @@ function beam(game, t, dt) {
   const first = t.beams[0] && t.beams[0].e;
   t.target = first && first.alive ? first : null;
   if (t.target) turnTo(t, t.target.x, t.target.y, dt);
+  // Lightweb: each target is joined to the next by a burning thread.
+  if (s.web && (t.t5T -= dt) <= 0) {
+    t.t5T = 0.15;
+    const dmg = s.damage * s.maxCharge * s.web * 0.15 * (t.sunT > 0 ? SUN_MUL : 1), max2 = (s.range * 1.6) ** 2;
+    for (let i = 0; i < n; i++) {
+      const a = t.beams[i].e, b = t.beams[(i + 1) % n].e;
+      if (!a || !b || a === b || !a.alive || !b.alive || (a.x - b.x) ** 2 + (a.y - b.y) ** 2 > max2) continue;
+      lineHit(game, t, s, a.x, a.y, b.x, b.y, dmg, null);
+    }
+  }
+  // Second Sun: a flare at the beam's full power over everything in range.
+  if (s.sunEvery && (t.t5T -= dt) <= 0) {
+    if (!t.target) { t.t5T = 0.2; return; }
+    t.t5T = s.sunEvery;
+    game.grid.query(t.x, t.y, s.range, buf);
+    const dmg = s.damage * s.maxCharge * s.sunMul * (t.sunT > 0 ? SUN_MUL : 1);
+    let k = 0;
+    for (const e of buf.slice()) {
+      if (!game.targetable(e, s, true) || (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > (s.range + e.r * 0.5) ** 2) continue;
+      game.damage(e, dmg, s.type, t, QUIET);
+      if (++k >= s.sunHits) break;
+    }
+    game.emit('sunflare', { x: t.x, y: t.y, r: s.range });
+  }
+}
+// Damage to everything along a segment (beams of light), skipping `skip`.
+const onLine = [];
+function lineHit(game, t, s, x0, y0, x1, y1, dmg, skip) {
+  const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, dx = x1 - x0, dy = y1 - y0, L2 = dx * dx + dy * dy || 1;
+  game.grid.query(mx, my, Math.sqrt(L2) / 2 + 20, buf);
+  onLine.length = 0;
+  for (const e of buf) {
+    if (e === skip || !game.targetable(e, s, true)) continue;
+    const u = Math.max(0, Math.min(1, ((e.x - x0) * dx + (e.y - y0) * dy) / L2));
+    const px = x0 + dx * u - e.x, py = y0 + dy * u - e.y;
+    if (px * px + py * py <= (9 + e.r) ** 2) onLine.push(e);
+    if (onLine.length >= 30) break;
+  }
+  for (const e of onLine) if (e.alive) game.damage(e, dmg, s.type, t, DOT);
 }
 const DOT = { dot: true };
 export const SUN_MUL = 2;
 
 // --- aura: the Beacon never attacks; game.refreshGlobals applies its boost ---------------------
-function aura() {}
+function aura(game, t, dt) {
+  const s = t.stats;
+  // Anthem of War: a battle cry every so often, while there is Gloom to fight.
+  if (s.cryEvery && (t.t5T -= dt) <= 0) {
+    if (!game.enemies.length) { t.t5T = 0.5; return; }
+    t.t5T = s.cryEvery;
+    for (const o of game.towers) {
+      if (o === t || o.def.kind === 'aura' || (!s.auraGlobal && (o.hx - t.x) ** 2 + (o.hy - t.y) ** 2 > s.range * s.range)) continue;
+      o.buffRate = o.buffT > 0 ? Math.max(o.buffRate, s.cryRate) : s.cryRate;
+      o.buffT = Math.max(o.buffT, s.cryDur);
+    }
+    game.emit('cry', { x: t.x, y: t.y, r: s.range });
+  }
+}
 
 // --- snare: a trap on the path. Each enemy that steps on it is bitten once (a charge each) --------
 const BITE = { armorPierce: 0 };
@@ -456,15 +718,19 @@ function snare(game, t, dt) {
   if (t.heavyCd > 0) t.heavyCd -= dt;
   t.charges = Math.min(s.charges, t.charges + s.refill * dt);
   if (s.mineMax) sowMines(game, t, s, dt);
+  if (s.sealEvery && (t.t5T -= dt) <= 0) seal(game, t, s);
   if (t.charges < 1 && !free) return;
   game.grid.query(t.x, t.y, s.radius + 30, buf);
   for (let i = 0; i < buf.length; i++) {
     const e = buf[i];
-    if (!e.alive || e.def.flying || e.snaredBy === t.id) continue;   // flyers pass over it
+    if (!e.alive || e.def.flying) continue;   // flyers pass over it
+    // Bitten once; on a Thornwall, again every `rebite` seconds while it stands there.
+    if (e.snaredBy === t.id && !(s.rebite && game.time - e.snareAt >= s.rebite)) continue;
     const reach = s.radius + e.r * 0.5;
     if ((e.x - t.x) ** 2 + (e.y - t.y) ** 2 > reach * reach) continue;
     if (t.charges < 1 && !free) break;
     e.snaredBy = t.id;
+    e.snareAt = game.time;
     if (!free) t.charges -= 1;
     t.recoil = 1;
     bite(game, t, s, e);
@@ -489,6 +755,18 @@ function bite(game, t, s, e) {
     game.emit('bind', { x: t.x, y: t.y, r: s.rootRadius, heavy: false });
   }
 }
+// Seal of Dawn: binds the strongest enemy near the snare (bosses too), and it takes more damage.
+function seal(game, t, s) {
+  game.grid.query(t.x, t.y, s.sealRange, buf);
+  let best = null, bs = -1;
+  for (const e of buf) if (e.alive && !e.def.flying && e.hp + e.shield > bs && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 <= s.sealRange ** 2) { bs = e.hp + e.shield; best = e; }
+  if (!best) { t.t5T = 0.3; return; }
+  t.t5T = s.sealEvery;
+  const dur = best.def.boss ? s.sealBoss : s.sealDur;
+  hold(best, dur);
+  best.markT = Math.max(best.markT, dur); best.markPct = Math.max(best.markPct, s.sealAmp);
+  game.emit('seal', { x: best.x, y: best.y, r: best.r + 12, dur, x0: t.x, y0: t.y });
+}
 // Held: can't move (a stun underneath, drawn as chains of light).
 function hold(e, dur) { e.stunT = Math.max(e.stunT, dur); e.rootT = Math.max(e.rootT, dur); }
 // Flashmines: lamps sown on the path near the snare, up to mineMax at once.
@@ -512,11 +790,12 @@ function lure(game, t, dt) {
   const s = t.stats;
   if (t.cd > 0) return;
   t.cd += LURE_TICK;
-  game.grid.query(t.x, t.y, s.range, buf);
+  // A False Moon lures from anywhere on the map.
+  const list = s.lureGlobal ? game.enemies : game.grid.query(t.x, t.y, s.range, buf);
   let n = 0;
-  for (const e of buf) if (e.alive && e.lure === t && e.lureT > 0) n++;
+  for (const e of list) if (e.alive && e.lure === t && e.lureT > 0) n++;
   let tgt = null;
-  for (const e of buf) {
+  for (const e of list) {
     if (!e.alive || !e.def.flying) continue;
     if (e.lure === t && e.lureT > 0) {
       if (s.lureDps) game.damage(e, s.lureDps * LURE_TICK, s.type, t, DOT);
@@ -525,9 +804,18 @@ function lure(game, t, dt) {
       continue;
     }
     if (n >= s.lureMax || e.lureImm > 0 || e.lureT > 0) continue;
-    if ((e.x - t.x) ** 2 + (e.y - t.y) ** 2 > s.range * s.range) continue;
+    if (!s.lureGlobal && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > s.range * s.range) continue;
     startLure(e, t, s.lureDur);
     n++;
+  }
+  // Moth Queen: the moths sting ground enemies in its light too.
+  if (s.mothAll) {
+    let k = 0;
+    for (const e of list) {
+      if (!e.alive || e.def.flying || (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > s.range * s.range) continue;
+      game.damage(e, s.lureDps * s.mothAll * LURE_TICK, s.type, t, DOT);
+      if (++k >= s.mothHits) break;
+    }
   }
   t.target = tgt;
   t.lured = n;
@@ -579,7 +867,10 @@ function wander(game, t, dt) {
       L.cd += 1 / s.rate;
       L.recoil = 1;
       L.ang = Math.atan2(e.y - L.y, e.x - L.x);
-      for (let k = 0; k < s.shots; k++) castStar(game, t, s, L, e, k, s.damage);
+      L.n = (L.n || 0) + 1;
+      // Falling Sky: every few casts, a falling star.
+      if (s.skyEvery && L.n % s.skyEvery === 0) castStar(game, t, s, L, e, 0, s.damage * s.skyMul, true, true);
+      else for (let k = 0; k < s.shots; k++) castStar(game, t, s, L, e, k, s.damage);
       game.emit('fire', { x: L.x, y: L.y, ang: L.ang, kind: 'wander' });
     }
     if (L.cd < 0) L.cd = 0;
@@ -587,13 +878,13 @@ function wander(game, t, dt) {
   const L0 = t.lights[0];
   t.x = L0.x; t.y = L0.y; t.ang = L0.ang; t.recoil = L0.recoil; t.target = L0.tgt;
 }
-export function castStar(game, t, s, L, e, k, dmg, big = false) {
+export function castStar(game, t, s, L, e, k, dmg, big = false, sky = false) {
   const a = Math.atan2(e.y - L.y, e.x - L.x) + (k ? (k % 2 ? 1 : -1) * 0.5 : 0);
   const sp = s.projSpeed * (big ? 1.2 : 1);
   game.projectiles.push({
     kind: 'bolt', star: true, comet: !!s.comet || big, x: L.x + Math.cos(a) * 8, y: L.y + Math.sin(a) * 8, ox: L.x, oy: L.y,
     vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, speed: sp,
-    target: e, homing: true, dmg, pierce: s.pierce, hit: [], bounces: 0, big,
+    target: e, homing: true, dmg, pierce: s.pierce, hit: [], bounces: s.starBounce || 0, big, sky,
     life: big ? 3000 : s.range * 2 + 120, src: t, s, dead: false,
   });
 }
@@ -617,6 +908,9 @@ export function updateTower(game, t, dt) {
   if (t.stats.shatterRate) t.shatterTokens = Math.min(t.stats.shatterRate, t.shatterTokens + t.stats.shatterRate * dt);
   if (t.stats.spreadRate) t.spreadTokens = Math.min(t.stats.spreadRate, t.spreadTokens + t.stats.spreadRate * dt);
   if (t.stats.burstRate) t.burstTokens = Math.min(t.stats.burstRate, t.burstTokens + t.stats.burstRate * dt);
+  if (t.stats.splitRate) t.splitTokens = Math.min(t.stats.splitRate, t.splitTokens + t.stats.splitRate * dt);
+  if (t.stats.eruptRate) t.eruptTokens = Math.min(t.stats.eruptRate, t.eruptTokens + t.stats.eruptRate * dt);
+  if (t.stats.markBurstRate) t.markTokens = Math.min(t.stats.markBurstRate, t.markTokens + t.stats.markBurstRate * dt);
   BEHAVIOURS[t.def.kind](game, t, dt);
   // Idle towers stay ready rather than banking negative cooldown.
   if (t.cd < 0) t.cd = 0;

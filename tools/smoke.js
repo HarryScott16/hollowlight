@@ -73,6 +73,7 @@ ui.setSpeed(3);
 game.gold = 1e7;
 import { TOWER_ORDER as order, WARD_KEYS } from '../public/js/data/towers.js';
 import { ABILITIES } from '../public/js/data/abilities.js';
+import { upgradeInfo } from '../public/js/sim/towers.js';
 // Every ward type, near the path, three times (so each path's tier 3/4 art and effects get drawn).
 const cands = [];
 for (let y = 40; y < 700; y += 24) for (let x = 40; x < 1100; x += 24) if (game.map.buildable(x, y)) cands.push([x, y]);
@@ -193,16 +194,25 @@ frames(30);
     if (mine.length !== 3) { console.error(`${type}: expected 3 placed (click, drag, key), got ${mine.length}`); errors++; }
     mine.forEach((t, i) => {
       ui.select(t); check(`${type}: selected`);
-      for (let k = 0; k < 4; k++) keyDown('qwe'[i]);
+      for (let k = 0; k < 5; k++) keyDown('qwe'[i]);
       for (let k = 0; k < 2; k++) keyDown('qwe'[(i + 1) % 3]);
       check(`${type} ${t.tiers.join('')}: upgraded`);
-      if (t.tiers[i] !== 4) { console.error(`${type}: path ${i} didn't reach tier 4 (${t.tiers.join('')})`); errors++; }
+      if (t.tiers[i] !== 5) { console.error(`${type}: path ${i} didn't reach tier 5 (${t.tiers.join('')})`); errors++; }
       keyDown('r');   // the ward's own action
       if (t.def.kind === 'wander') { canvas.fire('pointermove', ev(560, 380)); check(`${type}: choosing a post`); canvas.fire('pointerdown', ev(560, 380)); }
       check(`${type}: R action`);
     });
+    // only one of each tier 5: a fourth ward can't take path 0 to tier 5 while the first holds it
+    {
+      const x = game.place(type, ...spotFor(type, 3));
+      if (x) {
+        for (let k = 0; k < 4; k++) game.upgrade(x, 0);
+        if (upgradeInfo(x, 0).reason !== 'unique' || game.upgrade(x, 0)) { console.error(`${type}: a second tier 5 on path 0 was allowed`); errors++; }
+        game.sell(x);
+      }
+    }
     if (!game.canStartWave) for (let k = 0; k < 600 && !game.clear; k++) frames(30);
-    game.startWave(); frames(240);
+    game.startWave(); frames(600);
     for (const t of mine) t.abilityCd = 0;
     keyDown(ABILITIES[type].key.toLowerCase());
     check(`${type}: ability ${ABILITIES[type].name}`);
@@ -210,7 +220,7 @@ frames(30);
     for (const t of mine) { ui.select(t); ui.sellSelected(); }
     check(`${type}: sold`);
   }
-  console.log(`all ${order.length} wards: click, drag, key, every path to tier 4, R and ability`);
+  console.log(`all ${order.length} wards: click, drag, key, every path to tier 5 (one of each), R and ability`);
 }
 
 errors += window.hollowlight.frameErrors || 0;

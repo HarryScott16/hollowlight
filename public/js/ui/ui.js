@@ -576,7 +576,7 @@ export class UI {
         top.append(el('span', null, path.tiers[RULES.maxTier - 1].name), el('span', 'up-cost', 'MAX'));
         b.append(top, el('span', 'up-desc', path.tiers[RULES.maxTier - 1].blurb));
       } else {
-        top.append(el('span', null, `T${t.tiers[pi] + 1}  ${info.up.name}`), el('span', 'up-cost', info.ok ? String(info.up.cost) : 'Locked'));
+        top.append(el('span', null, `T${t.tiers[pi] + 1}  ${info.up.name}`), el('span', 'up-cost', info.ok ? String(info.cost) : 'Locked'));
         b.append(top, el('span', 'up-desc', info.ok ? info.up.blurb : LOCK_TEXT[info.reason]));
         if (info.ok) {
           // The exact numbers, shown on hover or while Shift is held: the full description and
@@ -600,7 +600,7 @@ export class UI {
           b.addEventListener('click', () => this.buyUpgrade(pi));
           b.addEventListener('pointerenter', () => { this.previewRange = next.range || 0; });
           b.addEventListener('pointerleave', () => { this.previewRange = 0; });
-          upButtons.push({ b, cost: info.up.cost });
+          upButtons.push({ b, cost: info.cost });
         } else {
           b.classList.add('locked');
         }
