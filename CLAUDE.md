@@ -11,6 +11,16 @@ Keys: wards 1-9, 0, -, = (shop order); Q W E upgrade; R the selected ward's acti
 Vault, move a Wandering Light's post); abilities A S D F G H J K, then Z C V B; X the Flare.
 It lives only in the UI layer and must never touch the simulation, the bots or balance.
 
+## Layout
+
+- The selected ward's upgrade panel replaces the shop and wave preview in the side column
+  (`#side.ward-open`), so it never gets squeezed; deselect (Esc or ×) brings the shop back. Only
+  usable abilities take room. The side column widens into the width a short (laptop) screen
+  leaves beside the height-limited map. Compact rules: `max-width` 1240/980 (top bar) and
+  `max-height` 760/600/520 (side column) in `css/style.css`. Target sizes: 1366x768, 1280x720,
+  1536x864, and 125%/150% Windows scaling (CSS viewport = screen / scale, minus ~135 px of
+  taskbar and browser bars).
+
 ## Performance
 
 - The FPS overlay (`` ` ``) shows ms per frame for the simulation, enemies, wards, the see-through

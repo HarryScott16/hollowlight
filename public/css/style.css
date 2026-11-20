@@ -132,8 +132,11 @@ main { flex: 1; display: flex; min-height: 0; }
 }
 
 /* ---- side panel ---- */
+/* Laptop screens are short, so the map is limited by height and there is width to spare: the
+   side column takes that spare width (the map keeps its size) so the upgrade text wraps less.
+   100vh - 66px is the stage height (top bar ~50 + stage padding 16); 1.5556 is the map's aspect. */
 #side {
-  width: 330px;
+  width: clamp(290px, calc(100vw - (100vh - 66px) * 1.5556 - 16px), 420px);
   flex: none;
   display: flex;
   flex-direction: column;
@@ -145,7 +148,7 @@ main { flex: 1; display: flex; min-height: 0; }
 #side h2 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); }
 #side h2 .hint { text-transform: none; letter-spacing: 0; font-weight: 400; opacity: 0.7; margin-left: 6px; }
 
-#shop-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+#shop-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; }
 .shop-btn { display: flex; flex-direction: column; align-items: center; padding: 4px 2px 5px; gap: 1px; position: relative; }
 .shop-btn canvas { width: 48px; height: 48px; }
 .shop-btn .cost { color: var(--gold); font-size: 13px; font-weight: 600; }
@@ -157,7 +160,10 @@ main { flex: 1; display: flex; min-height: 0; }
 #shop-info { margin: 8px 0 0; min-height: 4.1em; font-size: 12.5px; color: var(--dim); }
 #shop-info b { color: var(--text); }
 
-#tower-panel { flex: 1; overflow-y: auto; min-height: 0; }
+/* The selected ward's panel replaces the shop and the wave preview (ui.js toggles .ward-open), and
+   it never shrinks: it takes the whole column under the abilities and scrolls only as a last resort. */
+#side.ward-open #shop, #side.ward-open #preview { display: none; }
+#tower-panel { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
 .tp-head { display: flex; align-items: center; gap: 10px; }
 .tp-head canvas { width: 48px; height: 48px; flex: none; }
 .tp-head h3 { margin: 0; font-size: 16px; }
@@ -169,7 +175,7 @@ main { flex: 1; display: flex; min-height: 0; }
 .tp-numbers { margin: 2px 0 6px; }
 .tp-hint { display: block; font-size: 11px; color: var(--dim); opacity: 0.75; cursor: help; }
 .tp-numbers .tp-grid { display: none; }
-.tp-numbers:hover .tp-grid, body.details .tp-numbers .tp-grid { display: grid; }
+.tp-numbers:hover .tp-grid, body.details .tp-numbers .tp-grid, .tp-stats:hover + .tp-numbers .tp-grid { display: grid; }
 body.details .tp-hint { display: none; }
 .path-blurb { font-size: 11.5px; color: var(--dim); font-style: italic; margin: -1px 0 3px; }
 .up-detail { display: none; margin-top: 3px; padding-top: 3px; border-top: 1px solid rgba(255,255,255,0.08); }
@@ -205,7 +211,11 @@ body.details .tp-hint { display: none; }
 .path.p0 .up-btn:hover:not(.locked):not(.maxed):not(.poor) { border-color: var(--p0); }
 .path.p1 .up-btn:hover:not(.locked):not(.maxed):not(.poor) { border-color: var(--p1); }
 .path.p2 .up-btn:hover:not(.locked):not(.maxed):not(.poor) { border-color: var(--p2); }
-.sell-btn { width: 100%; margin-top: 4px; border-color: #c0504a; background: #5a2a32; }
+.tp-foot { display: flex; gap: 6px; margin-top: 4px; }
+.tp-foot button { flex: 1; padding: 6px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.action-btn { flex: 1.4 !important; background: #6a2a52; border-color: #ff7eb6; font-weight: 600; }
+.sell-note { font-size: 11px; color: var(--green); }
+.sell-btn { border-color: #c0504a; background: #5a2a32; }
 .sell-btn b { color: var(--gold); }
 
 #preview { margin-top: auto; border-bottom: none !important; border-top: 1px solid var(--line); }
@@ -219,16 +229,61 @@ body.details .tp-hint { display: none; }
 .pv.boss .pv-tag { color: var(--red); }
 .pv-done { color: var(--dim); font-size: 13px; }
 
-@media (max-width: 1000px) {
-  #side { width: 270px; }
-  #btn-wave { min-width: 0; }
-  .hud-stats { gap: 12px; font-size: 15px; }
+/* ---- smaller screens ---- */
+/* Narrow windows (a 1366 px laptop, or 1920 at 125-150% scaling): a compact top bar. */
+@media (max-width: 1240px) {
+  #hud { gap: 10px; padding: 6px 10px; }
+  .hud-stats { gap: 14px; font-size: 15px; }
+  .hud-controls { gap: 5px; }
+  .hud-controls button { padding: 5px 9px; }
+  .speed button { padding: 5px 7px; }
+  #btn-wave { min-width: 0; white-space: nowrap; }
+  .stat.pops .unit { display: none; }
+}
+@media (max-width: 980px) {
+  .stat.pops, .hud-controls .sep { display: none; }
+  .hud-stats { gap: 10px; }
+  #btn-mute, #btn-restart { font-size: 12px; }
+}
+/* Short windows (768 px laptops, and anything scaled to 125-150%): tighter side column. */
+@media (max-height: 760px) {
+  #side section { padding: 7px 10px; }
+  #side h2 { margin-bottom: 5px; }
+  .ab-btn { min-height: 40px; padding: 4px 2px 3px; }
+  .shop-btn canvas { width: 40px; height: 40px; }
+  #shop-info { min-height: 0; font-size: 12px; margin-top: 6px; }
+  .tp-head canvas { width: 38px; height: 38px; }
+  .tp-stats { margin: 5px 0 0; }
+  .tp-target { margin-bottom: 6px; }
+  .path { margin-bottom: 6px; }
+  .up-btn { padding: 5px 8px; }
+  .pv canvas { width: 30px; height: 30px; }
+  #preview-list { min-height: 0; }
+}
+@media (max-height: 520px) {
+  .tp-hint { display: none; }                  /* Shift (or hovering the stats) still shows the numbers */
+  .tp-head canvas { width: 32px; height: 32px; }
+  .tp-head h3 { font-size: 15px; }
+  .ab-btn { min-height: 32px; }
+  .ab-btn .ab-key { display: none; }
+  .tp-target button { padding: 2px 7px; }
+  .up-btn { padding: 4px 8px; }
+}
+@media (max-height: 600px) {
+  .path-blurb { display: none; }               /* the path's one-line identity: hover the header */
+  .tp-numbers { margin: 0 0 4px; }
+  .ab-btn .ab-time { display: none; }
+  #shop-info { display: none; }
+  .shop-btn canvas { width: 34px; height: 34px; }
 }
 .pv-new { font-size: 10px; font-weight: 800; color: #1d1030; background: var(--gold); border-radius: 3px; padding: 0 3px; margin-right: 4px; }
 .pv canvas.veiled { opacity: 0.45; }
 
 /* ---- abilities ---- */
-#ability-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+#ability-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 5px; }
+/* Only abilities you can use take room: the Flare, and each ward type's once it reaches tier 4. */
+#ability-list .ab-btn.locked { display: none; }
+#ability-list.none-open::after { content: 'Ward abilities appear here when a ward reaches tier 4.'; align-self: center; grid-column: 2 / -1; font-size: 11.5px; color: var(--dim); line-height: 1.25; }
 .ab-btn {
   position: relative;
   overflow: hidden;
@@ -242,7 +297,7 @@ body.details .tp-hint { display: none; }
   line-height: 1.1;
   text-align: center;
 }
-.ab-btn .ab-name { font-weight: 700; position: relative; }
+.ab-btn .ab-name { font-weight: 700; position: relative; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
 .ab-btn .ab-key {
   position: relative;
   font-size: 10px;

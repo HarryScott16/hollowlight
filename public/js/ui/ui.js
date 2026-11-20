@@ -254,6 +254,7 @@ export class UI {
 
   updateAbilities() {
     const g = this.game;
+    let open = 0;
     for (const a of this.abButtons) {
       let left, max, locked = false;
       if (a.id === 'flare') { left = g.flareCd; max = FLARE.cd; } else {
@@ -261,6 +262,7 @@ export class UI {
         if (!t) locked = true; else { left = t.abilityCd; max = ABILITIES[a.id].cd; }
       }
       const state = locked ? 'locked' : left <= 0 ? 'ready' : 'cd';
+      if (!locked && a.id !== 'flare') open++;
       if (state !== a.state) {
         a.state = state;
         a.b.classList.toggle('locked', state === 'locked');
@@ -273,6 +275,8 @@ export class UI {
         a.time.textContent = `${Math.ceil(left)}s`;
       }
     }
+    // Locked abilities take no room (they appear once a ward of their type reaches tier 4).
+    if (this.cache.abOpen !== open) { this.cache.abOpen = open; $('ability-list').classList.toggle('none-open', open === 0); }
     const spent = !g.lastLight;
     if (this.cache.lastLight !== spent) {
       this.cache.lastLight = spent;
@@ -502,6 +506,9 @@ export class UI {
     const t = this.selected;
     panel.textContent = '';
     panel.hidden = !t;
+    // A selected ward's upgrades take the shop's place in the side column, so on a small screen
+    // they get the whole column instead of being squeezed (deselect to get the shop back).
+    $('side').classList.toggle('ward-open', !!t);
     this.panelRefs = null;
     if (!t) return;
     const def = t.def;
@@ -513,7 +520,7 @@ export class UI {
     titles.append(el('h3', null, def.name), el('div', 'tp-role', `${def.role}  ·  tiers ${t.tiers.join(' / ')}${t.aura ? '  ·  boosted by a Beacon' : ''}`));
     const close = el('button', 'tp-close', '×');
     close.type = 'button';
-    close.title = 'Deselect (Esc)';
+    close.title = 'Back to the shop (Esc)';
     close.addEventListener('click', () => this.select(null));
     head.append(icon, titles, close);
 
@@ -532,12 +539,12 @@ export class UI {
     panel.append(head, stats, numbers);
 
     // A Vault's cash-out and a Wandering Light's move, also on R.
+    // (it shares a row with the Sell button, at the bottom of the panel)
     let action = null;
     if (def.kind === 'vault' || def.kind === 'wander') {
-      action = el('button', 'sell-btn action-btn');
+      action = el('button', 'action-btn');
       action.type = 'button';
       action.addEventListener('click', () => this.wardAction());
-      panel.append(action);
     }
 
     if (def.kind !== 'pulse' && def.kind !== 'aura' && def.kind !== 'vault' && def.kind !== 'lure' && def.kind !== 'snare') {
@@ -556,6 +563,7 @@ export class UI {
       const info = upgradeInfo(t, pi);
       const box = el('div', `path p${pi}`);
       const ph = el('div', 'path-head');
+      ph.title = path.blurb;   // the identity line is dropped on very short screens: it's here on hover
       const pips = el('span', 'pips');
       for (let i = 0; i < RULES.maxTier; i++) pips.append(el('span', i < t.tiers[pi] ? 'pip on' : 'pip'));
       ph.append(el('span', null, `${path.name}  [${'QWE'[pi]}]`), pips);
@@ -605,9 +613,14 @@ export class UI {
     sell.type = 'button';
     const sellVal = el('b', null, String(this.game.sellValue(t)));
     const full = this.game.freshGold(t) >= t.spent;
-    sell.append('Sell for ', sellVal, full ? '  (full refund this wave)' : `  (${Math.round(RULES.sellRefund * 100)}% refund)`);
+    sell.append('Sell ', sellVal);
+    sell.title = full ? 'Full refund: bought this wave' : `${Math.round(RULES.sellRefund * 100)}% refund`;
+    if (full) sell.append(el('span', 'sell-note', ' full refund'));
     sell.addEventListener('click', () => this.sellSelected());
-    panel.append(sell);
+    const foot = el('div', 'tp-foot');
+    if (action) foot.append(action);
+    foot.append(sell);
+    panel.append(foot);
 
     this.panelRefs = { dmg, kills, upButtons, action };
     this.updatePanel();
@@ -619,11 +632,11 @@ export class UI {
     if (t.def.kind === 'vault') {
       refs.dmg.textContent = `${Math.floor(t.bank)} / ${t.stats.cap}`;
       refs.kills.textContent = fmt(t.goldEarned || 0);
-      const txt = `Cash out ${Math.floor(t.bank)} gold  [R]`;
+      const txt = `Cash out ${Math.floor(t.bank)}  [R]`;
       if (refs.action.textContent !== txt) refs.action.textContent = txt;
       refs.action.disabled = t.bank < 1;
     } else if (t.def.kind === 'wander') {
-      const txt = this.moving === t ? 'Click the map to set its new post (Esc cancels)' : 'Move its post  [R]';
+      const txt = this.moving === t ? 'Click the map for its new post' : 'Move its post  [R]';
       if (refs.action.textContent !== txt) refs.action.textContent = txt;
       refs.dmg.textContent = fmt(t.dmg);
       refs.kills.textContent = String(t.kills);
