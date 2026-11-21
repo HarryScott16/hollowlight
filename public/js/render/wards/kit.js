@@ -35,7 +35,8 @@ export function mainPath(tiers) {
 }
 
 // ---- primitives ------------------------------------------------------------------------------
-export function circle(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); }
+// (a browser throws on a negative radius, which would end the frame: never pass one on)
+export function circle(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r > 0 ? r : 0, 0, TAU); }
 export function poly(ctx, pts) { ctx.beginPath(); for (let i = 0; i < pts.length; i++) (i ? ctx.lineTo : ctx.moveTo).call(ctx, pts[i][0], pts[i][1]); ctx.closePath(); }
 export function rrect(ctx, x, y, w, h, r) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);

@@ -629,7 +629,35 @@ export class Renderer {
   // ---- frame ----------------------------------------------------------------------------------
   // dt is effect time (0 while paused). ui: { placing, selected, mouse: { x, y, inside }, previewRange }
   // Adds the time since t0 to a perf bucket and returns now (cheap enough to leave on).
-  mark(name, t0) { const t = performance.now(); this.addPerf(name, t - t0); return t; }
+  mark(name, t0) { if (this.checkState) this.verifyState(name); const t = performance.now(); this.addPerf(name, t - t0); return t; }
+
+  // Canvas-state check (on in test mode and in tools/smoke.js): after every frame section, the game
+  // canvas must be back to its plain state, with no save() left open, no clip, alpha 1, normal blend
+  // and no line dash. A leak is logged once (then every 300th time), counted in stateLeaks and
+  // repaired, so one routine's slip can't spoil everything drawn after it.
+  enableStateCheck() {
+    if (this.checkState) return;
+    this.checkState = true; this.stateLeaks = 0; this._depth = 0; this._clips = [];
+    const c = this.ctx, save = c.save.bind(c), restore = c.restore.bind(c), clip = c.clip.bind(c);
+    c.save = () => { this._depth++; save(); };
+    c.restore = () => { if (this._depth > 0) { this._depth--; while (this._clips.length && this._clips[this._clips.length - 1] > this._depth) this._clips.pop(); } restore(); };
+    c.clip = (...a) => { this._clips.push(this._depth); clip(...a); };
+  }
+  verifyState(where) {
+    const c = this.ctx, bad = [];
+    if (this._depth) bad.push(`${this._depth} save() left open`);
+    if (this._clips.length) bad.push('a clip left on');
+    if (c.globalAlpha !== 1) bad.push(`alpha left at ${c.globalAlpha}`);
+    if (c.globalCompositeOperation !== 'source-over') bad.push(`blend mode left at ${c.globalCompositeOperation}`);
+    if (c.getLineDash().length) bad.push('a line dash left on');
+    if (!bad.length) return;
+    this.stateLeaks++;
+    const seen = this._leakSeen || (this._leakSeen = new Map()), k = `${where}: ${bad.join(', ')}`, n = (seen.get(k) || 0) + 1;
+    seen.set(k, n);
+    if (n === 1 || n % 300 === 0) console.error(`[Hollowlight] canvas state leak in "${where}" (repaired${n > 1 ? `, seen ${n} times` : ''}): ${bad.join(', ')}`);
+    while (this._depth > 0) c.restore();
+    c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.setLineDash([]);
+  }
   // perf.acc is the overlay's half-second window; perf.sum keeps running totals for tools/perf.mjs.
   addPerf(name, ms) { const P = this.perf; P.acc[name] = (P.acc[name] || 0) + ms; P.sum[name] = (P.sum[name] || 0) + ms; }
 
@@ -1043,10 +1071,20 @@ export class Renderer {
     if (s.torchRate) { ctx.strokeStyle = 'rgba(255,126,182,0.5)'; ctx.setLineDash([5, 7]); ctx.beginPath(); ctx.arc(hx, hy, s.torchRange, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
   }
 
+  // One ward's drawing failing costs that ward, never the rest of the frame (wards and enemies are
+  // drawn top to bottom: an error escaping here used to leave everything below it undrawn).
   drawWardAt(ctx, t, dt) {
     const t0 = performance.now();
-    this.drawWardAt0(ctx, t, dt);
+    try { this.drawWardAt0(ctx, t, dt); } catch (err) { this.artError(`the ${t.type} ward ${t.tiers.join('/')}`, err); }
     this.perf.wardT += performance.now() - t0;
+  }
+  // Logged once per kind (then every 300th time) and counted (tools/smoke.js fails on any).
+  artError(what, err) {
+    this.artErrors = (this.artErrors || 0) + 1;
+    const seen = this._artSeen || (this._artSeen = new Map()), k = `${what}: ${err && err.message}`, n = (seen.get(k) || 0) + 1;
+    seen.set(k, n);
+    if (n === 1 || n % 300 === 0) console.error(`[Hollowlight] error drawing ${what} (the frame went on${n > 1 ? `, seen ${n} times` : ''}):`, err);
+    const c = this.ctx; c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.setLineDash([]);
   }
 
   drawWardAt0(ctx, t, dt) {
@@ -1056,7 +1094,7 @@ export class Renderer {
       if (pop <= 0) this.pops.delete(t.id); else this.pops.set(t.id, pop);
     }
     const st = this._st;
-    st.ang = t.ang; st.recoil = t.recoil; st.time = this.time + t.id * 0.37; st.pulse = t.pulseAnim; st.id = t.id;
+    st.ang = t.ang; st.recoil = t.recoil; st.time = this.time + Math.abs(t.id) * 0.37; st.pulse = t.pulseAnim; st.id = t.id;   // (a Swarm's extra lights have negative ids: art times stay positive)
     st.fill = t.def.kind === 'vault' ? Math.min(1, t.bank / t.stats.cap) : t.def.kind === 'snare' ? t.charges / t.stats.charges : t.def.kind === 'lure' ? Math.min(1, (t.lured || 0) / 3) : 0;
     st.warm = !!t.warm; st.bloom = t.bloomT > 0;
     const fl = t.def.kind === 'flame' && this.flameFx.state.get(t.id);

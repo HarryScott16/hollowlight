@@ -595,15 +595,21 @@ function still(type, P, d, skin) {
   let c = stills.get(key);
   if (c !== undefined) return c;
   c = newCanvas();
+  const q = DETAIL.q;
   if (c) {
-    c.width = SW * SK; c.height = SH * SK;
-    const g = c.getContext('2d');
-    g.setTransform(SK, 0, 0, SK, -SX * SK, -SY * SK);
-    const q = DETAIL.q; DETAIL.q = 2;
-    sigil5(g, d, STILL_ST.time, type === 'snare' ? 42 : 34);
-    const f = form(type, P);
-    if (f && f.back) f.back(g, STILL_ST, d, SKIN5[skin] || SKIN5.kindling);
-    DETAIL.q = q;
+    // A still that fails to draw is never retried every frame: the ward falls back to drawing live.
+    try {
+      c.width = SW * SK; c.height = SH * SK;
+      const g = c.getContext('2d');
+      g.setTransform(SK, 0, 0, SK, -SX * SK, -SY * SK);
+      DETAIL.q = 2;
+      sigil5(g, d, STILL_ST.time, type === 'snare' ? 42 : 34);
+      const f = form(type, P);
+      if (f && f.back) f.back(g, STILL_ST, d, SKIN5[skin] || SKIN5.kindling);
+    } catch (err) {
+      console.error(`[Hollowlight] couldn't draw the ${type} tier 5 still:`, err);
+      c = null;
+    } finally { DETAIL.q = q; }
   }
   stills.set(key, c);
   return c;

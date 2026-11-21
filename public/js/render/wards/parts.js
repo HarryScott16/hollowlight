@@ -34,7 +34,7 @@ export function cinderPool(ctx, x, y, w, t) {
 }
 export function chimney(ctx, x, y, h) { rrect(ctx, x - 2.6, y - h, 5.2, h, 1); ink(ctx, '#7a3a24', 1.4, x - 2.6, x + 2.6); rrect(ctx, x - 3.4, y - h - 1.5, 6.8, 2.4, 0.8); flat(ctx, '#3a3440', 1); }
 export function smokePuffs(ctx, x, y, n, t, dark = 0.7) {
-  for (let i = 0; i < n; i++) { const u = (t * 0.45 + i / n) % 1; circle(ctx, x + u * 5 + Math.sin(t + i) * 1.5, y - u * 16, 2.2 + u * 3.5); ctx.fillStyle = `rgba(52,44,56,${dark * (1 - u)})`; ctx.fill(); }
+  for (let i = 0; i < n; i++) { const u = (((t * 0.45 + i / n) % 1) + 1) % 1; circle(ctx, x + u * 5 + Math.sin(t + i) * 1.5, y - u * 16, 2.2 + u * 3.5); ctx.fillStyle = `rgba(52,44,56,${dark * (1 - u)})`; ctx.fill(); }
 }
 export function lavaCracks(ctx, pts, col = '#ffb347', w = 0.8) { for (const p of pts) line(ctx, p, col, w); }
 

@@ -120,9 +120,10 @@ export function drawWard(ctx, t, st) {
   if (!LIVE.on || pop > 0 || st.direct) {
     const S = wardScale(t.tiers) * (1 + pop * 0.3);
     ctx.save();
-    ctx.translate(t.x, t.y); ctx.scale(S, S); ctx.translate(0, -PLINTH_Y);
-    drawLive(ctx, art, P, d, sp, st, pop, t.type);
-    ctx.restore();
+    try {
+      ctx.translate(t.x, t.y); ctx.scale(S, S); ctx.translate(0, -PLINTH_Y);
+      drawLive(ctx, art, P, d, sp, st, pop, t.type);
+    } finally { ctx.restore(); }   // an error in the art never leaves its transform behind
     return;
   }
   const S = wardScale(t.tiers), k = S * pxScale;

@@ -30,7 +30,29 @@ function anything(name = 'stub') {
 const overrides = {
   clientWidth: 1200, clientHeight: 800, width: 1120, height: 720, left: 0, top: 0,
   offsetWidth: 100, measureText: () => ({ width: 50 }), getChannelData: () => new Float32Array(16),
+  getContext: () => trackingCtx(),
 };
+// A 2D context that keeps the state the renderer's leak check reads (save/restore stack, alpha,
+// blend mode, line dash); everything else is a do-nothing stub.
+function trackingCtx() {
+  const st = { globalAlpha: 1, globalCompositeOperation: 'source-over', dash: [] }, stack = [], own = {};
+  const methods = {
+    save() { stack.push({ ...st, dash: st.dash.slice() }); },
+    restore() { const s = stack.pop(); if (s) Object.assign(st, s); },
+    setLineDash(d) { st.dash = [...d]; },
+    getLineDash() { return st.dash.slice(); },
+  };
+  return new Proxy(own, {
+    get(t, k) {
+      if (k in t) return t[k];
+      if (k in methods) return methods[k];
+      if (k === 'globalAlpha' || k === 'globalCompositeOperation') return st[k];
+      if (k in overrides) return overrides[k];
+      return (t[k] = anything(`ctx.${String(k)}`));
+    },
+    set(t, k, v) { if (k === 'globalAlpha' || k === 'globalCompositeOperation') st[k] = v; else t[k] = v; return true; },
+  });
+}
 
 const elements = new Map();
 const document = {
@@ -67,6 +89,7 @@ function frames(n, dtMs = 16.7) {
 await import('../public/js/main.js');
 const { TOWERS } = await import('../public/js/data/towers.js');
 const { game, ui } = globalThis.window.hollowlight;
+ui.renderer.enableStateCheck();   // every frame section must leave the canvas state clean
 for (const cb of listeners.pointerdown || []) cb({}); // starts the (stub) audio context
 
 ui.setSpeed(3);
@@ -224,6 +247,9 @@ frames(30);
 }
 
 errors += window.hollowlight.frameErrors || 0;
+const r = ui.renderer;
+if (r.stateLeaks) { console.error(`canvas state leaks: ${r.stateLeaks}`); errors += r.stateLeaks; }
+if (r.artErrors) { console.error(`ward drawing errors: ${r.artErrors}`); errors += r.artErrors; }
 console.log(`wave ${game.wave}  endless ${game.endless}  over ${game.over}  lives ${game.lives}  pops ${game.pops}  errors ${errors}`);
 ui.restart();
 frames(30);

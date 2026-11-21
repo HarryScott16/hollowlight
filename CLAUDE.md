@@ -5,7 +5,14 @@ Checks: `node tools/smoke.js` (browser code against a stub DOM; it also places e
 and key through the real UI handlers, takes every path to tier 5, checks the one-of-each limit, and
 uses its R action and ability), `node tools/bot.js` (balance; `--endless --cap=120` keeps going into
 endless; the `endless12` builds are for that), `node tools/tier5.js` (each tier 5 against its tier 4),
-`node tools/endless.js` (the endless health curve), `node tools/report.js` (power per gold by tier). The frame loop in `main.js` guards the simulation, interface and drawing
+`node tools/endless.js` (the endless health curve), `node tools/report.js` (power per gold by tier).
+Canvas state: the renderer can check, after every frame section, that the game canvas is back to its
+plain state (no save() left open, no clip, alpha 1, normal blend, no line dash); it's on in test mode
+(leaks are logged as `[Hollowlight] canvas state leak in ...` and repaired) and in `smoke.js` (which
+fails on any). `tools/canvascheck.mjs` (real canvas, like frame.mjs) also flags calls a browser throws
+on (a negative arc/ellipse radius, drawing a zero-sized canvas): one of those ends the frame early, so
+everything drawn after it (the lower half of the map) stops updating. Art helpers clamp radii (`circle`),
+and a ward whose drawing fails only loses that ward (`Renderer.artError`). The frame loop in `main.js` guards the simulation, interface and drawing
 separately: an error is logged as `[Hollowlight] error in the ...` and counted in
 `window.hollowlight.frameErrors`, and the loop keeps running (smoke.js fails on any).
 Test mode for checking art: `?test=1` or Shift+T (unlimited gold and lives, wave jumping; `ui/testmode.js`).

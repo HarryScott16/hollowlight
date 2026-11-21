@@ -19,6 +19,7 @@ export class TestMode {
   enable() {
     if (this.on) return;
     this.on = true;
+    this.ui.renderer.enableStateCheck();   // canvas state leaks are logged to the console while testing
     this.topUp();
     this.buildPanel();
     this.ui.renderer.text(560, 70, 'TEST MODE: unlimited gold and lives', '#ffffff', 18, 2, 10);
