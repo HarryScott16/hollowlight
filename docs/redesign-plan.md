@@ -1,3 +1,218 @@
+# Morning summary: maps, difficulties and menus (`maps` branch)
+
+Everything is on **`maps`**, committed in steps and pushed to GitHub. Nothing is merged into `master`.
+**Medium on Hollowmere is exactly as it was**: the bot results there match `master` to the gold coin,
+re-checked after the last change.
+
+## Part 1: three new maps
+
+Hollowmere is now the first of four. `tools/maps.mjs` renders each one and prints its numbers.
+
+| Map | Look | How it plays | Ground road | Flyers' line | Build space (cells) |
+|---|---|---|---|---|---|
+| **Hollowmere** | dusk meadow | the classic | 3,108 | 1,252 | 933 |
+| **Ashfork** | cinders, lava pools, charred trees | **two Rifts**, roads that merge halfway | 2,628 + 2,732 | 1,324 + 1,140 | 879 |
+| **Rimecoil** | snow, frozen lakes, pines | the road **spirals in** to a Heartfire near the middle | 3,252 | 1,020 | 822 |
+| **Mirefen** | bog, black lakes, willows, a plank causeway | **three long straights**, tight hairpins, little dry land | 3,188 | 2,423 | 654 |
+
+**Ashfork**
+- The Gloom alternate between the two Rifts, so the early defence has to cover both roads.
+- After the fork, the shared road is one long killing ground. Anything a Gloom sheds stays on its own
+  road.
+
+**Rimecoil**
+- The spiral gives wards in the gaps two lanes to shoot at.
+- The flocks cut across the open snow.
+
+**Mirefen**
+- The straights suit piercing bolts and beams.
+- The hairpins are the choke points for Snares and Censers.
+- The flocks follow the causeway, cutting across at the hairpins.
+
+**Every ward works on every map.**
+- Snares snap to the nearest road, including either branch on Ashfork.
+- The Longeye fires map-wide.
+- Gloomwings take each map's own flight line.
+- Wandering Light posts work anywhere that isn't water, lava or ice.
+- Auras work as before.
+- Flashmines, Ball Lightning, the Phoenix, the Elder Wyrm and Saturation use the road nearest the ward.
+
+**The 40 waves and endless mode are the same on every map.** Where a map's late game came out
+easier than Hollowmere's, it gets a small toughness ramp from wave 20:
+- Ashfork: ×1.3 by wave 40;
+- Rimecoil: ×1.4 by wave 40.
+
+**Tuning along the way:**
+- **Rimecoil:** its first flight line (820) sent flocks into the Heartfire before anything could
+  shoot. It's now about Hollowmere's length.
+- **Mirefen, flyers:** they first flew straight over the lake and never met a ward, so strong builds
+  lost at waves 10-22. Their line now follows the causeway.
+- **Mirefen, lakes:** these were narrowed so each straight has a row of land on both sides.
+
+**Performance on each map:** `perf.mjs`, wave 100, 35 tier 5 wards, 2× speed.
+
+| Map | Canvas calls/frame | Wall ms (software) |
+|---|---|---|
+| Hollowmere | 6,511 | 81 |
+| Ashfork | 6,672 | 81 |
+| Rimecoil | 6,996 | 78 |
+| Mirefen | 6,074 | 59 |
+
+`canvascheck.mjs` (all 36 tier 5s, 600 frames) is **clean on every map**, with no frame errors.
+
+## Part 2: Easy and Hard
+
+Medium is untouched. Every Medium lever is the identity. The levers are in `data/difficulty.js`, with
+the reasons written there.
+
+| | Easy | Medium | Hard |
+|---|---|---|---|
+| Start gold / lives | 850 / 250 | 650 / 150 | 600 / 100 |
+| Wave size | ×0.7 | ×1 | ×1 to wave 10, then ×1.15 |
+| Toughness of shells, hulks, flyers and bosses | ×0.65 to wave 10, then ×0.75 | ×1 | ×1 to wave 10, rising to ×2.35 at 40 |
+| Gold for clearing a wave | ×1.15 | ×1 | ×1 |
+| Leak cost | at most 10 lives an enemy, 40 a boss | 25, bosses all they hold | as Medium |
+
+Why these levers:
+- **Prices and wave contents are the same everywhere**, so what you learn carries over between
+  difficulties.
+- **Easy forgives:**
+  - more lives and gold;
+  - fewer, softer Gloom;
+  - a boss that slips through hurts but doesn't end the run.
+- **Hard keeps the early waves as Medium** (so a sensible opening isn't punished), then makes the long
+  night bigger and much tougher.
+
+### Bot results, every map and difficulty
+
+Seed 1. On Medium the Hollowmere column is the existing suite, unchanged.
+
+**Easy** (won: lives left of 250; lost: the wave)
+
+| Build | Group | Hollowmere | Ashfork | Rimecoil | Mirefen |
+|---|---|---|---|---|---|
+| lazy | lazy | lost on 11 | lost on 11 | lost on 11 | lost on 11 |
+| minimal | lazy | lost on 12 | lost on 12 | lost on 15 | lost on 11 |
+| lazyTier1 | lazy | lost on 12 | lost on 13 | lost on 16 | lost on 11 |
+| mixed | medium | won 250 | won 250 | won 250 | won 250 |
+| mixedAlt | medium | won 250 | won 250 | won 250 | won 250 |
+| focused | medium | won 250 | won 250 | won 250 | won 250 |
+| mixed12 | medium | won 250 | won 250 | won 250 | won 241 |
+| strongAlt | strong | won 250 | won 250 | won 250 | won 250 |
+| strongThird | strong | won 250 | won 250 | won 250 | won 250 |
+| newA | strong | won 250 | won 250 | won 250 | won 250 |
+| strong12 | strong | won 250 | won 250 | won 250 | won 250 |
+| strong12B | strong | won 250 | won 250 | won 250 | won 250 |
+
+**Medium** (won: lives left of 150; lost: the wave)
+
+| Build | Group | Hollowmere | Ashfork | Rimecoil | Mirefen |
+|---|---|---|---|---|---|
+| lazy | lazy | lost on 9 | lost on 9 | lost on 9 | lost on 7 |
+| minimal | lazy | lost on 9 | lost on 10 | lost on 10 | lost on 8 |
+| lazyTier1 | lazy | lost on 10 | lost on 10 | lost on 10 | lost on 9 |
+| mixed | medium | won 150 | won 150 | won 150 | won 68 |
+| mixedAlt | medium | lost on 38 | lost on 37 | lost on 39 | lost on 33 |
+| focused | medium | lost on 39 | won 149 | won 150 | lost on 39 |
+| mixed12 | medium | won 75 | won 150 | lost on 40 | won 150 |
+| strongAlt | strong | won 150 | won 150 | won 150 | won 150 |
+| strongThird | strong | won 150 | won 150 | won 150 | won 150 |
+| newA | strong | won 150 | won 150 | won 150 | won 150 |
+| strong12 | strong | won 150 | won 135 | won 150 | won 150 |
+| strong12B | strong | won 150 | won 150 | won 150 | won 98 |
+
+**Hard** (won: lives left of 100; lost: the wave)
+
+| Build | Group | Hollowmere | Ashfork | Rimecoil | Mirefen |
+|---|---|---|---|---|---|
+| lazy | lazy | lost on 8 | lost on 9 | lost on 8 | lost on 6 |
+| minimal | lazy | lost on 9 | lost on 10 | lost on 10 | lost on 8 |
+| lazyTier1 | lazy | lost on 10 | lost on 10 | lost on 10 | lost on 9 |
+| mixed | medium | lost on 33 | lost on 37 | lost on 36 | lost on 32 |
+| mixedAlt | medium | lost on 31 | lost on 31 | lost on 31 | lost on 31 |
+| focused | medium | lost on 31 | lost on 35 | lost on 33 | lost on 31 |
+| mixed12 | medium | lost on 31 | lost on 35 | lost on 34 | lost on 31 |
+| strongAlt | strong | won 100 | won 100 | won 100 | won 100 |
+| strongThird | strong | won 100 | won 83 | won 100 | won 100 |
+| newA | strong | lost on 30 | lost on 30 | lost on 30 | lost on 30 |
+| strong12 | strong | won 27 | lost on 25 | won 69 | won 100 |
+| strong12B | strong | won 100 | won 100 | won 100 | won 80 |
+
+
+**Against the targets:**
+- **Easy:** **met.**
+  - Medium builds win with all or nearly all of their 250 lives on every map.
+  - Lazy builds get to waves 11-16, against 7-10 on Medium.
+  - A lazy build here buys three wards and never spends again, so the difficulty can only stretch it
+    a few waves before it would make Easy trivial.
+- **Medium:** **met.**
+  - Strong builds win, almost all with no lives lost. The exceptions are `strong12` on Ashfork (135)
+    and `strong12B` on Mirefen (98).
+  - Medium builds struggle: on every map some lose around waves 33-40 and some scrape through.
+  - Lazy builds lose at waves 7-10. Mirefen is the harshest early, with `lazy` out on wave 7.
+- **Hard:** **mostly met.**
+  - Medium builds lose on every map, at waves 31-37.
+  - Strong builds are genuinely tested: three or four of the five win on each map, some losing lives
+    (`strong12` finishes on 27 of 100 on Hollowmere, 69 on Rimecoil). `newA` loses to the Bastion at
+    wave 30 on every map; it's the build that leans on the Longeye, Censer, Prism and Beacon.
+  - Ashfork is the hardest on Hard: `strong12` also falls there, at wave 25, because the map's own
+    ramp stacks on Hard's. If you'd like Hard to be gentler for strong builds, lower the slope in
+    `tough` for Hard.
+
+## Part 3: menus
+
+- **Title screen:**
+  - "Hollowlight" in glowing gold over a dusk sky, with a flickering flame.
+  - A big **Play** button that goes straight into your last map and difficulty, labelled with them
+    and your best wave.
+  - Choose map and Settings buttons.
+- **Map select:** a painted preview of each map (the game's own painter), its name and a short
+  description, plus **your best wave on Easy, Medium and Hard** (a ✓ marks a campaign win).
+- **Difficulty select:** Easy, Medium and Hard, each with one line and your best on that map. Your last
+  choice is highlighted.
+- **Settings:** ward skin (Kindlings or Lanterns), sound on/off and a volume slider. Remembered in the
+  browser.
+- **In game:**
+  - **Esc** (when nothing is selected or being placed) or the **Pause** button opens the pause menu:
+    Resume, Restart, Settings, Quit to menu.
+  - Space still pauses quickly without the menu.
+  - The game-over card has a Main menu button.
+  - The top bar shows the map and difficulty.
+- **Saved in the browser:** the best wave and wins per map and difficulty, and the last map and
+  difficulty. Test-mode runs never count.
+- **URL shortcuts:**
+  - `?map=ashfork`, `?difficulty=hard` and `?test=1` skip the menus.
+  - `?skin=lantern` still works and wins over the saved skin.
+- **Screen sizes:**
+  - The menus fit a laptop screen and stretch on a big one: map cards wrap from four across to one,
+    text and gaps scale with the window, and a short window scrolls rather than clipping.
+  - I couldn't look at them in a real browser (none here), so **please check them on your laptop and
+    the big monitor.**
+
+## Checks run before finishing
+
+- **`tools/smoke.js` passes.** It now opens on the title screen and starts through it, then plays
+  every map on every difficulty through the menus. On each it places a Snare on the road, a Longeye,
+  a Wandering Light with a moved post and a Beacon, opens and closes the pause menu, and checks that
+  Ashfork's second road gets used.
+- **`tools/canvascheck.mjs` is clean on all four maps.**
+- **`tools/perf.mjs` is about the same on all four maps** (see the table above).
+- **The bot suites** for every map and difficulty are in the tables above.
+
+## Decisions I made
+
+- **Map sizes:** every map is the game's usual 1120 × 720. The four themes have their own ground,
+  water (lava, ice, bog), road (stone, packed snow, planks), rocks, trees and glowing details.
+- **Ashfork's shared stretch:** it belongs to the first road for Snare placement. Snares snap to
+  whichever road is nearest.
+- **Bots:** the core builds above were used for tuning (the full suite takes hours per map).
+  `bot.js --map= --diff=` runs any build on any map.
+- **The first copy of your brief was cut off** at "settings for the skin and…". Your follow-up
+  message had the rest (sound, pause menu, saving, quick play, URL options, screen sizes), and I
+  followed that.
+
+---
+
 # Update: endless leak cap, and `tier5` merged into `master`
 
 - **Endless leaks cost less.** After wave 40 a leak costs at most **5 lives per enemy** (was 25) and
