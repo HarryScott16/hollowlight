@@ -4,7 +4,9 @@
 // its flyers take (they cut corners). With several routes, the Gloom take turns between them (see
 // Game.startWave). Terrain blocks building: `ponds` (water, lava or ice, by theme), `rocks`, and a
 // scatter of `treeCount` trees. `theme` picks the look in render/background.js. Every map uses the
-// same 40-wave campaign and endless mode.
+// same 40-wave campaign and endless mode. A map can also set `tough(wave)`: a health multiplier for
+// the tough Gloom on top of the difficulty's, to even out a map whose late game is easier than
+// Hollowmere's (tools/bot.js --map= is how they were set).
 export const MAPS = {
   hollowmere: {
     id: 'hollowmere',
@@ -69,6 +71,8 @@ export const MAPS = {
     ],
     treeCount: 20,
     seed: 23,
+    // The merged road is one long killing ground: the late waves need more to them here.
+    tough: (wave) => 1 + 0.015 * Math.max(0, wave - 20),
   },
 
   rimecoil: {
@@ -82,7 +86,7 @@ export const MAPS = {
     cornerRadius: 46,
     routes: [{
       waypoints: [[-50, 140], [900, 140], [900, 580], [200, 580], [200, 290], [720, 290], [720, 450], [420, 450]],
-      fly: [[-50, 140], [360, 180], [560, 330], [420, 450]],
+      fly: [[-50, 140], [420, 150], [760, 260], [640, 420], [420, 450]],
       rift: { x: 6, y: 140 },
     }],
     goal: { x: 420, y: 450, r: 50 },
@@ -98,6 +102,8 @@ export const MAPS = {
     ],
     treeCount: 26,
     seed: 41,
+    // The long spiral gives every ward a lot of road: the late waves need more to them here.
+    tough: (wave) => 1 + 0.02 * Math.max(0, wave - 20),
   },
 
   mirefen: {
@@ -111,14 +117,14 @@ export const MAPS = {
     cornerRadius: 46,
     routes: [{
       waypoints: [[-50, 120], [1000, 120], [1000, 330], [130, 330], [130, 560], [1030, 560]],
-      fly: [[-50, 120], [1030, 560]],
+      fly: [[-50, 120], [880, 130], [240, 350], [880, 545], [1030, 560]],   // the flocks follow the causeway's light, cutting across at the hairpins
       rift: { x: 6, y: 120 },
     }],
     goal: { x: 1030, y: 560, r: 50 },
     ponds: [   // the lake, in pieces between the straights
-      { x: 560, y: 226, rx: 300, ry: 54 },
-      { x: 560, y: 446, rx: 290, ry: 58 },
-      { x: 470, y: 664, rx: 280, ry: 36 },
+      { x: 560, y: 225, rx: 270, ry: 34 },
+      { x: 560, y: 445, rx: 260, ry: 44 },
+      { x: 470, y: 674, rx: 280, ry: 30 },
       { x: 640, y: 34, rx: 220, ry: 26 },
     ],
     rocks: [

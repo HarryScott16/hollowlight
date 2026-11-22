@@ -1,7 +1,7 @@
 // Frame-cost profiler: plays a stress scene in the real game (no browser) and prints the same
 // per-frame breakdown as the FPS overlay (` key).
 //
-//   CANVAS_MODULES=<dir>/node_modules node tools/perf.mjs [wave=80] [speed=1] [mode=normal|test] [defence=few|full|t5] [wards=22] [crowd=0] [frames=120]
+//   CANVAS_MODULES=<dir>/node_modules node tools/perf.mjs [wave=80] [speed=1] [mode=normal|test] [defence=few|full|t5] [wards=22] [crowd=0] [map=hollowmere] [frames=120]
 //
 // The crowd is built up by running the simulation alone for `warm` seconds, then `frames` frames
 // are rendered at 60 fps steps and timed with the real clock. Absolute times come from a software
@@ -13,7 +13,9 @@ const arg = (k, d) => { const a = process.argv.find((x) => x.startsWith(k + '=')
 const WAVE = Number(arg('wave', 80)), SPEED = Number(arg('speed', 1)), MODE = arg('mode', 'normal'), DEF = arg('defence', 'few');
 const N = Number(arg('frames', 120)), WARM = Number(arg('warm', 25));
 
-const { g, ui, frames } = await startGame({ realClock: true, dpr: Number(process.env.DPR) || 1, query: MODE === 'test' ? '?test=1' : '' });
+// map=<id> (default Hollowmere); the query also skips the menus
+const MAPID = arg('map', 'hollowmere');
+const { g, ui, frames } = await startGame({ realClock: true, dpr: Number(process.env.DPR) || 1, query: `?map=${MAPID}${MODE === 'test' ? '&test=1' : ''}` });
 const r = ui.renderer;
 // Count canvas calls per section too (on every canvas, including the wards' own live canvases):
 // in a browser, the number of 2D calls is usually what costs.
@@ -44,7 +46,7 @@ g.gold = 1e9;
 const types = process.env.WARDS === '8' ? ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon']
   : ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon', 'snare', 'moth', 'wander', 'vault'];
 const spots = [];
-for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map.buildable(x, y) && g.map.path.distTo?.(x, y) < 70) spots.push([x, y]);
+for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map.buildable(x, y) && g.map.distTo(x, y) < 70) spots.push([x, y]);
 if (!spots.length) for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map.buildable(x, y)) spots.push([x, y]);
 // t5: the full defence with every ward pushed to tier 5 where the one-of-each limit allows.
 const FULL = DEF === 'full' || DEF === 't5';

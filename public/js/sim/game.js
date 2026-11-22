@@ -116,7 +116,7 @@ export class Game {
     const wave = this.waveAt(this.wave);
     this.wave++;
     this.goldMul = RULES.popGold(this.wave);
-    const tough = this.diff.tough(this.wave), more = this.diff.count;
+    const D = this.map.data, tough = this.diff.tough(this.wave) * (D.tough ? D.tough(this.wave) : 1), more = this.diff.count;
     for (const g of wave.groups) {
       const mods = { hpMul: (g.hpMul || 1) * tough, speedMul: g.speedMul || 1, veiled: !!g.veiled, mending: !!g.mending };
       // A boss's own health multiplier doesn't pass to what it sheds or summons.

@@ -20,6 +20,23 @@ Keys: wards 1-9, 0, -, = (shop order); Q W E upgrade; R the selected ward's acti
 Vault, move a Wandering Light's post); abilities A S D F G H J K, then Z C V B; X the Flare.
 It lives only in the UI layer and must never touch the simulation, the bots or balance.
 
+## Maps, difficulties and menus
+
+- Maps live in `data/maps.js` (Hollowmere, Ashfork, Rimecoil, Mirefen; `MAP_ORDER`). A map has one or
+  more `routes` (a road from its own Rift plus the flyers' line); with several, the Gloom take turns
+  and what they shed stays on its road (`e.route`). Anything that works along the road (Snares,
+  Flashmines, Ball Lightning, Phoenix, Elder Wyrm) uses the nearest road (`map.nearestRoute`). A map
+  may add `tough(wave)` to even out its late game. Looks: `theme` in `render/background.js`.
+  `tools/maps.mjs` renders every map and prints its road and flight lengths and build space.
+- Difficulties live in `data/difficulty.js`. **Medium must stay exactly as it is**: every Medium lever
+  is the identity, and bot results on Hollowmere Medium must not change. Easy and Hard use start gold,
+  lives, enemy toughness, wave size and the clear reward.
+- `Game.load(map, difficulty)`; the bot takes `--map=` and `--diff=`, and perf.mjs / canvascheck.mjs
+  take `map=`.
+- Menus: `ui/menu.js` (title, map select, difficulty, settings, pause), records in `ui/records.js`
+  (best wave per map and difficulty, last choice, skin; test runs never count). `?map=`,
+  `?difficulty=` and `?test=1` skip the menus; `?skin=` wins over the saved skin.
+
 ## Tier 5
 
 Every path has a fifth tier, a capstone: about 4.5x its tier 4's cost, 3-5x its power, and one
