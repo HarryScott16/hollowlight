@@ -316,7 +316,7 @@ export class Renderer {
           if (this.tracers.length < 60) this.tracers.push({ x: f.x, y: f.y, tx: f.x2, ty: f.y2, life: 0.25, max: 0.25, big: false, spot: false });
           break;
         case 'guard': // Second Heartfire: embers spent to spare the Heartfire
-          this.text(MAP.goal.x, MAP.goal.y - 40, `Shielded ${f.n}`, HEARTH, 15, 1.2);
+          this.text(f.gx, f.gy - 40, `Shielded ${f.n}`, HEARTH, 15, 1.2);
           if (this.tracers.length < 60) this.tracers.push({ x: f.x, y: f.y - 20, tx: f.gx, ty: f.gy, life: 0.5, max: 0.5, big: true, spot: false });
           this.ring(f.gx, f.gy, 10, 60, 0.5, HEARTH, 4, 'rgba(255,126,182,0.2)', true);
           break;
@@ -462,9 +462,10 @@ export class Renderer {
         case 'leak':
           S.leak(f.boss || f.amount >= 20);
           this.shake = Math.max(this.shake, f.boss ? 14 : 4);
-          this.text(MAP.goal.x, MAP.goal.y - 50, `-${f.amount} ♥`, '#ff3d3d', f.boss ? 26 : 17, 1.2);
-          P.burst(MAP.goal.x, MAP.goal.y, f.boss ? 40 : 14, { color: '#ff3d3d', speed: 180, life: 0.6, size: 3.5 });
-          this.ring(MAP.goal.x, MAP.goal.y, 20, f.boss ? 140 : 70, 0.4, '#ff3d3d', 4);
+          { const G = this.game.map.data.goal;
+            this.text(G.x, G.y - 50, `-${f.amount} ♥`, '#ff3d3d', f.boss ? 26 : 17, 1.2);
+            P.burst(G.x, G.y, f.boss ? 40 : 14, { color: '#ff3d3d', speed: 180, life: 0.6, size: 3.5 });
+            this.ring(G.x, G.y, 20, f.boss ? 140 : 70, 0.4, '#ff3d3d', 4); }
           break;
         case 'flare': {
           S.flare();
@@ -1050,8 +1051,8 @@ export class Renderer {
     const s = t.stats;
     this.rangeCircle(ctx, t.x, t.y, Math.max(s.radius, 24), true);
     if (s.mineMax) {
-      const path = this.game.map.path, a = Math.max(30, t.pathDist - s.mineRange), b = Math.min(path.length - 90, t.pathDist + 30);
-      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = MAP.pathWidth - 10; ctx.lineCap = 'round';
+      const path = this.game.map.routes[t.route].path, a = Math.max(30, t.pathDist - s.mineRange), b = Math.min(path.length - 90, t.pathDist + 30);
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = this.game.map.data.pathWidth - 10; ctx.lineCap = 'round';
       ctx.beginPath(); for (let d = a; d <= b; d += 8) { path.posAt(d, this._pos || (this._pos = {}), 0); if (d === a) ctx.moveTo(this._pos.x, this._pos.y); else ctx.lineTo(this._pos.x, this._pos.y); } ctx.stroke();
       ctx.lineCap = 'butt';
     }
@@ -1169,22 +1170,24 @@ export class Renderer {
 
   drawLandmarks(ctx) {
     const t = this.time;
-    const rift = MAP.rift;
-    for (let i = 0; i < 4; i++) {
-      const p = (t * 0.5 + i / 4) % 1;
-      ctx.strokeStyle = `rgba(200,107,255,${0.8 * (1 - p)})`;
-      ctx.lineWidth = 3.5;
-      ctx.beginPath(); ctx.ellipse(rift.x, rift.y, 10 + p * 22, 22 + p * 26, 0, 0, TAU); ctx.stroke();
+    for (const route of this.game.map.routes) {   // a Rift for each road
+      const rift = route.rift;
+      for (let i = 0; i < 4; i++) {
+        const p = (t * 0.5 + i / 4) % 1;
+        ctx.strokeStyle = `rgba(200,107,255,${0.8 * (1 - p)})`;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.ellipse(rift.x, rift.y, 10 + p * 22, 22 + p * 26, 0, 0, TAU); ctx.stroke();
+      }
+      ctx.fillStyle = '#2a0a45';
+      ctx.beginPath(); ctx.ellipse(rift.x, rift.y, 11, 25, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#e0a8ff';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
     }
-    ctx.fillStyle = '#2a0a45';
-    ctx.beginPath(); ctx.ellipse(rift.x, rift.y, 11, 25, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#e0a8ff';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
 
     // the Heartfire
-    const g = MAP.goal;
-    const life = Math.max(0.15, Math.min(1, this.game.lives / RULES.startLives));
+    const g = this.game.map.data.goal;
+    const life = Math.max(0.15, Math.min(1, this.game.lives / this.game.startLives));
     const flick = Math.sin(t * 11) * 0.08 + Math.sin(t * 17.3) * 0.05;
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = `rgba(255,170,60,${0.18 + life * 0.12})`;
@@ -1699,11 +1702,11 @@ export class Renderer {
   // Placing a Snare: the road it can go on lights up, other Snares show the room they need, and
   // the Snare snaps onto the road's centre under the cursor.
   drawSnarePlacement(ctx, ui, def) {
-    const g = this.game, path = g.map.path, p = this._pos || (this._pos = {});
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = MAP.pathWidth - 6; ctx.lineCap = 'round';
+    const g = this.game, p = this._pos || (this._pos = {});
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = g.map.data.pathWidth - 6; ctx.lineCap = 'round';
     ctx.setLineDash([14, 10]); ctx.lineDashOffset = -this.time * 20;
     ctx.beginPath();
-    for (let d = RULES.snareFromRift; d <= path.length - RULES.snareFromGoal; d += 8) { path.posAt(d, p, 0); if (d === RULES.snareFromRift) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }
+    for (const r of g.map.routes) { const path = r.path; for (let d = RULES.snareFromRift; d <= path.length - RULES.snareFromGoal; d += 8) { path.posAt(d, p, 0); if (d === RULES.snareFromRift) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); } }
     ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'butt';
     for (const t of g.towers) if (t.def.onPath) { ctx.strokeStyle = 'rgba(255,80,80,0.6)'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(t.x, t.y, RULES.snareSpacing, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
     const snap = g.snapToPath(ui.mouse.x, ui.mouse.y), ok = !!snap && g.gold >= def.cost;

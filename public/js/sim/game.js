@@ -1,6 +1,7 @@
 // Game state and rules. Pure simulation: no DOM, no rendering, so it also runs headless for bots.
 // The renderer learns what happened through `game.fx`, a queue of small event objects.
-import { MAP } from '../data/map.js';
+import { mapById } from '../data/maps.js';
+import { difficultyById } from '../data/difficulty.js';
 import { RULES } from '../data/rules.js';
 import { TOWERS } from '../data/towers.js';
 import { WAVES } from '../data/waves.js';
@@ -22,16 +23,25 @@ export class Game {
   constructor(opts = {}) {
     this.fxOn = opts.fx !== false;
     this.seed = opts.seed || 1;
-    this.map = buildMap(MAP);
-    this.grid = new Grid(MAP.width, MAP.height);
     this.waves = WAVES;
+    this.load(opts.map, opts.difficulty);
+  }
+
+  // Switches map and difficulty (ids from data/maps.js and data/difficulty.js) and starts afresh.
+  load(mapId, diffId) {
+    const data = mapById(mapId);
+    if (!this.map || this.map.data !== data) {
+      this.map = buildMap(data);
+      this.grid = new Grid(data.width, data.height);
+    }
+    this.diff = difficultyById(diffId);
     this.reset();
   }
 
   reset() {
     this.rand = mulberry32(this.seed);
-    this.gold = RULES.startGold;
-    this.lives = RULES.startLives;
+    this.gold = this.diff.startGold;
+    this.lives = this.startLives = this.diff.startLives;
     this.wave = 0;            // number of waves started so far
     this.rewarded = 0;        // number of waves whose clear reward has been paid
     this.time = 0;
@@ -44,6 +54,7 @@ export class Game {
     this.projectiles = [];
     this.zones = [];
     this.mines = [];          // Flashmines on the path
+    this.spawned = 0;         // groups started so far (they take turns between a map's Rifts)
     this.orbs = [];           // Ball Lightning orbs rolling up the path
     this.vaults = [];
     this.spawners = [];
@@ -105,11 +116,16 @@ export class Game {
     const wave = this.waveAt(this.wave);
     this.wave++;
     this.goldMul = RULES.popGold(this.wave);
+    const tough = this.diff.tough(this.wave), more = this.diff.count;
     for (const g of wave.groups) {
-      const mods = { hpMul: g.hpMul || 1, speedMul: g.speedMul || 1, veiled: !!g.veiled, mending: !!g.mending };
+      const mods = { hpMul: (g.hpMul || 1) * tough, speedMul: g.speedMul || 1, veiled: !!g.veiled, mending: !!g.mending };
       // A boss's own health multiplier doesn't pass to what it sheds or summons.
-      if (g.kidHpMul) mods.kids = { ...mods, hpMul: g.kidHpMul };
-      this.spawners.push({ type: g.type, left: g.count, gap: g.gap, t: g.delay || 0, mods, wave: this.wave });
+      if (g.kidHpMul) mods.kids = { ...mods, hpMul: g.kidHpMul * tough };
+      // Difficulty: more or fewer of each group, over the same stretch of time.
+      let count = g.count, gap = g.gap;
+      if (more !== 1 && count > 1) { count = Math.max(1, Math.round(count * more)); gap = (g.gap * (g.count - 1)) / Math.max(1, count - 1); }
+      // On a map with several Rifts, the Gloom take turns between them.
+      this.spawners.push({ type: g.type, left: count, gap, t: g.delay || 0, mods, wave: this.wave, n: this.spawned++ });
     }
     this.emit('wave', { n: this.wave, banner: wave.banner || null, boss: wave.groups.some((g) => ENEMIES[g.type].boss) });
     return true;
@@ -136,15 +152,16 @@ export class Game {
   // A Thornlight Snare goes on the road: the point on the path's centre line nearest (x, y), if
   // (x, y) is on the road, the spot isn't too close to the Rift or the Heartfire, and no other
   // Snare is within RULES.snareSpacing. Returns { x, y, dist } or null.
+  // On a map with several roads, it goes on the nearest one (the shared stretch belongs to the first).
   snapToPath(x, y) {
-    const path = this.map.path, i = path.nearest(x, y);
+    const D = this.map.data, near = this.map.nearestRoute(x, y), path = near.path, i = path.nearest(x, y);
     const px = path.xs[i], py = path.ys[i], dist = i * path.step;
-    if ((px - x) ** 2 + (py - y) ** 2 > (MAP.pathWidth / 2 + 6) ** 2) return null;
-    if (px < 24 || py < 24 || px > MAP.width - 24 || py > MAP.height - 24) return null;
+    if ((px - x) ** 2 + (py - y) ** 2 > (D.pathWidth / 2 + 6) ** 2) return null;
+    if (px < 24 || py < 24 || px > D.width - 24 || py > D.height - 24) return null;
     if (dist < RULES.snareFromRift || dist > path.length - RULES.snareFromGoal) return null;
     for (const t of this.towers) if (t.def.onPath && (t.x - px) ** 2 + (t.y - py) ** 2 < RULES.snareSpacing ** 2) return null;
-    const out = this._snap || (this._snap = { x: 0, y: 0, dist: 0 });
-    out.x = px; out.y = py; out.dist = dist;
+    const out = this._snap || (this._snap = { x: 0, y: 0, dist: 0, route: 0 });
+    out.x = px; out.y = py; out.dist = dist; out.route = near.route;
     return out;
   }
 
@@ -152,10 +169,11 @@ export class Game {
     const def = TOWERS[type];
     if (!def || this.over || this.gold < def.cost || !this.canPlace(type, x, y)) return null;
     let pd = 0;
-    if (def.onPath) { const p = this.snapToPath(x, y); x = p.x; y = p.y; pd = p.dist; }
+    let route = 0;
+    if (def.onPath) { const p = this.snapToPath(x, y); x = p.x; y = p.y; pd = p.dist; route = p.route; }
     this.gold -= def.cost;
     const t = createTower(this, type, x, y);
-    t.pathDist = pd;
+    t.pathDist = pd; t.route = route;
     this.spend(t, def.cost);
     this.towers.push(t);
     this.refreshGlobals();
@@ -207,8 +225,9 @@ export class Game {
   // Wandering Light: moves its post (it floats there). Anywhere on the map that isn't water.
   canMovePost(t, x, y) {
     if (!t || t.def.kind !== 'wander') return false;
-    if (x < 22 || y < 22 || x > MAP.width - 22 || y > MAP.height - 22) return false;
-    return !MAP.ponds.some((p) => ((x - p.x) / (p.rx + 4)) ** 2 + ((y - p.y) / (p.ry + 4)) ** 2 < 1);
+    const D = this.map.data;
+    if (x < 22 || y < 22 || x > D.width - 22 || y > D.height - 22) return false;
+    return !D.ponds.some((p) => ((x - p.x) / (p.rx + 4)) ** 2 + ((y - p.y) / (p.ry + 4)) ** 2 < 1);
   }
   movePost(t, x, y) {
     if (!this.canMovePost(t, x, y) || this.over) return false;
@@ -416,9 +435,9 @@ export class Game {
     // A Veiled hulk's veil tears when its shell breaks: what it sheds can be seen.
     let mods = e.mods.kids || e.mods;
     if (mods.veiled && e.def.heavy && !e.def.boss) mods = mods.torn || (mods.torn = { ...mods, veiled: false });
-    const d0 = fly ? this.map.flyDistAt(e.dist) : e.dist;
+    const d0 = fly ? this.map.flyDistAt(e.dist, e.route) : e.dist;
     for (let i = 0; i < count; i++) {
-      const child = createEnemy(this, type, Math.max(0, d0 - (fly ? i * 6 : i * 10)), e.wave, mods, e.root);
+      const child = createEnemy(this, type, Math.max(0, d0 - (fly ? i * 6 : i * 10)), e.wave, mods, e.root, e.route);
       child.off = fly ? (this.rand() - 0.5) * 30 : e.off + (count > 1 ? (i - (count - 1) / 2) * 7 : 0);
       inherit(child, e);
       if (i === 0 && e.unpaid > 1) child.unpaid = e.unpaid - 1;
@@ -525,7 +544,7 @@ export class Game {
       const n = Math.min(cost, Math.floor(v.bank / g));
       if (n <= 0) continue;
       v.bank -= n * g; cost -= n;
-      this.emit('guard', { x: v.x, y: v.y, n, gx: MAP.goal.x, gy: MAP.goal.y });
+      this.emit('guard', { x: v.x, y: v.y, n, gx: this.map.data.goal.x, gy: this.map.data.goal.y });
     }
     if (cost <= 0) { this.leaked++; return; }
     this.lives -= cost;
@@ -551,7 +570,7 @@ export class Game {
       if (!e.def.heavy) e.stunT = Math.max(e.stunT, FLARE.stun);
       this.damage(e, e.def.heavy ? FLARE.heavyDmg : FLARE.dmg, 'true', null, FLARE_HIT);
     }
-    this.emit('flare', { x: MAP.goal.x, y: MAP.goal.y });
+    this.emit('flare', { x: this.map.data.goal.x, y: this.map.data.goal.y });
     return true;
   }
 
@@ -649,7 +668,7 @@ export class Game {
         let tx, ty;
         const live = this.enemies.length ? this.enemies[Math.floor(this.rand() * this.enemies.length)] : null;
         if (live && live.alive) { tx = live.x + (this.rand() - 0.5) * 30; ty = live.y + (this.rand() - 0.5) * 30; }
-        else { this.map.path.posAt(60 + this.rand() * (this.map.path.length - 80), aim, 0); tx = aim.x; ty = aim.y; }
+        else { const p = this.map.routes[0].path; p.posAt(60 + this.rand() * (p.length - 80), aim, 0); tx = aim.x; ty = aim.y; }
         launchShell(this, b.src, tx, ty, 0.55 + this.rand() * 0.35);
       }
     }
@@ -686,7 +705,7 @@ export class Game {
   // the one that got through. Nothing inside them escapes and they pay no gold.
   triggerLastLight(leaker) {
     this.lastLight = false;
-    const g = MAP.goal, r2 = LAST_LIGHT.radius ** 2;
+    const g = this.map.data.goal, r2 = LAST_LIGHT.radius ** 2;
     let n = 0;
     for (const e of this.enemies) {
       if (!e.alive || e.def.boss) continue;
@@ -770,7 +789,7 @@ export class Game {
       const s = sp[i];
       s.t -= dt;
       while (s.t <= 0 && s.left > 0) {
-        this.enemies.push(createEnemy(this, s.type, 0, s.wave, s.mods));
+        this.enemies.push(createEnemy(this, s.type, 0, s.wave, s.mods, 0, this.map.routes.length > 1 ? (s.n + s.left) % this.map.routes.length : 0));
         s.left--;
         s.t += s.gap;
       }
@@ -843,7 +862,7 @@ export class Game {
       // Ember Tide: pays out by itself at each wave clear.
       for (const t of this.towers) if (t.stats.autoCash && t.bank >= 1) this.cashOut(t);
       let total = 0;
-      while (this.rewarded < this.wave) total += RULES.waveReward(++this.rewarded);
+      while (this.rewarded < this.wave) total += RULES.waveReward(++this.rewarded) * this.diff.reward;
       this.addGold(total);
       this.emit('bonus', { amount: total, label: `Wave ${this.wave} cleared` });
       if (tithe + interest > 0) {

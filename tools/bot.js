@@ -7,6 +7,9 @@ import { upgradeInfo, computeStats, estimateDps } from '../public/js/sim/towers.
 const STEP = 1 / 60;
 const verbose = process.argv.includes('-v');
 const seedArg = process.argv.find((a) => a.startsWith('--seed='));
+// --map=<id> and --diff=easy|medium|hard (default Hollowmere, Medium)
+const MAPARG = (process.argv.find((a) => a.startsWith('--map=')) || '--map=hollowmere').slice(6);
+const DIFFARG = (process.argv.find((a) => a.startsWith('--diff=')) || '--diff=medium').slice(7);
 const SEED = seedArg ? Number(seedArg.slice(7)) : 1;
 const only = process.argv.slice(2).find((a) => !a.startsWith('-'));
 // --endless: keep playing generated waves after a win, up to wave 60.
@@ -141,11 +144,12 @@ function candidateSpots(game) {
 }
 
 function coverage(game, x, y, range, minRange = 0) {
-  const p = game.map.path;
   let n = 0;
-  for (let i = 0; i < p.count; i += 2) {
-    const d = Math.hypot(p.xs[i] - x, p.ys[i] - y);
-    if (d <= range && d >= minRange && p.xs[i] > 0) n++;
+  for (const { path: p } of game.map.routes) {
+    for (let i = 0; i < p.count; i += 2) {
+      const d = Math.hypot(p.xs[i] - x, p.ys[i] - y);
+      if (d <= range && d >= minRange && p.xs[i] > 0) n++;
+    }
   }
   return n;
 }
@@ -153,9 +157,8 @@ function coverage(game, x, y, range, minRange = 0) {
 // Thornlight Snares go on the road: where the most ward coverage already is (the kill zone, so
 // what it holds gets hit), not too near the end.
 function snareSpot(game) {
-  const p = game.map.path;
   let best = null, bestScore = -1;
-  for (let i = 20; i < p.count - 30; i += 3) {
+  for (const { path: p } of game.map.routes) for (let i = 20; i < p.count - 30; i += 3) {
     const x = p.xs[i], y = p.ys[i];
     if (!game.snapToPath(x, y)) continue;
     let score = 1;
@@ -167,9 +170,8 @@ function snareSpot(game) {
 }
 // Flyer coverage: how much of the flight route a spot reaches.
 function flyCoverage(game, x, y, range) {
-  const p = game.map.flyPath;
   let n = 0;
-  for (let i = 0; i < p.count; i += 2) if (p.xs[i] > 0 && Math.hypot(p.xs[i] - x, p.ys[i] - y) <= range) n++;
+  for (const { flyPath: p } of game.map.routes) for (let i = 0; i < p.count; i += 2) if (p.xs[i] > 0 && Math.hypot(p.xs[i] - x, p.ys[i] - y) <= range) n++;
   return n;
 }
 
@@ -357,7 +359,7 @@ function aimLongeyes(game) {
 
 function run(name, strat, seed = SEED) {
   abilityUse.flare = abilityUse.ward = 0;
-  const game = new Game({ fx: false, seed });
+  const game = new Game({ fx: false, seed, map: MAPARG, difficulty: DIFFARG });
   const spots = candidateSpots(game);
   const state = { bought: 0, upgrades: 0, livesAt: {}, t4At: {} };
   const log = [];
@@ -436,7 +438,7 @@ function run(name, strat, seed = SEED) {
   const t4 = game.towers.filter((t) => t.tiers.includes(4)).length, t3 = game.towers.filter((t) => t.tiers.includes(3)).length;
   results.push({ name, group: strat.group, over: game.over || 'cap', wave: game.wave, lives: game.lives, firstLeak: state.firstLeak,
     livesAt: state.livesAt, towers: game.towers.length, t3, t4, lastLight: !game.lastLight, peak: maxEnemies,
-    firstT4: state.firstT4, thirdT4: state.thirdT4, t4At: state.t4At });
+    firstT4: state.firstT4, thirdT4: state.thirdT4, t4At: state.t4At, maxLives: game.startLives });
   return game;
 }
 
@@ -448,7 +450,7 @@ function table() {
   console.log('\n| Build | Group | Result | First leak | Lives @25 | @30 | @35 | First / 3rd T4 | T4s @20 / @30 / end | Wards (T3/T4) | Peak enemies |');
   console.log('|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of results) {
-    const res = r.over === 'win' ? `**won**, ${r.lives}/150${r.lastLight ? ' (Last Light used)' : ''}` : r.over === 'lose' ? `lost on wave ${r.wave}` : `reached wave ${r.wave}`;
+    const res = r.over === 'win' ? `**won**, ${r.lives}/${r.maxLives}${r.lastLight ? ' (Last Light used)' : ''}` : r.over === 'lose' ? `lost on wave ${r.wave}` : `reached wave ${r.wave}`;
     console.log(`| ${r.name} | ${r.group} | ${res} | ${r.firstLeak || 'never'} | ${at(r, 25)} | ${at(r, 30)} | ${at(r, 35)} | ${r.firstT4 ? `${r.firstT4} / ${r.thirdT4 || '-'}` : '-'} | ${t4(r, 20)} / ${t4(r, 30)} / ${r.t4} | ${r.towers} (${r.t3}/${r.t4}) | ${r.peak} |`);
   }
 }

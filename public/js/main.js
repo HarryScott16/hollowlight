@@ -13,7 +13,9 @@ const MAX_STEPS = 20;       // per frame (5x speed needs ~5 at 60 fps), so a slo
 const SIM_BUDGET_MS = 8;
 
 const canvas = document.getElementById('game');
-const game = new Game();
+// ?map= and ?difficulty= skip the menus (for testing); otherwise the last choice is used.
+const query = new URLSearchParams((typeof location !== 'undefined' && location.search) || '');
+const game = new Game({ map: query.get('map') || undefined, difficulty: query.get('difficulty') || undefined });
 const renderer = new Renderer(canvas, game);
 const sound = new Sound();
 renderer.sound = sound;

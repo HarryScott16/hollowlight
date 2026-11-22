@@ -84,45 +84,55 @@ export function buildPath(waypoints, cornerRadius, step = 4) {
 }
 
 export function buildMap(data) {
-  const path = buildPath(data.waypoints, data.cornerRadius);
+  // Each route: its ground road and its flight line, and where on the flight line a flyer bursting
+  // out of a ground enemy at each point of the road starts (toFly).
+  const routes = data.routes.map((r, k) => {
+    const path = buildPath(r.waypoints, data.cornerRadius);
+    const flyPath = buildPath(r.fly, data.cornerRadius);
+    const toFly = new Float32Array(path.count);
+    for (let i = 0; i < path.count; i++) {
+      let best = Infinity, bi = 0;
+      for (let j = 0; j < flyPath.count; j++) {
+        const d = (flyPath.xs[j] - path.xs[i]) ** 2 + (flyPath.ys[j] - path.ys[i]) ** 2;
+        if (d < best) { best = d; bi = j; }
+      }
+      toFly[i] = bi * flyPath.step;
+    }
+    return { index: k, path, flyPath, rift: r.rift, flyDistAt(groundDist) { return toFly[Math.max(0, Math.min(path.count - 1, Math.round(groundDist / path.step)))]; } };
+  });
+  const path = routes[0].path;
+  const distTo = (x, y) => { let d = Infinity; for (const r of routes) d = Math.min(d, r.path.distTo(x, y)); return d; };
   const rand = mulberry32(data.seed);
   const inPond = (x, y, pad) => data.ponds.some((p) => ((x - p.x) / (p.rx + pad)) ** 2 + ((y - p.y) / (p.ry + pad)) ** 2 < 1);
   const nearRock = (x, y, pad) => data.rocks.some((r) => Math.hypot(x - r.x, y - r.y) < r.r + pad);
 
-  // Deterministic scatter of trees (block building) kept clear of the path's edge.
+  // Deterministic scatter of trees (block building) kept clear of the roads' edges.
   const trees = [];
   for (let tries = 0; tries < 4000 && trees.length < data.treeCount; tries++) {
     const x = 20 + rand() * (data.width - 40), y = 20 + rand() * (data.height - 40);
     const r = 13 + rand() * 7;
-    if (path.distTo(x, y) < 72) continue;
+    if (distTo(x, y) < 72) continue;
     if (inPond(x, y, 24) || nearRock(x, y, 26)) continue;
     if (Math.hypot(x - data.goal.x, y - data.goal.y) < data.goal.r + 40) continue;
     if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < 46)) continue;
     trees.push({ x, y, r, rot: rand() * 6.28 });
   }
 
-  // Flyers take the corner-cutting route. `toFly[i]` maps ground sample i to the nearest point on
-  // the flight route, so a flyer that bursts out of a ground enemy starts at the right spot.
-  const flyPath = buildPath(data.flyPath, data.cornerRadius);
-  const toFly = new Float32Array(path.count);
-  for (let i = 0; i < path.count; i++) {
-    let best = Infinity, bi = 0;
-    for (let j = 0; j < flyPath.count; j++) {
-      const d = (flyPath.xs[j] - path.xs[i]) ** 2 + (flyPath.ys[j] - path.ys[i]) ** 2;
-      if (d < best) { best = d; bi = j; }
-    }
-    toFly[i] = bi * flyPath.step;
-  }
-
   const pad = RULES.towerRadius - 2;
   return {
-    data, path, flyPath, trees,
-    flyDistAt(groundDist) { return toFly[Math.max(0, Math.min(path.count - 1, Math.round(groundDist / path.step)))]; },
+    data, routes, path, flyPath: routes[0].flyPath, trees, distTo,
+    flyDistAt(groundDist, route = 0) { return routes[route].flyDistAt(groundDist); },
+    // The route whose road passes nearest (x, y), and how far along it that point is.
+    nearestRoute(x, y) {
+      let best = routes[0], bd = Infinity;
+      for (const r of routes) { const d = r.path.distTo(x, y); if (d < bd) { bd = d; best = r; } }
+      return { route: best.index, path: best.path, dist: best.path.nearest(x, y) * best.path.step, d: bd };
+    },
     width: data.width, height: data.height,
     // Terrain-only check (other towers are checked by the game).
     buildable(x, y) {
       if (x < 22 || y < 22 || x > data.width - 22 || y > data.height - 22) return false;
-      if (path.distTo(x, y) < data.pathWidth / 2 + pad) return false;
+      if (distTo(x, y) < data.pathWidth / 2 + pad) return false;
       if (inPond(x, y, pad - 2) || nearRock(x, y, pad)) return false;
       if (Math.hypot(x - data.goal.x, y - data.goal.y) < data.goal.r + pad) return false;
       if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < t.r * 0.7 + pad)) return false;

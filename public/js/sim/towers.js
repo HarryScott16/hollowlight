@@ -115,10 +115,10 @@ export function createTower(game, type, x, y) {
     recoil: 0, shotN: 0, pulseN: 0, pulseAnim: 0,
     beams: [], sunT: 0, spreadTokens: 0, burstTokens: 0, aura: null, firing: false,
     hx: x, hy: y,                                    // a Wandering Light's post (it floats around it)
-    charges: def.base.charges || 0, bloomT: 0, mineT: 0, rootCd: 0, heavyCd: 0, pathDist: 0,   // Snare
+    charges: def.base.charges || 0, bloomT: 0, mineT: 0, rootCd: 0, heavyCd: 0, pathDist: 0, route: 0,   // Snare (route: which road)
     lights: [], bank: 0, warm: false, goldEarned: 0, // Wandering Light's lights; Ember Vault's embers
     disc: 0,                                         // upgrade discount (a Golden Age Beacon)
-    fresh: 0, freshWave: -1, groundBonus: 0, lured: 0, pathNear: undefined, phx: null, sold: false,   // set later (one shape for every ward)
+    fresh: 0, freshWave: -1, groundBonus: 0, lured: 0, pathNear: undefined, nearPath: null, phx: null, sold: false,   // set later (one shape for every ward)
     t5T: 0, t5N: 0, splitTokens: 0, eruptTokens: 0, markTokens: 0,   // tier 5 timers and rate limits
   };
   // The game it stands in (not enumerable: keeps the tower plain to copy and inspect).
@@ -354,18 +354,24 @@ const ORB_SPEED = 55, ORB_TICK = 0.4;
 function spawnOrb(game, t, s) {
   if (!t.target) { t.t5T = 0.3; return; }
   t.t5T = s.orbEvery;
-  const path = game.map.path;
-  if (t.pathNear === undefined) t.pathNear = path.nearest(t.x, t.y) * path.step;
-  const o = { x: 0, y: 0, d: t.pathNear + 60, life: s.orbLife, tick: ORB_TICK * 0.5, src: t };
+  nearRoad(game, t);
+  const path = t.nearPath;
+  const o = { x: 0, y: 0, d: t.pathNear + 60, life: s.orbLife, tick: ORB_TICK * 0.5, src: t, path };
   path.posAt(o.d, o, 0);
   game.orbs.push(o);
 }
+// The stretch of road nearest a ward (the nearest of a map's roads), found once.
+function nearRoad(game, t) {
+  if (t.pathNear !== undefined) return;
+  const n = game.map.nearestRoute(t.x, t.y);
+  t.nearPath = n.path; t.pathNear = n.dist;
+}
 export function updateOrbs(game, dt) {
-  const path = game.map.path, list = game.orbs;
+  const list = game.orbs;
   for (const o of list) {
     o.life -= dt;
     o.d -= ORB_SPEED * dt;
-    path.posAt(o.d, o, 0);
+    o.path.posAt(o.d, o, 0);
     if ((o.tick -= dt) > 0 || o.src.sold) continue;
     o.tick += ORB_TICK;
     const s = o.src.stats;
@@ -552,7 +558,8 @@ function flame(game, t, dt) {
 // Phoenix: flies up and down the stretch of path near the censer, burning what it passes.
 const PHX_SPEED = 120, PHX_R = 36;
 function phoenix(game, t, s, dt) {
-  const path = game.map.path;
+  nearRoad(game, t);
+  const path = t.nearPath;
   if (!t.phx) {
     // the stretch of path within twice the flame's reach
     const R = (s.range * 2) ** 2;
@@ -582,8 +589,8 @@ function phoenix(game, t, s, dt) {
 function wyrm(game, t, s) {
   if (!t.firing) { t.t5T = 0.3; return; }
   t.t5T = s.wyrmEvery;
-  const path = game.map.path;
-  if (t.pathNear === undefined) t.pathNear = path.nearest(t.x, t.y) * path.step;
+  nearRoad(game, t);
+  const path = t.nearPath;
   const pts = [];
   for (let k = 0; k <= s.wyrmLen; k += 56) {
     path.posAt(t.pathNear + 20 - k, aim, 0);
@@ -802,7 +809,7 @@ function sowMines(game, t, s, dt) {
   let n = 0;
   for (const m of game.mines) if (m.src === t) n++;
   if (n >= s.mineMax) return;
-  const path = game.map.path;
+  const path = game.map.routes[t.route].path;
   // sown upstream of the snare, where the Gloom arrives (and a little past it)
   const d = Math.max(30, Math.min(path.length - 90, t.pathDist + 30 - game.rand() * (s.mineRange + 30)));
   path.posAt(d, aim, (game.rand() - 0.5) * 26);

@@ -2,7 +2,7 @@
 // muzzles, effects) in both skins. Like tools/smoke.js, but the game canvas and every offscreen
 // canvas are real @napi-rs/canvas canvases.
 //
-//   CANVAS_MODULES=<dir>/node_modules [FONT_DIR=<dir with DejaVuSans.ttf>] [WAVE=24] [T5=1] node tools/frame.mjs <outdir>
+//   CANVAS_MODULES=<dir>/node_modules [FONT_DIR=<dir with DejaVuSans.ttf>] [WAVE=24] [T5=1] [QUERY=?map=ashfork] node tools/frame.mjs <outdir>
 //
 // Needs @napi-rs/canvas, which is NOT a game dependency (see tools/wards.mjs).
 import { join } from 'node:path';
@@ -11,7 +11,7 @@ import { startGame } from './harness.mjs';
 
 const outDir = process.argv[2] || 'frames';
 mkdirSync(outDir, { recursive: true });
-const { createCanvas, canvas: game, g, ui, frames, key } = await startGame();
+const { createCanvas, canvas: game, g, ui, frames, key } = await startGame({ query: process.env.QUERY || '' });
 g.gold = 1e7;
 
 // Wards along the bottom straight of the path (y = 580): a row behind it and a row in front,

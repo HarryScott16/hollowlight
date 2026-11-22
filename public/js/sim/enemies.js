@@ -4,7 +4,7 @@ import { ENEMIES, PARENT } from '../data/enemies.js';
 // mods: { hpMul (tough types only), speedMul, veiled, mending }. `root` ties every layer shed from
 // one spawned enemy together, so a single bolt or chain can't strike the same enemy twice by
 // hitting its freshly shed inner layers.
-export function createEnemy(game, type, dist, wave, mods, root) {
+export function createEnemy(game, type, dist, wave, mods, root, route = 0) {
   const def = ENEMIES[type];
   const tough = def.tough ? mods.hpMul : 1;
   const hp = def.hp * tough;
@@ -13,9 +13,10 @@ export function createEnemy(game, type, dist, wave, mods, root) {
   const speed = def.speed * mods.speedMul;
   // Flyers follow the flight route; `prog` scales their distance to ground-path terms so
   // "first"/"last" targeting compares flyers and walkers fairly.
-  const path = def.flying ? game.map.flyPath : game.map.path;
+  const R = game.map.routes[route] || game.map.routes[0];
+  const path = def.flying ? R.flyPath : R.path;
   const e = {
-    id, root: root || id, type, def, wave, mods, path, prog: game.map.path.length / path.length,
+    id, root: root || id, type, def, wave, mods, path, route: R.index, prog: game.map.path.length / path.length,
     x: 0, y: 0, ang: 0, dist, off: def.flying ? 0 : (game.rand() - 0.5) * Math.max(4, Math.min(20, 34 - def.r)),
     hp, maxHp: hp, shield, maxShield: shield, shieldCd: 0,
     speed, curSpeed: speed, r: def.r, alive: true, leaked: false, veiled: !!(mods.veiled || def.veiled),
