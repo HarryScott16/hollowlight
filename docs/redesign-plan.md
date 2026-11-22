@@ -1,3 +1,16 @@
+# Update: endless leak cap, and `tier5` merged into `master`
+
+- **Endless leaks cost less.** After wave 40 a leak costs at most **5 lives per enemy** (was 25) and
+  a boss at most **40** (was everything it held). The campaign is unchanged. The boss bar's leak cost
+  shows the capped figure.
+- **Bot results** (seed 1, `--endless --cap=130`):
+  - `strong12` now loses its lives over waves 98-105, out on **105** (was 98-103).
+  - `endless12` loses them over waves 91-102, out on **102** (was 91-93).
+  - Defences bleed over 8-12 waves instead of collapsing in 2-3.
+- **`tier5` is merged into `master`** (fast-forward). Work continues on `master`.
+
+---
+
 # Morning summary: tier 5 performance and art (`tier5` branch, second night)
 
 Everything is on **`tier5`** in four new commits (`b7409aa`, `edc426a`, `89a08cb`, and this doc).

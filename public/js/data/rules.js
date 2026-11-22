@@ -27,6 +27,10 @@ export const RULES = {
   // A leaked enemy costs a life per layer it still holds, but never more than this (bosses excepted:
   // a leaked boss costs everything it holds).
   maxLeak: 25,
+  // Endless mode (after the campaign's last wave): leaks cost far less, so a defence that starts to
+  // break bleeds lives over several waves instead of collapsing in one; a boss costs at most this.
+  endlessMaxLeak: 5,
+  endlessBossLeak: 40,
 };
 
 export const TARGET_MODES = [

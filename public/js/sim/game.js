@@ -508,8 +508,10 @@ export class Game {
   }
 
   // Lives a leak actually costs: capped at RULES.maxLeak, except for bosses.
+  // In endless mode the caps are much lower (RULES.endlessMaxLeak / endlessBossLeak).
   leakLives(e) {
     const n = this.leakCost(e);
+    if (this.endless && this.wave > this.waves.length) return Math.min(e.def.boss ? RULES.endlessBossLeak : RULES.endlessMaxLeak, n);
     return e.def.boss ? n : Math.min(RULES.maxLeak, n);
   }
 

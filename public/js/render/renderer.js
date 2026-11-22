@@ -1740,7 +1740,7 @@ export class Renderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';
-    const cost = this.game.leakCost(boss);
+    const cost = this.game.leakLives(boss);
     const sh = boss.shield > 0 ? `  +${Math.ceil(boss.shield)} shield` : '';
     ctx.fillText(`${boss.def.name}  ${Math.ceil(boss.hp)} / ${Math.ceil(boss.maxHp)}${sh}   (leak: -${cost} ♥)`, W / 2, y + 8.5);
   }
