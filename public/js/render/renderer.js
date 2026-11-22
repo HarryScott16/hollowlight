@@ -75,6 +75,14 @@ export class Renderer {
     this.resize();
   }
 
+  // After the game loads another map: repaint its ground, drop the old map's effects.
+  mapChanged() {
+    this.scale = 0;   // forces the repaint
+    this.resize();
+    this.clearFx();
+    this.snow = null;
+  }
+
   clearFx() {
     this.parts.clear();
     this.arcs.length = this.rings.length = this.texts.length = this.stains.length = this.bolts.length = 0;

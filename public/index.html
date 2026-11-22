@@ -11,6 +11,7 @@
   <div id="app">
     <header id="hud">
       <div class="hud-stats">
+        <span class="stat where" id="hud-where" title="Map and difficulty"></span>
         <span class="stat lives" title="Lives"><span class="glyph">&#9829;</span><b id="hud-lives">150</b></span>
         <span class="stat gold" title="Gold"><span class="glyph">&#9670;</span><b id="hud-gold">0</b></span>
         <span class="stat wave" title="Wave">Wave <b id="hud-wave">0</b></span>
@@ -42,10 +43,12 @@
             <div class="overlay-buttons">
               <button id="overlay-continue" class="primary" type="button" hidden>Continue into the endless night</button>
               <button id="overlay-restart" type="button">Play again</button>
+              <button id="overlay-menu" type="button">Main menu</button>
             </div>
           </div>
         </div>
         <div id="paused-tag" hidden>Paused</div>
+        <div id="pause-menu" class="menu-layer" hidden></div>
       </div>
       <aside id="side">
         <section id="abilities">
@@ -65,5 +68,6 @@
       </aside>
     </main>
   </div>
+  <div id="menu" class="menu-layer" hidden></div>
 </body>
 </html>

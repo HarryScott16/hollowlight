@@ -3,6 +3,9 @@ import { Game } from './sim/game.js';
 import { Renderer } from './render/renderer.js';
 import { UI } from './ui/ui.js';
 import { Sound } from './audio/sound.js';
+import { Menu } from './ui/menu.js';
+import { lastChoice, savedSkin } from './ui/records.js';
+import { setSkin } from './render/wardArt.js';
 
 const STEP = 1 / 60;        // fixed simulation step
 const MAX_STEPS = 20;       // per frame (5x speed needs ~5 at 60 fps), so a slow frame can't spiral
@@ -13,13 +16,19 @@ const MAX_STEPS = 20;       // per frame (5x speed needs ~5 at 60 fps), so a slo
 const SIM_BUDGET_MS = 8;
 
 const canvas = document.getElementById('game');
-// ?map= and ?difficulty= skip the menus (for testing); otherwise the last choice is used.
+// ?map=, ?difficulty= and ?test=1 skip the menus (for testing); otherwise the title screen opens
+// with the last map and difficulty played ready behind its Play button.
 const query = new URLSearchParams((typeof location !== 'undefined' && location.search) || '');
-const game = new Game({ map: query.get('map') || undefined, difficulty: query.get('difficulty') || undefined });
+const skipMenus = query.has('map') || query.has('difficulty') || query.has('test');
+const lastPlayed = lastChoice();
+const game = new Game({ map: query.get("map") || lastPlayed.map, difficulty: query.get("difficulty") || lastPlayed.difficulty });
+if (!query.has('skin')) { const s = savedSkin(); if (s) setSkin(s); }   // ?skin= wins over the saved one
 const renderer = new Renderer(canvas, game);
 const sound = new Sound();
 renderer.sound = sound;
 const ui = new UI(game, renderer, canvas, sound);
+const menu = new Menu(ui);
+ui.menu = menu;
 
 let last = performance.now();
 let acc = 0;
@@ -49,7 +58,7 @@ function frame(now) {
 function step(now) {
   const real = Math.min(0.1, (now - last) / 1000);
   last = now;
-  const running = !ui.paused && !game.over;
+  const running = !ui.paused && !game.over && !ui.inMenu;
   sound.update(real);
   // Hit-stop: the simulation holds for a beat on big moments while effects keep playing.
   if (renderer.hitStop > 0) {
@@ -69,10 +78,12 @@ function step(now) {
   const tu = performance.now();
   guard('interface', () => ui.update());
   renderer.mark('ui', tu);
+  if (ui.inMenu) return;   // a menu covers the game: nothing to draw
   guard('drawing', () => renderer.draw(ui.paused ? 0 : real * (game.over ? 1 : ui.speed), ui));
 }
 
 renderer.resize();
+if (!skipMenus) menu.showTitle();
 requestAnimationFrame(frame);
 
 // Handy for debugging and balance checks from the browser console.

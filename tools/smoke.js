@@ -90,6 +90,9 @@ await import('../public/js/main.js');
 const { TOWERS } = await import('../public/js/data/towers.js');
 const { game, ui } = globalThis.window.hollowlight;
 ui.renderer.enableStateCheck();   // every frame section must leave the canvas state clean
+// The title screen opens first (no ?map= in this run): start Hollowmere on Medium through it.
+if (!ui.menu || !ui.menu.open) { console.error('the title screen did not open'); process.exitCode = 1; }
+ui.menu.start('hollowmere', 'medium');
 for (const cb of listeners.pointerdown || []) cb({}); // starts the (stub) audio context
 
 ui.setSpeed(3);
@@ -244,6 +247,39 @@ frames(30);
     check(`${type}: sold`);
   }
   console.log(`all ${order.length} wards: click, drag, key, every path to tier 5 (one of each), R and ability`);
+}
+
+// The menus, and every map on every difficulty: through the title, map and difficulty screens,
+// a few wards (a Snare on the road, a Longeye, a Wandering Light with a moved post, a Beacon),
+// a few hundred frames of a wave, the pause menu, settings and back to the title.
+{
+  const { MAP_ORDER } = await import('../public/js/data/maps.js');
+  const { DIFFICULTY_ORDER } = await import('../public/js/data/difficulty.js');
+  const m = ui.menu;
+  m.showSettings(() => m.showTitle());
+  for (const mapId of MAP_ORDER) {
+    for (const diff of DIFFICULTY_ORDER) {
+      m.showTitle(); m.showMaps(); m.showDifficulty(mapId);
+      m.start(mapId, diff);
+      if (game.map.data.id !== mapId || game.diff.id !== diff || ui.inMenu) { console.error(`menu start ${mapId}/${diff} failed`); errors++; }
+      game.gold = 1e6;
+      const r0 = game.map.routes[game.map.routes.length - 1].path, i0 = Math.round(r0.count * 0.5);
+      game.place('snare', r0.xs[i0], r0.ys[i0]);
+      let k = 0;
+      for (let y = 40; y < 700 && k < 4; y += 30) for (let x = 40; x < 1100 && k < 4; x += 30) {
+        const type = ['longeye', 'wander', 'beacon', 'mortar'][k];
+        if (game.canPlace(type, x, y)) { const t = game.place(type, x, y); if (t) { for (let u = 0; u < 4; u++) game.upgrade(t, k % 3); k++; } }
+      }
+      const w = game.towers.find((t) => t.type === 'wander');
+      if (w) game.movePost(w, 560, 380);
+      game.wave = 24; game.rewarded = 24; game.startWave();
+      frames(300);
+      m.openPause(); frames(5); m.closePause(); frames(20);
+      if (game.map.routes.length > 1 && !game.enemies.some((e) => e.route === 1)) { console.error(`${mapId}: nothing walked the second road`); errors++; }
+    }
+  }
+  m.showTitle();
+  console.log(`menus: ${MAP_ORDER.length} maps x ${DIFFICULTY_ORDER.length} difficulties started through the menus and played`);
 }
 
 errors += window.hollowlight.frameErrors || 0;

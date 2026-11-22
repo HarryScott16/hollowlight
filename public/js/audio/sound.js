@@ -9,7 +9,12 @@ export class Sound {
     this.ctx = null;
     this.master = null;
     this.muted = false;
-    try { this.muted = localStorage.getItem('hollowlight.muted') === '1'; } catch { /* storage unavailable */ }
+    this.volume = 1;
+    try {
+      this.muted = localStorage.getItem('hollowlight.muted') === '1';
+      const v = localStorage.getItem('hollowlight.volume');
+      if (v !== null && !Number.isNaN(Number(v))) this.volume = Math.max(0, Math.min(1, Number(v)));
+    } catch { /* storage unavailable */ }
     this.budget = {};
     this.noise = null;
     const start = () => this.start();
@@ -23,7 +28,7 @@ export class Sound {
     if (!AC) return;
     this.ctx = new AC();
     this.master = this.ctx.createGain();
-    this.master.gain.value = this.muted ? 0 : 0.32;
+    this.master.gain.value = this.muted ? 0 : 0.32 * this.volume;
     const comp = this.ctx.createDynamicsCompressor();
     comp.threshold.value = -14;
     comp.ratio.value = 6;
@@ -38,7 +43,14 @@ export class Sound {
   setMuted(m) {
     this.muted = m;
     try { localStorage.setItem('hollowlight.muted', m ? '1' : '0'); } catch { /* storage unavailable */ }
-    if (this.master) this.master.gain.value = m ? 0 : 0.32;
+    if (this.master) this.master.gain.value = m ? 0 : 0.32 * this.volume;
+  }
+
+  // 0-1, remembered in this browser.
+  setVolume(v) {
+    this.volume = Math.max(0, Math.min(1, v));
+    try { localStorage.setItem('hollowlight.volume', String(this.volume)); } catch { /* storage unavailable */ }
+    if (this.master) this.master.gain.value = this.muted ? 0 : 0.32 * this.volume;
   }
 
   // Call once per frame: refills each effect's per-second budget.

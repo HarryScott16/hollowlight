@@ -9,6 +9,7 @@ import { upgradeInfo, computeStats, estimateDps } from '../sim/towers.js';
 import { drawWardIcon, nextSkin, skinName } from '../render/wardArt.js';
 import { drawEnemyIcon } from '../render/enemyArt.js';
 import { TestMode, testFromQuery } from './testmode.js';
+import { bestFor, recordWave } from './records.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -159,6 +160,8 @@ export class UI {
     this.speed = 1;
     this.previewRange = 0;
     this.paused = false;
+    this.inMenu = false;      // a menu is open (ui/menu.js): the game holds and isn't drawn
+    this.menu = null;         // set by main.js
     this.auto = false;
     this.cache = {};
     this.panelTick = 0;
@@ -289,7 +292,8 @@ export class UI {
   // ---- HUD -----------------------------------------------------------------------------------
   bindHud() {
     $('btn-wave').addEventListener('click', () => this.game.startWave());
-    $('btn-pause').addEventListener('click', () => this.togglePause());
+    $('btn-pause').addEventListener('click', () => (this.menu ? this.menu.togglePause() : this.togglePause()));
+    $('overlay-menu').addEventListener('click', () => { if (this.menu) this.menu.showTitle(); });
     $('btn-restart').addEventListener('click', () => this.restart());
     $('overlay-restart').addEventListener('click', () => this.restart());
     $('overlay-continue').addEventListener('click', () => this.continueEndless());
@@ -333,6 +337,13 @@ export class UI {
     $('paused-tag').hidden = !this.paused;
   }
 
+  // A new run on another map or difficulty (from the menus).
+  newGame(mapId, diffId) {
+    this.game.load(mapId, diffId);
+    this.renderer.mapChanged();
+    this.restart();
+  }
+
   restart() {
     this.game.reset();
     this.renderer.clearFx();
@@ -351,14 +362,12 @@ export class UI {
     this.refreshPreview();
   }
 
-  // Best endless wave reached, kept in this browser only.
-  get bestWave() {
-    try { return Number(localStorage.getItem('hollowlight.bestWave')) || 0; } catch { return 0; }
-  }
+  // Best wave reached on this map and difficulty, kept in this browser (ui/records.js).
+  get bestWave() { return bestFor(this.game.map.data.id, this.game.diff.id).wave; }
 
-  recordWave(n) {
-    if (this.test.on || n <= this.bestWave) return;   // test runs never count
-    try { localStorage.setItem('hollowlight.bestWave', String(n)); } catch { /* storage unavailable */ }
+  recordWave(n, won = false) {
+    if (this.test.on) return;   // test runs never count
+    recordWave(this.game.map.data.id, this.game.diff.id, n, won);
   }
 
   // ---- canvas input --------------------------------------------------------------------------
@@ -374,9 +383,13 @@ export class UI {
   // Hidden test switch between the two ward skins (also ?skin=lantern / ?skin=kindling).
   toggleSkin() {
     nextSkin();
+    this.skinChanged();
+    this.renderer.text(MAP.width / 2, 70, `Skin: ${skinName()}`, '#ffffff', 18, 1.6, 10);
+  }
+  // Redraw everything that shows a ward's picture after the skin changes.
+  skinChanged() {
     for (const type in this.shopIcons) drawWardIcon(this.shopIcons[type], type);
     if (this.selected) this.select(this.selected);
-    this.renderer.text(MAP.width / 2, 70, `Skin: ${skinName()}`, '#ffffff', 18, 1.6, 10);
   }
 
   bindCanvas() {
@@ -455,7 +468,8 @@ export class UI {
         ev.preventDefault();
         this.game.startWave();
       } else if (k === 'Escape') {
-        if (this.moving) { this.moving = null; this.canvas.classList.remove('placing'); } else if (this.placing) this.setPlacing(null); else this.select(null);
+        if (this.moving) { this.moving = null; this.canvas.classList.remove('placing'); } else if (this.placing) this.setPlacing(null); else if (this.selected) this.select(null);
+        else if (this.menu && !this.menu.open) this.menu.togglePause();   // nothing to cancel: the pause menu
       } else if (k === '`') {
         this.renderer.showFps = !this.renderer.showFps;
       } else if (k === 'm' || k === 'M') {
@@ -731,8 +745,9 @@ export class UI {
       pr.t = now; pr.pops = g.pops;
       this.setText('hud-pops', String(Math.round(pr.value)));
     }
+    this.setText('hud-where', `${g.map.data.name} · ${g.diff.name}`);
     this.setText('hud-wave', g.endless ? `${g.wave}  (endless, best ${Math.max(this.bestWave, g.wave)})` : `${g.wave} / ${g.totalWaves}`);
-    if (g.endless && this.cache.recorded !== g.wave) { this.cache.recorded = g.wave; this.recordWave(g.wave); }
+    if (g.wave > 0 && this.cache.recorded !== g.wave) { this.cache.recorded = g.wave; this.recordWave(g.wave); }
 
     let label;
     if (g.over) label = g.over === 'win' ? 'Victory' : 'Defeated';
@@ -759,6 +774,7 @@ export class UI {
     if (g.over && this.cache.over !== g.over) {
       this.cache.over = g.over;
       const win = g.over === 'win';
+      if (win) this.recordWave(g.wave, true);
       const best = this.bestWave;
       $('overlay-title').textContent = win ? 'The Heartfire holds!' : 'The Heartfire is out';
       let text;
