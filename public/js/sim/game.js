@@ -116,7 +116,7 @@ export class Game {
     const wave = this.waveAt(this.wave);
     this.wave++;
     this.goldMul = RULES.popGold(this.wave);
-    const D = this.map.data, tough = this.diff.tough(this.wave) * (D.tough ? D.tough(this.wave) : 1), more = this.diff.count;
+    const D = this.map.data, tough = this.diff.tough(this.wave) * (D.tough ? D.tough(this.wave) : 1), more = this.diff.count(this.wave);
     for (const g of wave.groups) {
       const mods = { hpMul: (g.hpMul || 1) * tough, speedMul: g.speedMul || 1, veiled: !!g.veiled, mending: !!g.mending };
       // A boss's own health multiplier doesn't pass to what it sheds or summons.
@@ -531,7 +531,8 @@ export class Game {
   leakLives(e) {
     const n = this.leakCost(e);
     if (this.endless && this.wave > this.waves.length) return Math.min(e.def.boss ? RULES.endlessBossLeak : RULES.endlessMaxLeak, n);
-    return e.def.boss ? n : Math.min(RULES.maxLeak, n);
+    if (e.def.boss) return this.diff.bossLeak ? Math.min(this.diff.bossLeak, n) : n;   // (Easy caps a boss's leak)
+    return Math.min(this.diff.maxLeak || RULES.maxLeak, n);
   }
 
   leak(e) {
