@@ -876,6 +876,10 @@ function wander(game, t, dt) {
   game.pickTargets(t, n, targets);
   s.range = R;
   const boost = t.buffT > 0 ? t.buffRate : 1;
+  // Several lights keep apart: idle they wheel round the post on a ring that grows with their
+  // number, and in a fight each takes its own place on a fan facing the post, so they never
+  // gather into one spot (a crowd, or one shared target, used to pull them all together).
+  const gap = lightGap(t), ring = n > 1 ? Math.max(10 + 6 * n, (gap * n) / 4.5) : 0;
   for (let i = 0; i < n; i++) {
     const L = t.lights[i];
     if (L.recoil > 0) L.recoil = Math.max(0, L.recoil - dt * 5);
@@ -885,16 +889,23 @@ function wander(game, t, dt) {
     let gx, gy;
     if (e) {
       const dx = L.x - e.x, dy = L.y - e.y, d = Math.hypot(dx, dy) || 1, want = Math.min(d, R * 0.5);
-      gx = e.x + (dx / d) * want; gy = e.y + (dy / d) * want;
+      if (n > 1) {
+        const a = Math.atan2(t.hy - e.y, t.hx - e.x) + (i - (n - 1) / 2) * LIGHT_FAN;
+        gx = e.x + Math.cos(a) * R * 0.5; gy = e.y + Math.sin(a) * R * 0.5;
+      } else { gx = e.x + (dx / d) * want; gy = e.y + (dy / d) * want; }
     } else {
       const a = (i / Math.max(1, n)) * TAU + game.time * 0.4;
-      gx = t.hx + (n > 1 ? Math.cos(a) * 16 : 0); gy = t.hy + (n > 1 ? Math.sin(a) * 9 : 0);
+      gx = t.hx + Math.cos(a) * ring; gy = t.hy + Math.sin(a) * ring * 0.55;
     }
     const lx = gx - t.hx, ly = gy - t.hy, ld = Math.hypot(lx, ly);
     if (ld > s.leash) { gx = t.hx + (lx / ld) * s.leash; gy = t.hy + (ly / ld) * s.leash; }
     const mx = gx - L.x, my = gy - L.y, md = Math.hypot(mx, my), step = s.moveSpeed * dt;
     if (md > 0.5) { const k = Math.min(1, step / md); L.x += mx * k; L.y += my * k; }
     L.tgt = e;
+  }
+  if (n > 1) spreadLights(t, n, s.leash, gap, dt);
+  for (let i = 0; i < n; i++) {
+    const L = t.lights[i], e = L.tgt;
     if (e) { const want = Math.atan2(e.y - L.y, e.x - L.x); let d = ((want - L.ang + Math.PI) % TAU + TAU) % TAU - Math.PI; L.ang += Math.abs(d) < 9 * dt ? d : Math.sign(d) * 9 * dt; }
     if (e && L.cd <= 0 && (e.x - L.x) ** 2 + (e.y - L.y) ** 2 <= (R + e.r * 0.5) ** 2) {
       L.cd += 1 / s.rate;
@@ -910,6 +921,31 @@ function wander(game, t, dt) {
   }
   const L0 = t.lights[0];
   t.x = L0.x; t.y = L0.y; t.ang = L0.ang; t.recoil = L0.recoil; t.target = L0.tgt;
+}
+// A Swarm's lights in a fight stand on a fan round their target, this far apart (radians), and any
+// two closer than their gap drift apart, so each light stays a light of its own. A tier 5's lights
+// are drawn half as big again, so they keep further apart. Lights one above the other hide each
+// other more (the three-quarter view), so height counts for only LIGHT_TALL of a distance.
+const LIGHT_FAN = 0.62, LIGHT_TALL = 0.6;
+function lightGap(t) { return Math.max(t.tiers[0], t.tiers[1], t.tiers[2]) >= 5 ? 46 : 30; }
+function spreadLights(t, n, leash, gap, dt) {
+  const most = 90 * dt;
+  for (let i = 0; i < n; i++) {
+    const A = t.lights[i];
+    for (let j = i + 1; j < n; j++) {
+      const B = t.lights[j];
+      let dx = B.x - A.x, dy = (B.y - A.y) * LIGHT_TALL, d = Math.hypot(dx, dy);
+      if (d >= gap) continue;
+      if (d < 0.01) { const a = (j / n) * TAU; dx = Math.cos(a); dy = Math.sin(a); d = 1; }
+      else { dx /= d; dy /= d; }
+      const k = Math.min((gap - d) / 2, most);
+      A.x -= dx * k; A.y -= (dy * k) / LIGHT_TALL; B.x += dx * k; B.y += (dy * k) / LIGHT_TALL;
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const L = t.lights[i], lx = L.x - t.hx, ly = L.y - t.hy, ld = Math.hypot(lx, ly);
+    if (ld > leash) { L.x = t.hx + (lx / ld) * leash; L.y = t.hy + (ly / ld) * leash; }
+  }
 }
 export function castStar(game, t, s, L, e, k, dmg, big = false, sky = false) {
   const a = Math.atan2(e.y - L.y, e.x - L.x) + (k ? (k % 2 ? 1 : -1) * 0.5 : 0);
