@@ -104,7 +104,7 @@ export class Menu {
       vol.addEventListener('input', () => s.setVolume(Number(vol.value) / 100));
       sound.append(vol);
     } else sound.append(el('span', 'menu-note', 'unavailable'));
-    const keys = el('p', 'menu-note', 'Keys: wards 1-9 0 - =, upgrades Q W E, abilities A-K and Z C V B, Flare X, pause Space, menu Esc, speed in the top bar.');
+    const keys = el('p', 'menu-note', 'Keys: wards 1-9 0 - =, upgrades Q W E, upgrade tree U, abilities A-K and Z C V B, Flare X, pause Space, menu Esc, speed in the top bar.');
     this.screen('Settings', skins, sound, keys, button('Back', 'menu-btn menu-back', back));
   }
 

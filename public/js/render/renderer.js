@@ -723,14 +723,14 @@ export class Renderer {
     this.drawLandmarks(ctx);
     this.drawZones(ctx, dt);
     this.drawAuras(ctx);
-    this.drawSnares(ctx, dt);
+    this.drawSnares(ctx, dt, ui);
 
     this.flameFx.drawGlow(ctx);
 
     const sel = ui.selected;
     if (sel && sel.stats.global) this.mapWide(ctx);
     else if (sel && sel.def.kind === 'snare') this.snareReach(ctx, sel);
-    else if (sel && sel.def.kind === 'wander') this.wanderReach(ctx, sel.hx, sel.hy, sel.stats, true);
+    else if (sel && sel.def.kind === 'wander') this.wanderReach(ctx, sel.hx, sel.hy, sel.stats, true, false);   // (its anchor marks the post)
     else if (sel) {
       this.rangeCircle(ctx, sel.x, sel.y, sel.stats.range, true, sel.stats.minRange);
       if (ui.previewRange && Math.abs(ui.previewRange - sel.stats.range) > 1) {
@@ -980,9 +980,10 @@ export class Renderer {
   }
 
   // Thornlight Snares lie flat on the road, under everything that walks over them; Flashmines too.
-  drawSnares(ctx, dt) {
+  drawSnares(ctx, dt, ui) {
     const g = this.game;
     for (const t of g.towers) if (t.def.onPath) this.drawWardAt(ctx, t, dt);
+    this.drawAnchors(ctx, ui && ui.selected);
     if (!g.mines.length) return;
     const img = this.mineSprite();
     for (const m of g.mines) {
@@ -991,6 +992,50 @@ export class Renderer {
       ctx.drawImage(img, m.x - 8, m.y - 8, 16, 16);
     }
     ctx.globalAlpha = 1;
+  }
+  // A Wandering Light's anchor: a rune-stone at its post (where it was placed, or moved to), lying
+  // with the ground so it never hides anything. It stays put while the light roams, so it's the easy
+  // thing to click to select the ward (ui.wardAt). A faint thread ties it to its light when they're
+  // apart. Shared by both skins (like the projectiles), in the light's Arcane violet.
+  drawAnchors(ctx, selected) {
+    let img = null, thread = false;
+    for (const t of this.game.towers) {
+      if (t.def.kind !== 'wander') continue;
+      img = img || this.anchorSprite();
+      const sel = selected === t;
+      ctx.globalAlpha = sel ? 1 : 0.8 + Math.sin(this.time * 2 + t.id) * 0.12;
+      ctx.drawImage(img, t.hx - 15, t.hy - 19, 30, 26);
+      if (this.quality > 0 && (t.x - t.hx) ** 2 + (t.y - t.hy) ** 2 > 30 * 30) {
+        if (!thread) { ctx.beginPath(); thread = true; }
+        ctx.moveTo(t.hx, t.hy - 8); ctx.lineTo(t.x, t.y);
+      }
+    }
+    ctx.globalAlpha = 1;
+    if (thread) { ctx.strokeStyle = 'rgba(216,184,255,0.28)'; ctx.lineWidth = 1.5; ctx.stroke(); }
+  }
+  anchorSprite() {
+    if (this._anchor) return this._anchor;
+    const c = document.createElement('canvas'), g = c.getContext('2d');
+    c.width = 60; c.height = 52;
+    g.scale(2, 2);   // drawn at 30 x 26
+    const cx = 15, cy = 19;
+    // a rune ring on the ground
+    const gr = g.createRadialGradient(cx, cy, 0, cx, cy, 14);
+    gr.addColorStop(0, 'rgba(200,160,255,0.55)'); gr.addColorStop(1, 'rgba(200,160,255,0)');
+    g.fillStyle = gr; g.beginPath(); g.ellipse(cx, cy, 14, 7, 0, 0, TAU); g.fill();
+    g.strokeStyle = '#1d1030'; g.lineWidth = 3; g.beginPath(); g.ellipse(cx, cy, 11.5, 5.6, 0, 0, TAU); g.stroke();
+    g.strokeStyle = '#c9a6ff'; g.lineWidth = 1.6; g.beginPath(); g.ellipse(cx, cy, 11.5, 5.6, 0, 0, TAU); g.stroke();
+    g.fillStyle = '#efe2ff';
+    for (let i = 0; i < 4; i++) { const a = (i / 4) * TAU + Math.PI / 4; g.beginPath(); g.arc(cx + Math.cos(a) * 11.5, cy + Math.sin(a) * 5.6, 1.3, 0, TAU); g.fill(); }
+    // the standing stone, with a glowing star cut into it
+    g.beginPath(); g.moveTo(cx - 4.5, cy + 1); g.lineTo(cx - 3.5, cy - 11); g.lineTo(cx, cy - 15); g.lineTo(cx + 3.5, cy - 11); g.lineTo(cx + 4.5, cy + 1); g.closePath();
+    g.fillStyle = '#4a3a78'; g.fill(); g.strokeStyle = '#1d1030'; g.lineWidth = 1.6; g.stroke();
+    g.beginPath(); g.moveTo(cx, cy - 15); g.lineTo(cx + 3.5, cy - 11); g.lineTo(cx + 4.5, cy + 1); g.lineTo(cx + 1, cy + 1); g.closePath();
+    g.fillStyle = '#2e2350'; g.fill();
+    g.fillStyle = '#f4ecff'; g.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * TAU) / 10, r = i % 2 ? 1.2 : 2.8; g.lineTo(cx + Math.cos(a) * r, cy - 7 + Math.sin(a) * r); }
+    g.closePath(); g.fill();
+    return (this._anchor = c);
   }
   // A Flashmine: a little lamp-seed with a white core (shared by both skins: the projectile rule).
   mineSprite() {
@@ -1068,15 +1113,17 @@ export class Renderer {
   }
   // A Wandering Light: where it roams (dashed, round its post) and what it can reach from there.
   // `s` is its stats (a placed ward) or the base stats (the placement preview): only `s` is read.
-  wanderReach(ctx, hx, hy, s, ok) {
+  wanderReach(ctx, hx, hy, s, ok, post = true) {
     this.rangeCircle(ctx, hx, hy, s.range + s.leash, ok);
     ctx.strokeStyle = ok ? 'rgba(216,184,255,0.9)' : 'rgba(255,90,90,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([3, 5]);
     ctx.beginPath(); ctx.arc(hx, hy, s.leash, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
-    // the post: a small rune on the ground
-    ctx.save(); ctx.translate(hx, hy); ctx.scale(1, 0.5);
-    ctx.strokeStyle = '#d8b8ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 9, 0, TAU); ctx.stroke();
-    ctx.beginPath(); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i * 2 * TAU) / 5; if (i) ctx.lineTo(Math.cos(a) * 7, Math.sin(a) * 7); else ctx.moveTo(Math.cos(a) * 7, Math.sin(a) * 7); } ctx.closePath(); ctx.stroke();
-    ctx.restore();
+    // the post: a small rune on the ground (a placed light has its anchor there instead)
+    if (post) {
+      ctx.save(); ctx.translate(hx, hy); ctx.scale(1, 0.5);
+      ctx.strokeStyle = '#d8b8ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 9, 0, TAU); ctx.stroke();
+      ctx.beginPath(); for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i * 2 * TAU) / 5; if (i) ctx.lineTo(Math.cos(a) * 7, Math.sin(a) * 7); else ctx.moveTo(Math.cos(a) * 7, Math.sin(a) * 7); } ctx.closePath(); ctx.stroke();
+      ctx.restore();
+    }
     if (s.torchRate) { ctx.strokeStyle = 'rgba(255,126,182,0.5)'; ctx.setLineDash([5, 7]); ctx.beginPath(); ctx.arc(hx, hy, s.torchRange, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
   }
 

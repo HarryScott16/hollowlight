@@ -3,13 +3,14 @@ import { MAP } from '../data/map.js';
 import { TOWERS, TOWER_ORDER, WARD_KEYS } from '../data/towers.js';
 import { ENEMIES, pops } from '../data/enemies.js';
 import { DAMAGE_TYPES } from '../data/damage.js';
-import { RULES, TARGET_MODES } from '../data/rules.js';
+import { RULES, TARGET_MODES, vaultRate } from '../data/rules.js';
 import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { upgradeInfo, computeStats, estimateDps } from '../sim/towers.js';
 import { drawWardIcon, nextSkin, skinName } from '../render/wardArt.js';
 import { drawEnemyIcon } from '../render/enemyArt.js';
 import { TestMode, testFromQuery, TEST_ALLOWED } from './testmode.js';
 import { bestFor, recordWave } from './records.js';
+import { UpgradeTree } from './tree.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -35,7 +36,7 @@ const yes = (b) => (b ? 'yes' : 'no');
 function statRows(def, s) {
   const k = def.kind;
   if (k === 'vault') {
-    const rows = [['Gathers from', s.gleanAll ? 'every kill (half outside)' : `range ${Math.round(s.range)}`], ['Share of bounty', pct(s.glean)], ['Cap', String(s.cap)], ['Growth per wave', pct(s.growth)]];
+    const rows = [['Gathers from', s.gleanAll ? 'every kill (half outside)' : `range ${Math.round(s.range)}`], ['Share of bounty', pct(s.glean)], ['Cap', String(s.cap)], ['Interest per wave', `${pct(s.growth)} (+2%/wave held)`], ['Interest grows it to', String(s.cap * RULES.vaultCeiling)]];
     if (s.warmRate) rows.push(['Warm boost', `+${pct(s.warmRate)} speed${s.warmDmg ? `, +${pct(s.warmDmg)} dmg` : ''}`], ['Warm from', `${pct(s.warmAt || 0.5)} full`]);
     return rows;
   }
@@ -175,6 +176,7 @@ export class UI {
     this.renderer.onCoin = () => this.bumpGold();
     this.syncMute();
     this.test = new TestMode(this);
+    this.tree = new UpgradeTree(this);
     if (typeof location !== 'undefined' && testFromQuery(location.search)) this.test.enable();
     window.addEventListener('resize', () => this.renderer.resize());
   }
@@ -188,7 +190,7 @@ export class UI {
       const def = TOWERS[type];
       const b = el('button', 'shop-btn');
       b.type = 'button';
-      b.title = `${def.name} (${WARD_KEYS[i]})`;
+      b.title = `${def.name} (${WARD_KEYS[i]}). Right-click: its upgrade tree`;
       const c = iconCanvas(48);
       drawWardIcon(c, type);
       this.shopIcons[type] = c;
@@ -205,8 +207,9 @@ export class UI {
         if (!this.justPicked && this.placing === type) this.setPlacing(null);
         this.justPicked = false;
       });
-      b.addEventListener('pointerenter', () => this.showShopInfo(type));
-      b.addEventListener('pointerleave', () => this.showShopInfo(this.placing));
+      b.addEventListener('pointerenter', () => { this.shopHover = type; this.showShopInfo(type); });
+      b.addEventListener('pointerleave', () => { this.shopHover = null; this.showShopInfo(this.placing); });
+      b.addEventListener('contextmenu', (ev) => { ev.preventDefault(); this.dragFrom = null; this.tree.show(type); });
       list.append(b);
       this.shopButtons[type] = b;
     });
@@ -217,12 +220,17 @@ export class UI {
     const info = $('shop-info');
     info.textContent = '';
     if (!type) {
-      info.textContent = 'Hover a ward to see what it does. Keys: 1-9, 0, - and = pick a ward (in shop order). Q W E upgrade the selected ward, R is its special action (cash out a Vault, move a Wandering Light). Abilities: A S D F G H J K for the first eight wards, Z C V B for the last four, X the Flare. Space pauses, Enter calls the next wave, Esc cancels, Shift shows numbers, ` shows FPS.';
+      info.textContent = 'Hover a ward to see what it does. Keys: 1-9, 0, - and = pick a ward (in shop order). Q W E upgrade the selected ward, U shows its upgrade tree (right-click a ward here for its tree), R is its special action (cash out a Vault, move a Wandering Light). Abilities: A S D F G H J K for the first eight wards, Z C V B for the last four, X the Flare. Space pauses, Enter calls the next wave, Esc cancels, Shift shows numbers, ` shows FPS.';
       return;
     }
     const def = TOWERS[type];
     const dt = DAMAGE_TYPES[def.base.type];
     info.append(el('b', null, `${def.name} - ${def.role}`), dt ? ` (${dt.name} damage). ${def.desc}` : `. ${def.desc}`);
+    const tree = el('button', 'tree-open', 'Upgrade tree  [U]');
+    tree.type = 'button';
+    tree.title = 'Every path and tier of this ward (also: right-click it in the shop)';
+    tree.addEventListener('click', () => this.tree.show(type));
+    info.append(' ', tree);
   }
 
   setPlacing(type) {
@@ -378,7 +386,24 @@ export class UI {
   }
 
   // Wards stand upright, so a click on a ward's body (above its footprint) selects it too.
-  wardAt(x, y) { return this.game.towerAt(x, y) || this.game.towerAt(x, y + 18) || this.game.towerAt(x, y + 34); }
+  // The ward under the pointer. A Wandering Light roams, so it can also be picked by its anchor
+  // (the rune-stone at its post, checked first: it's small and never moves) or any of its lights.
+  wardAt(x, y) {
+    for (const t of this.game.towers) {
+      if (t.def.kind !== 'wander') continue;
+      if ((t.hx - x) ** 2 + ((t.hy - 6) - y) ** 2 < 15 * 15) return t;
+    }
+    const hit = this.game.towerAt(x, y) || this.game.towerAt(x, y + 18) || this.game.towerAt(x, y + 34);
+    if (hit) return hit;
+    for (const t of this.game.towers) {
+      if (t.def.kind !== 'wander') continue;
+      for (let i = 1; i < t.lights.length; i++) {
+        const L = t.lights[i];
+        if ((L.x - x) ** 2 + (L.y - 16 - y) ** 2 < 22 * 22) return t;
+      }
+    }
+    return null;
+  }
 
   // Hidden test switch between the two ward skins (also ?skin=lantern / ?skin=kindling).
   toggleSkin() {
@@ -441,6 +466,11 @@ export class UI {
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
       if (ev.target && ev.target.type === 'number') return;   // typing in test mode's wave box
       const k = ev.key;
+      // The upgrade tree holds the game while it's open: Esc or U closes it, other keys wait.
+      if (this.tree.open) {
+        if (k === 'Escape' || k === 'u' || k === 'U') this.tree.close();
+        return;
+      }
       if (this.test.key(k)) return;
       if (k === 'T' && ev.shiftKey && !this.test.on && TEST_ALLOWED) {
         // Test mode sits behind Shift+T and a confirmation, so it can't start by accident.
@@ -470,6 +500,10 @@ export class UI {
       } else if (k === 'Escape') {
         if (this.moving) { this.moving = null; this.canvas.classList.remove('placing'); } else if (this.placing) this.setPlacing(null); else if (this.selected) this.select(null);
         else if (this.menu && !this.menu.open) this.menu.togglePause();   // nothing to cancel: the pause menu
+      } else if ((k === 'u' || k === 'U') && !(this.menu && this.menu.open)) {
+        // The upgrade tree: of the selected ward, else the ward being placed or hovered in the shop.
+        if (this.selected) this.tree.show(this.selected.type, this.selected);
+        else if (this.placing || this.shopHover) this.tree.show(this.placing || this.shopHover);
       } else if (k === '`') {
         this.renderer.showFps = !this.renderer.showFps;
       } else if (k === 'm' || k === 'M') {
@@ -545,13 +579,25 @@ export class UI {
     const s1 = el('span', null, def.kind === 'vault' ? 'Embers ' : aura ? 'Wards boosted ' : 'Damage dealt '), s2 = el('span', null, aura ? 'Gold earned ' : 'Layers broken ');
     s1.append(dmg); s2.append(kills);
     stats.append(s1, s2);
+    // A Vault's interest at the next wave clear (it climbs while the Vault is left alone).
+    let interest = null;
+    if (def.kind === 'vault') {
+      interest = el('b', null, '');
+      const s3 = el('span', null, 'Interest next wave ');
+      s3.title = 'Paid on its embers at each wave clear: +2% for every wave you leave it (up to +10%), and it can grow to twice the cap. Cashing out starts the bonus again.';
+      s3.append(interest);
+      stats.append(s3);
+    }
 
     // The numbers stay out of the way: hover the hint (or hold Shift) to see them.
     const numbers = el('div', 'tp-numbers');
     const grid = el('div', 'tp-grid');
     for (const [label, value] of statRows(def, t.stats).slice(0, 7)) grid.append(el('span', null, label), el('b', null, value));
     numbers.append(el('span', 'tp-hint', 'Numbers: hover here or hold Shift'), grid);
-    panel.append(head, stats, numbers);
+    const treeBtn = el('button', 'tree-open wide', 'Upgrade tree: every path and tier  [U]');
+    treeBtn.type = 'button';
+    treeBtn.addEventListener('click', () => this.tree.show(t.type, t));
+    panel.append(head, stats, numbers, treeBtn);
 
     // A Vault's cash-out and a Wandering Light's move, also on R.
     // (it shares a row with the Sell button, at the bottom of the panel)
@@ -643,7 +689,7 @@ export class UI {
     foot.append(sell);
     panel.append(foot);
 
-    this.panelRefs = { dmg, kills, upButtons, action };
+    this.panelRefs = { dmg, kills, upButtons, action, interest };
     this.updatePanel();
   }
 
@@ -651,7 +697,9 @@ export class UI {
     const refs = this.panelRefs, t = this.selected;
     if (!refs || !t) return;
     if (t.def.kind === 'vault') {
-      refs.dmg.textContent = `${Math.floor(t.bank)} / ${t.stats.cap}`;
+      refs.dmg.textContent = `${Math.floor(t.bank)} / ${t.stats.cap}${t.bank > t.stats.cap ? ` (to ${t.stats.cap * RULES.vaultCeiling})` : ''}`;
+      const it = `+${Math.round(vaultRate(t) * 100)}%`;
+      if (refs.interest.textContent !== it) refs.interest.textContent = it;
       refs.kills.textContent = fmt(t.goldEarned || 0);
       const txt = `Cash out ${Math.floor(t.bank)}  [R]`;
       if (refs.action.textContent !== txt) refs.action.textContent = txt;
