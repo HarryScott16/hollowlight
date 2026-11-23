@@ -6,7 +6,7 @@ import { RULES } from '../data/rules.js';
 import { Particles } from './particles.js';
 import { FlameFx } from './flames.js';
 import { paintBackground } from './background.js';
-import { drawWard, wardMuzzle, wardTop, wardBox, wardColor, initWardArt, setSkin, skinFromQuery, setWardRefresh, pruneWardCache } from './wardArt.js';
+import { drawWard, wardMuzzle, wardTop, wardBox, wardColor, initWardArt, setSkin, skinFromQuery, setWardRefresh, pruneWardCache, drawWardIcon, getSkin } from './wardArt.js';
 import { DMG, DETAIL, glow } from './wards/kit.js';
 import { drawEnemy, drawEnemyBody, flushEnemyBars, setEnemyBase, initSprites, ENEMY_COLORS } from './enemyArt.js';
 
@@ -153,7 +153,7 @@ export class Renderer {
       this._at.clear();
       for (const t of this.game.towers) {
         this._at.set(Math.round(t.x) * 4096 + Math.round(t.y), t);
-        for (let i = 1; i < t.lights.length; i++) this._at.set(Math.round(t.lights[i].x) * 4096 + Math.round(t.lights[i].y), this.lightWard(t, i));
+        for (let i = 1; i < t.lights.length; i++) this._at.set(Math.round(t.lights[i].x) * 4096 + Math.round(t.lights[i].y), t);   // a Swarm's casts are the ward's
       }
     }
     for (let i = 0; i < fx.length; i++) {
@@ -340,6 +340,7 @@ export class Renderer {
           S.shot();
           if (f.kind === 'wander') { // a cast: sparkles at the wand's star tip
             const w = this._at.get(Math.round(f.x) * 4096 + Math.round(f.y));
+            if (w && this.ghostCount(w)) break;   // a Swarm: the star sparkles out of a ghost (drawProjectiles)
             const m = w ? wardMuzzle(w, f.ang, this._m) : [f.x, f.y - 20];
             P.burst(m[0], m[1], 4, { color: '#e8d4ff', speed: 90, life: 0.25, size: 2.2, ang: f.ang, spread: 1.2 });
             break;
@@ -702,7 +703,7 @@ export class Renderer {
     // Wards redraw their live layer every 2nd frame (every 4th or 6th in big crowds), staggered.
     this.frameN = (this.frameN || 0) + 1;
     setWardRefresh([6, 4, 2][this.quality], this.frameN, [1.2, 1.6, 3][this.quality]);
-    if (this.frameN % 300 === 0) { const ids = new Set(); for (const t of game.towers) { ids.add(t.id); for (let i = 1; i < t.lights.length; i++) ids.add(-(t.id * 8 + i)); } pruneWardCache(ids); }
+    if (this.frameN % 300 === 0) { const ids = new Set(); for (const t of game.towers) ids.add(t.id); pruneWardCache(ids); }
     this.parts.cap = [500, 800, 1400][this.quality];
     this.parts.share = [0.35, 0.6, 1][this.quality];
     this.ringCap = [40, 90, 160][this.quality];
@@ -776,7 +777,6 @@ export class Renderer {
     for (const t of game.towers) {
       if (t.def.onPath) continue;   // Snares lie flat on the road (drawn with the ground)
       wards.push(t);
-      for (let i = 1; i < t.lights.length; i++) wards.push(this.lightWard(t, i));   // a Swarm's other lights
     }
     wards.sort(byY);
     this.drawBeams(ctx);
@@ -968,15 +968,58 @@ export class Renderer {
     }
   }
 
-  // A Swarm's extra lights are drawn as wards of their own (each with its own live layer).
-  lightWard(t, i) {
-    const m = this._lights || (this._lights = new Map()), key = t.id * 8 + i;
-    let w = m.get(key);
-    if (!w || w.src !== t) { w = { src: t, type: t.type, def: t.def, tiers: t.tiers, stats: t.stats, id: -key, x: 0, y: 0, hx: 0, hy: 0, ang: 0, recoil: 0, pulseAnim: 0, target: null, lights: [], bank: 0, charges: 0, bloomT: 0 }; m.set(key, w); }
-    const L = t.lights[i];
-    w.tiers = t.tiers; w.stats = t.stats; w.x = L.x; w.y = L.y; w.hx = t.hx; w.hy = t.hy; w.ang = L.ang; w.recoil = L.recoil; w.target = L.tgt;
-    if (m.size > 200) m.clear();
-    return w;
+  // A Swarm (the Wandering Light's middle path) is one ward with ghost lights wheeling round it: one
+  // at Two Lights, two at Wisp Swarm and Starswarm, six round the Starhost. They are only drawn: the
+  // simulation's lights are just the bookkeeping for its casts. They sit evenly spaced on a ring round
+  // the body at all times (attacking too), so they never merge, and every star the ward casts leaves
+  // from one of them (the one facing its target; one that has just cast lets the next take a turn).
+  // Each skin's own Wandering Light, small and see-through (shared code, so both skins get it).
+  ghostCount(t) { const n = t.def.kind === 'wander' ? t.stats.lights || 1 : 1; return n >= 5 ? 6 : n - 1; }
+  ghostsOf(t) {
+    const n = this.ghostCount(t), g = this._gh || (this._gh = []), box = this._gbox || (this._gbox = [0, 0, 0, 0]);
+    wardBox(t, box);
+    const R = (box[2] - box[0]) * 0.5 + 15, cy = box[1] + (box[3] - box[1]) * 0.55, spin = this.time * 0.7 + t.id * 1.3;
+    for (let k = 0; k < n; k++) {
+      const a = spin + (k / n) * TAU, G = g[k] || (g[k] = [0, 0, 0]);
+      G[0] = t.x + Math.cos(a) * R; G[1] = cy + Math.sin(a) * R * 0.42 + Math.sin(this.time * 2.3 + k * 1.9) * 2.5; G[2] = Math.sin(a);
+    }
+    g.length = n;
+    return g;
+  }
+  ghostSprite() {
+    const skin = getSkin();
+    if (this._ghost && this._ghostSkin === skin) return this._ghost;
+    const c = this._ghost || document.createElement('canvas');
+    c.width = c.height = 80;
+    drawWardIcon(c, 'wander', [0, 0, 0]);
+    this._ghostSkin = skin;
+    return (this._ghost = c);
+  }
+  // Ghosts behind the body (front = false) or in front of it (front = true).
+  drawSwarmGhosts(ctx, t, front) {
+    const img = this.ghostSprite(), gs = this.ghostsOf(t), z = 30;
+    for (const G of gs) {
+      if ((G[2] > 0) !== front) continue;
+      ctx.globalAlpha = 0.62 + 0.18 * (G[2] + 1) * 0.5;
+      ctx.drawImage(img, G[0] - z / 2, G[1] - z * 0.62, z, z);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // The ghost a star leaves from: the one most facing `ang`, letting one that cast a moment ago rest.
+  pickGhost(t, ang) {
+    const gs = this.ghostsOf(t), use = this._gUse || (this._gUse = new Map());
+    let last = use.get(t.id);
+    if (!last || last.length !== gs.length) { last = new Array(gs.length).fill(-9); use.set(t.id, last); }
+    if (use.size > 64) use.clear();
+    const ux = Math.cos(ang), uy = Math.sin(ang);
+    let best = 0, bestS = -Infinity;
+    for (let k = 0; k < gs.length; k++) {
+      const dx = gs[k][0] - t.x, dy = gs[k][1] - t.y, d = Math.hypot(dx, dy) || 1;
+      const sc = (dx * ux + dy * uy) / d - (this.time - last[k] < 0.3 ? 1.5 : 0);
+      if (sc > bestS) { bestS = sc; best = k; }
+    }
+    last[best] = this.time;
+    return gs[best];
   }
 
   // Thornlight Snares lie flat on the road, under everything that walks over them; Flashmines too.
@@ -1150,7 +1193,7 @@ export class Renderer {
       if (pop <= 0) this.pops.delete(t.id); else this.pops.set(t.id, pop);
     }
     const st = this._st;
-    st.ang = t.ang; st.recoil = t.recoil; st.time = this.time + Math.abs(t.id) * 0.37; st.pulse = t.pulseAnim; st.id = t.id;   // (a Swarm's extra lights have negative ids: art times stay positive)
+    st.ang = t.ang; st.recoil = t.recoil; st.time = this.time + Math.abs(t.id) * 0.37; st.pulse = t.pulseAnim; st.id = t.id;
     st.fill = t.def.kind === 'vault' ? Math.min(1, t.bank / t.stats.cap) : t.def.kind === 'snare' ? t.charges / t.stats.charges : t.def.kind === 'lure' ? Math.min(1, (t.lured || 0) / 3) : 0;
     st.warm = !!t.warm; st.bloom = t.bloomT > 0;
     const fl = t.def.kind === 'flame' && this.flameFx.state.get(t.id);
@@ -1159,7 +1202,10 @@ export class Renderer {
     if (tg && tg.alive) { st.tx = tg.x - t.x; st.ty = tg.y - t.y; } else { st.tx = null; st.ty = null; }
     // pop: quick overshoot then settle
     st.pop = pop > 0 ? Math.sin((1 - pop / POP_TIME) * Math.PI) * (pop / POP_TIME + 0.3) : 0;
+    const swarm = t.def.kind === 'wander' && this.ghostCount(t) > 0;
+    if (swarm) this.drawSwarmGhosts(ctx, t, false);
     drawWard(ctx, t, st);
+    if (swarm) this.drawSwarmGhosts(ctx, t, true);
   }
 
   drawFlash(ctx, dt) {
@@ -1476,10 +1522,17 @@ export class Renderer {
         // Bolts leave the crossbow up on the ward and drop to the target's height as they fly: the
         // offset from the footprint to the muzzle fades out over the first flight.
         if (p._ox === undefined && p.star) {
-          // A star leaves the wand of the light that cast it (that light's spot when it cast).
+          // A star leaves the wand of the light that cast it (that light's spot when it cast); a
+          // Swarm's star leaves from one of its ghosts, with a sparkle there.
           const w = p.src, A = this._starAt || (this._starAt = { type: 'wander', tiers: null, x: 0, y: 0 });
           A.tiers = w.tiers; A.x = p.ox; A.y = p.oy;
-          const m = wardMuzzle(A, Math.atan2(p.vy, p.vx), this._m), g = Math.hypot(p.vx, p.vy) || 1;
+          let m;
+          if (w && w.lights && this.ghostCount(w)) {
+            const ang = Math.atan2(p.vy, p.vx), G = this.pickGhost(w, ang), mm = this._m || (this._m = [0, 0]);
+            mm[0] = G[0] + Math.cos(ang) * 7; mm[1] = G[1] - 6 + Math.sin(ang) * 4; m = mm;
+            this.parts.burst(m[0], m[1], 4, { color: '#e8d4ff', speed: 90, life: 0.25, size: 2.2, ang, spread: 1.2 });
+          } else m = wardMuzzle(A, Math.atan2(p.vy, p.vx), this._m);
+          const g = Math.hypot(p.vx, p.vy) || 1;
           p._ox = m[0] - (p.ox + (p.vx / g) * 8); p._oy = m[1] - (p.oy + (p.vy / g) * 8);
           p._sx = p.x; p._sy = p.y;
           p._D = p.target ? Math.max(50, Math.hypot(p.target.x - p.x, p.target.y - p.y)) : 80;

@@ -21,6 +21,10 @@ On `master` (dev, :3001); not shipped to the live site.
   their stretch's full wave plus the bosses. Toughness grows 7.5% a wave past 40; the small Gloom stop
   growing (for the frame rate). A map's own ramp holds at its wave-40 value, and endless after wave 60
   carries on from Hard's toughness, not wave 40's.
+- **Swarm / Starhost drawing:** one ward with ghost lights wheeling round it (six round the Starhost),
+  evenly spaced at all times so they never merge; its stars leave from the ghosts. The simulation of
+  its lights is exactly as it was before the earlier "lights kept apart" fix, which is reverted (the
+  Hard table above has `mixed12` on Hollowmere at 32 with that revert; Medium is unchanged by it).
 - **Ashfork's ramp** is now x1.4 by wave 40 (was x1.3): with Strong targeting every medium build won
   Ashfork Medium with lives to spare.
 
@@ -65,7 +69,7 @@ Bot results, seed 1 (12 target builds):
 | mixed | medium | lost on 33 | lost on 37 | lost on 37 | lost on 33 |
 | mixedAlt | medium | lost on 31 | lost on 32 | lost on 33 | lost on 31 |
 | focused | medium | lost on 32 | lost on 36 | lost on 33 | lost on 32 |
-| mixed12 | medium | lost on 31 | lost on 35 | lost on 34 | lost on 32 |
+| mixed12 | medium | lost on 32 | lost on 35 | lost on 34 | lost on 32 |
 | strongAlt | strong | won 100 | lost on 59 | won 100 | lost on 59 |
 | strongThird | strong | lost on 60 | won 23 | won 100 | won 100 |
 | newA | strong | lost on 30 | lost on 30 | lost on 30 | lost on 30 |
@@ -208,8 +212,8 @@ Seed 1. On Medium the Hollowmere column is the existing suite, unchanged.
 | strong12 | strong | won 150 | won 135 | won 150 | won 150 |
 | strong12B | strong | won 150 | won 150 | won 150 | won 98 |
 
-Later fix (Starhost lights kept apart): only `mixed12` moved on Hollowmere Medium, the one build
-with several Swarm lights, from won 75 to **won 82**. The other maps and difficulties weren't rerun.
+(A Starhost fix that moved the Swarm's lights apart in the simulation briefly changed `mixed12` here;
+it was reverted: the lights' simulation is as it was, and only their drawing changed.)
 
 **Hard** (won: lives left of 100; lost: the wave)
 
