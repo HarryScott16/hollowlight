@@ -4,6 +4,7 @@ import { Renderer } from './render/renderer.js';
 import { UI } from './ui/ui.js';
 import { Sound } from './audio/sound.js';
 import { Menu } from './ui/menu.js';
+import { TEST_ALLOWED } from './ui/testmode.js';
 import { lastChoice, savedSkin } from './ui/records.js';
 import { setSkin } from './render/wardArt.js';
 
@@ -17,9 +18,9 @@ const SIM_BUDGET_MS = 8;
 
 const canvas = document.getElementById('game');
 // ?map=, ?difficulty= and ?test=1 skip the menus (for testing); otherwise the title screen opens
-// with the last map and difficulty played ready behind its Play button.
+// with the last map and difficulty played behind its Continue shortcut.
 const query = new URLSearchParams((typeof location !== 'undefined' && location.search) || '');
-const skipMenus = query.has('map') || query.has('difficulty') || query.has('test');
+const skipMenus = query.has('map') || query.has('difficulty') || (query.has('test') && TEST_ALLOWED);
 const lastPlayed = lastChoice();
 const game = new Game({ map: query.get("map") || lastPlayed.map, difficulty: query.get("difficulty") || lastPlayed.difficulty });
 if (!query.has('skin')) { const s = savedSkin(); if (s) setSkin(s); }   // ?skin= wins over the saved one

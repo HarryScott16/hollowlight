@@ -1,6 +1,17 @@
 # Hollowlight (tower defence)
 
 Canvas game, no dependencies and no build step. `npm start` serves `public/` on :3001.
+
+## Live site: never touch it without "ship it"
+
+Hollowlight is public at https://snake.reasonwave.ai (for now, until it has its own domain),
+served on :3000 from **`~/projects/td-live`**, a worktree of this repo on branch `live`, with
+`HOLLOWLIGHT_PUBLIC=1` (test mode off). Development is here in `~/projects/td` on `master`, on :3001.
+- **Never edit, commit in, or merge into `~/projects/td-live`** (or the `live` branch) unless Harry
+  says **"ship it"**. If you're running inside `td-live`, stop and work in `~/projects/td` instead.
+- "Ship it", the CSP rules, public mode and how to put the Snake game back: `docs/live-site.md`.
+- The public site has a strict CSP (`server.js` sends the same kind): no inline scripts or styles,
+  no `style=` attributes or `on...=` handlers, no eval, nothing from other sites.
 Checks: `node tools/smoke.js` (browser code against a stub DOM; it also places every ward by click, drag
 and key through the real UI handlers, takes every path to tier 5, checks the one-of-each limit, and
 uses its R action and ability), `node tools/bot.js` (balance; `--endless --cap=120` keeps going into
@@ -16,6 +27,7 @@ and a ward whose drawing fails only loses that ward (`Renderer.artError`). The f
 separately: an error is logged as `[Hollowlight] error in the ...` and counted in
 `window.hollowlight.frameErrors`, and the loop keeps running (smoke.js fails on any).
 Test mode for checking art: `?test=1` or Shift+T (unlimited gold and lives, wave jumping; `ui/testmode.js`).
+It is off on the public site (`js/site.js` says `PUBLIC`; the live server serves its own copy).
 Keys: wards 1-9, 0, -, = (shop order); Q W E upgrade; R the selected ward's action (cash out an Ember
 Vault, move a Wandering Light's post); abilities A S D F G H J K, then Z C V B; X the Flare.
 It lives only in the UI layer and must never touch the simulation, the bots or balance.
@@ -33,7 +45,8 @@ It lives only in the UI layer and must never touch the simulation, the bots or b
   lives, enemy toughness, wave size and the clear reward.
 - `Game.load(map, difficulty)`; the bot takes `--map=` and `--diff=`, and perf.mjs / canvascheck.mjs
   take `map=`.
-- Menus: `ui/menu.js` (title, map select, difficulty, settings, pause), records in `ui/records.js`
+- Menus: `ui/menu.js` (title -> Play -> map select -> difficulty -> game; a returning player also
+  gets a smaller "Continue: map, difficulty" shortcut; settings, pause), records in `ui/records.js`
   (best wave per map and difficulty, last choice, skin; test runs never count). `?map=`,
   `?difficulty=` and `?test=1` skip the menus; `?skin=` wins over the saved skin.
 

@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
 const PORT = Number(process.env.PORT) || 3001;
+// HOLLOWLIGHT_PUBLIC=1: this server is the public site (the live copy on :3000). It answers
+// /js/site.js with PUBLIC = true, which turns test mode off in the game.
+const PUBLIC = process.env.HOLLOWLIGHT_PUBLIC === '1';
+const SITE_JS = Buffer.from('// Served by server.js for the public site (HOLLOWLIGHT_PUBLIC=1).\nexport const PUBLIC = true;\n');
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -33,7 +37,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(403).end('Forbidden');
       return;
     }
-    const body = await fs.readFile(file);
+    const body = PUBLIC && pathname === '/js/site.js' ? SITE_JS : await fs.readFile(file);
     res.writeHead(200, {
       'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream',
       'Content-Length': body.length,
@@ -48,4 +52,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`[${new Date().toISOString()}] Hollowlight serving on :${PORT}`));
+server.listen(PORT, () => console.log(`[${new Date().toISOString()}] Hollowlight serving on :${PORT}${PUBLIC ? ' (public site: test mode off)' : ''}`));

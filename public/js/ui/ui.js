@@ -8,7 +8,7 @@ import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { upgradeInfo, computeStats, estimateDps } from '../sim/towers.js';
 import { drawWardIcon, nextSkin, skinName } from '../render/wardArt.js';
 import { drawEnemyIcon } from '../render/enemyArt.js';
-import { TestMode, testFromQuery } from './testmode.js';
+import { TestMode, testFromQuery, TEST_ALLOWED } from './testmode.js';
 import { bestFor, recordWave } from './records.js';
 
 const $ = (id) => document.getElementById(id);
@@ -442,7 +442,7 @@ export class UI {
       if (ev.target && ev.target.type === 'number') return;   // typing in test mode's wave box
       const k = ev.key;
       if (this.test.key(k)) return;
-      if (k === 'T' && ev.shiftKey && !this.test.on) {
+      if (k === 'T' && ev.shiftKey && !this.test.on && TEST_ALLOWED) {
         // Test mode sits behind Shift+T and a confirmation, so it can't start by accident.
         if (window.confirm && window.confirm('Turn on test mode? Unlimited gold and lives, and wave skipping. This run won\'t count. Reload the page to leave it.')) this.test.enable();
         return;

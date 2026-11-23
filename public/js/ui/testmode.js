@@ -1,13 +1,17 @@
 // Test mode, for checking art and effects quickly: unlimited gold and lives, and a way to jump to
 // any wave. It lives entirely in the UI layer: the simulation, the bots and balance never see it.
 //
-// Turn it on with ?test=1 in the URL, or Shift+T and confirm. It stays on until the page is
-// reloaded without ?test=1. While it's on, a TEST MODE panel sits in the bottom-left corner, and
-// the best endless wave isn't recorded.
+// Turn it on with ?test=1 in the URL, or Shift+T and confirm (never on the public site: site.js).
+// It stays on until the page is reloaded without ?test=1. While it's on, a TEST MODE panel sits in
+// the bottom-left corner, and the best endless wave isn't recorded.
 //   [ / ]   previous / next wave        Shift+]   ten waves ahead
+import { PUBLIC } from '../site.js';
+
 const GOLD = 1000000, LIVES = 1000000;
 
-export function testFromQuery(search) { return /[?&]test=(1|true|on)\b/i.test(search || ''); }
+// Test mode is for development only: the public site never allows it.
+export const TEST_ALLOWED = !PUBLIC;
+export function testFromQuery(search) { return TEST_ALLOWED && /[?&]test=(1|true|on)\b/i.test(search || ''); }
 
 export class TestMode {
   constructor(ui) {
@@ -17,7 +21,7 @@ export class TestMode {
   }
 
   enable() {
-    if (this.on) return;
+    if (this.on || !TEST_ALLOWED) return;
     this.on = true;
     this.ui.renderer.enableStateCheck();   // canvas state leaks are logged to the console while testing
     this.topUp();
