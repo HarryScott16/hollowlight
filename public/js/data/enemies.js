@@ -132,6 +132,21 @@ export const ENEMIES = {
     shed: [{ type: 'wisp', count: 18 }, { type: 'gloomwing', count: 18 }],
     tags: ['Boss', 'Frost-immune'], desc: 'The last boss. Frost can\'t hurt or slow it. At every fifth of its health it calls a new host (flyers, hulks, shields, Wisps), and when it falls it bursts into a swarm of Wisps and Gloomwings. Kill it early.',
   },
+
+  // ---- Hard's last stretch (waves 41-60) ---------------------------------------------------------
+  lastdark: {
+    name: 'The Last Dark', hp: 60000, speed: 22, gold: 9000, r: 38, tough: true, heavy: true, boss: true, slowRes: 0.75,
+    mult: { frost: 0.5 },
+    summon: { every: 6, type: 'dreadhulk', count: 1 },
+    phases: [
+      { at: 0.8, type: 'colossus', count: 2 }, { at: 0.8, type: 'gloomwing', count: 30 },
+      { at: 0.6, type: 'aegis', count: 16 }, { at: 0.6, type: 'mender', count: 6 },
+      { at: 0.4, type: 'colossus', count: 3 }, { at: 0.4, type: 'wisp', count: 30 },
+      { at: 0.2, type: 'gloomwing', count: 50 }, { at: 0.2, type: 'herald', count: 8 },
+    ],
+    shed: [{ type: 'colossus', count: 2 }, { type: 'wisp', count: 24 }],
+    tags: ['Boss', 'Heavy'], desc: 'The night itself, come for the last flame (Hard, wave 60). Frost does half, and barely slows it. It drags Dreadhulks behind it, calls a new host at every fifth of its health, and breaks into colossi and Wisps when it falls.',
+  },
 };
 
 // Total layers inside an enemy type (including everything it sheds and its boss phases).
@@ -153,6 +168,12 @@ for (const [type, d] of Object.entries(ENEMIES)) {
   if (d.heavy || !d.shed || d.shed.length !== 1 || d.shed[0].count !== 1) continue;
   PARENT[d.shed[0].type] = type;
 }
+
+// How tough a kind of Gloom is, for "Strong" targeting: everything inside it (its total layers, as
+// above), so a boss outranks a Gloomcolossus, which outranks a Dreadhulk, then the shells and so on.
+// It ranks the kind, not the health left, so a ward keeps working on the biggest thing in reach
+// instead of switching to a fresh one of the same kind.
+for (const type of Object.keys(ENEMIES)) ENEMIES[type].rank = pops(type);
 
 // Enemies with an aura or a timed action get a pass after the spatial grid is built each step.
 for (const d of Object.values(ENEMIES)) d.special = !!(d.haste || d.heal || d.summon);

@@ -71,8 +71,9 @@ export const MAPS = {
     ],
     treeCount: 20,
     seed: 23,
-    // The merged road is one long killing ground: the late waves need more to them here.
-    tough: (wave) => 1 + 0.015 * Math.max(0, wave - 20),
+    // The merged road is one long killing ground: the late waves need more to them here (x1.4 by
+    // wave 40; it was x1.3 until Strong targeting made medium builds win here with lives to spare).
+    tough: (wave) => 1 + 0.02 * Math.max(0, wave - 20),
   },
 
   rimecoil: {

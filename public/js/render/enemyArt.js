@@ -11,7 +11,7 @@ export const ENEMY_COLORS = {
   mote: '#d9ff3d', skitter: '#ff5a2e', shambler: '#a25cff', brood: '#22d36f',
   husk: '#7f93b8', dreadhulk: '#4a5578', colossus: '#6a3a8f', gravemaw: '#ff2d55',
   herald: '#ffb020', gloomwing: '#ff4fd8', aegis: '#3aa0ff', nullback: '#3f8f86', wisp: '#c8f5ff',
-  mender: '#e8fff0', veilmother: '#b9a6ff', bastion: '#9aa8c0', hollowking: '#3b2a6b',
+  mender: '#e8fff0', veilmother: '#b9a6ff', bastion: '#9aa8c0', hollowking: '#3b2a6b', lastdark: '#0b0614',
 };
 
 function eye(ctx, x, y, r, color = '#fff36b') {
@@ -354,6 +354,51 @@ Object.assign(ART, {
     for (let i = 0; i <= 6; i++) { const y = -14 + i * (28 / 6); ctx.lineTo(i % 2 ? 26 : 16, y); }
     ctx.lineTo(8, 14); ctx.closePath(); ctx.fill(); outline(ctx, 2);
     eye(ctx, 18, -5, 2.6, '#7fe8ff'); eye(ctx, 18, 5, 2.6, '#7fe8ff');
+  },
+
+  // The Last Dark (Hard's wave 60): an eclipse that walks. A black sun ringed by a guttering corona,
+  // a mantle of night trailing behind it, a white rim like the last of the light, many pale eyes.
+  lastdark(ctx, e) {
+    const b = Math.sin(e.wob * 0.6), w = e.wob * 0.35;
+    // the mantle: ragged night streaming back
+    ctx.fillStyle = '#140a24';
+    ctx.beginPath();
+    ctx.moveTo(10, -30);
+    for (let i = 0; i <= 8; i++) {
+      const u = i / 8, y = -36 + u * 72, x = -40 - (i % 2 ? 22 : 8) - Math.sin(e.wob * 1.3 + i) * 5;
+      ctx.lineTo(x, y + b * 3);
+    }
+    ctx.lineTo(10, 30); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#6b3bd6'; ctx.lineWidth = 2; ctx.stroke();
+    // the corona: flame tongues round the rim, slowly turning
+    ctx.fillStyle = '#ff8a2a';
+    ctx.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const a = w + (i / 16) * TAU, a2 = a + TAU / 32, L = 44 + (i % 2 ? 4 : 9) + Math.sin(e.wob * 2 + i * 1.7) * 3;
+      ctx.moveTo(Math.cos(a - 0.12) * 32, Math.sin(a - 0.12) * 32); ctx.lineTo(Math.cos(a2) * L, Math.sin(a2) * L); ctx.lineTo(Math.cos(a + 0.24) * 32, Math.sin(a + 0.24) * 32);
+    }
+    ctx.fill();
+    ctx.fillStyle = '#ffd36b';
+    ctx.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const a = w + (i / 16) * TAU + 0.1, L = 39 + (i % 3) * 2;
+      ctx.moveTo(Math.cos(a - 0.08) * 33, Math.sin(a - 0.08) * 33); ctx.lineTo(Math.cos(a + 0.05) * L, Math.sin(a + 0.05) * L); ctx.lineTo(Math.cos(a + 0.18) * 33, Math.sin(a + 0.18) * 33);
+    }
+    ctx.fill();
+    // the black sun
+    ctx.fillStyle = ENEMY_COLORS.lastdark;
+    ctx.beginPath(); ctx.arc(0, 0, 34, 0, TAU); ctx.fill(); outline(ctx, 3.4);
+    // the last light: a thin white crescent on its leading edge
+    ctx.strokeStyle = '#fff6e0'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, 31, -1.1, 1.1); ctx.stroke();
+    // a hollow crown of black spikes
+    ctx.fillStyle = '#2a1650';
+    ctx.beginPath(); ctx.moveTo(12, -22);
+    for (let i = 0; i <= 8; i++) { const y = -22 + i * (44 / 8); ctx.lineTo(i % 2 ? 34 : 24, y); }
+    ctx.lineTo(12, 22); ctx.closePath(); ctx.fill(); outline(ctx, 2);
+    // many pale eyes, blinking out of step
+    const eyes = [[18, -10, 3], [18, 10, 3], [8, 0, 3.6], [0, -16, 2.2], [0, 16, 2.2], [-10, -6, 1.8], [-10, 8, 1.8]];
+    eyes.forEach(([x, y, r], i) => { const o = Math.sin(e.wob * 0.9 + i * 2.3) > -0.85; if (o) eye(ctx, x, y, r, i < 3 ? '#e8f4ff' : '#b9a6ff'); });
   },
 });
 

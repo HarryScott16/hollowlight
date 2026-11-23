@@ -1,7 +1,7 @@
 // Tower state, upgrade rules and attack behaviours. No DOM access.
 import { TOWERS } from '../data/towers.js';
 import { RULES } from '../data/rules.js';
-import { applySlow } from './enemies.js';
+import { applySlow, strongScore } from './enemies.js';
 import { mark, addZone, newBolt, newShell } from './projectiles.js';
 
 const TAU = Math.PI * 2;
@@ -116,7 +116,7 @@ export function createTower(game, type, x, y) {
     beams: [], sunT: 0, spreadTokens: 0, burstTokens: 0, aura: null, firing: false,
     hx: x, hy: y,                                    // a Wandering Light's post (it floats around it)
     charges: def.base.charges || 0, bloomT: 0, mineT: 0, rootCd: 0, heavyCd: 0, pathDist: 0, route: 0,   // Snare (route: which road)
-    lights: [], bank: 0, warm: false, goldEarned: 0, // Wandering Light's lights; Ember Vault's embers
+    lights: [], bank: 0, held: 0, warm: false, goldEarned: 0, // Wandering Light's lights; Ember Vault's embers
     disc: 0,                                         // upgrade discount (a Golden Age Beacon)
     fresh: 0, freshWave: -1, groundBonus: 0, lured: 0, pathNear: undefined, nearPath: null, phx: null, sold: false,   // set later (one shape for every ward)
     t5T: 0, t5N: 0, splitTokens: 0, eruptTokens: 0, markTokens: 0,   // tier 5 timers and rate limits
@@ -524,7 +524,7 @@ function flame(game, t, dt) {
     const d2 = (e.x - t.x) ** 2 + (e.y - t.y) ** 2;
     if (d2 > (s.range + e.r * 0.5) ** 2) continue;
     e._d2 = d2;
-    const sc = mode === 'first' ? e.dist * e.prog : mode === 'last' ? -e.dist * e.prog : mode === 'strong' ? (e.hp + e.shield) * 10000 + e.dist : -d2;
+    const sc = mode === 'first' ? e.dist * e.prog : mode === 'last' ? -e.dist * e.prog : mode === 'strong' ? strongScore(e) : -d2;
     if (sc > bestS) { bestS = sc; best = e; }
   }
   t.target = best;

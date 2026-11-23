@@ -48,7 +48,7 @@
 //           bursts on hit), markPct/markDur/markRadius, torchRate/torchDmg/torchRange (boost to wards
 //           near its post)
 //   vault   banks embers from Gloom that die in range: glean (share of their bounty, x max(gold rate,
-//           0.15)), cap, growth (per wave cleared), gleanAll (also from kills anywhere, at half rate),
+//           0.15)), cap, growth (interest per wave cleared; RULES.vault*), gleanAll (also from kills anywhere, at half rate),
 //           warmRate/warmDmg/warmAt (wards in range attack faster while it is over warmAt full)
 
 export const PATH_COLORS = ['#ffae2b', '#2fe0ff', '#c86bff'];
@@ -346,14 +346,14 @@ export const TOWERS = {
 
   vault: {
     name: 'Ember Vault', role: 'Economy', cost: 400, kind: 'vault',
-    desc: 'Never attacks. Gloom that die in its light drop embers into it, and stored embers grow each wave, up to its cap (then it stops collecting). Select it and press R to cash out.',
+    desc: 'Never attacks. Gloom that die in its light drop embers into it, up to its cap. Stored embers earn interest each wave clear (10%, +2% for every wave you leave it, up to +10%), and interest can grow them to twice the cap. Select it and press R to cash out (the bonus starts again).',
     base: { damage: 0, range: 110, type: null, glean: 0.5, cap: 300, growth: 0.1 },
     paths: [
-      { name: 'Great Brazier', blurb: "A bigger brazier that holds more and grows faster.", tiers: [
+      { name: 'Great Brazier', blurb: "A bigger brazier that holds more and earns more interest.", tiers: [
         { name: 'Deep Pan', blurb: "Holds twice as much.", cost: 150, desc: 'Cap 600.', set: { cap: 600 } },
-        { name: 'Banked Coals', blurb: "Holds more, and grows faster.", cost: 350, desc: 'Cap 1,000. Grows 15% a wave.', set: { cap: 1000, growth: 0.15 } },
-        { name: 'Great Brazier', blurb: "A roaring brazier that gathers more from each kill.", cost: 1000, desc: 'Cap 2,500. Grows 20% a wave. Gathers 75% of bounties.', set: { cap: 2500, growth: 0.2, glean: 0.75 } },
-        { name: 'Everburning Hearth', blurb: "A hearth that never dims: a fortune for the patient.", cost: 4000, desc: 'Cap 6,000. Grows 25% a wave. Gathers 100% of bounties.', set: { cap: 6000, growth: 0.25, glean: 1 } },
+        { name: 'Banked Coals', blurb: "Holds more, and earns more interest.", cost: 350, desc: 'Cap 1,000. Interest 15% a wave.', set: { cap: 1000, growth: 0.15 } },
+        { name: 'Great Brazier', blurb: "A roaring brazier that gathers more from each kill.", cost: 1000, desc: 'Cap 2,500. Interest 20% a wave. Gathers 75% of bounties.', set: { cap: 2500, growth: 0.2, glean: 0.75 } },
+        { name: 'Everburning Hearth', blurb: "A hearth that never dims: a fortune for the patient.", cost: 4000, desc: 'Cap 6,000. Interest 25% a wave. Gathers 100% of bounties.', set: { cap: 6000, growth: 0.25, glean: 1 } },
       ] },
       { name: 'Gleaners', blurb: "Ember-wisps gather from further and further away.", tiers: [
         { name: 'Long Tongs', blurb: "Gathers from further away.", cost: 120, desc: '+30 range.', add: { range: 30 } },
@@ -459,7 +459,7 @@ const TIER5 = {
     { name: 'Dawnbringer', blurb: "A great torch: nearby wards fight much harder, and marked deaths spread the mark.", cost: 18000, desc: 'Wards within 180 of its post attack 45% faster and deal 30% more. Marked Gloom that die mark everything within 80 (up to 10 a second). x2 damage.', mul: { damage: 2 }, set: { torchRate: 0.45, torchDmg: 0.3, torchRange: 180, markBurst: 80, markBurstRate: 10 } },
   ],
   vault: [
-    { name: "Dragon's Hoard", blurb: "A dragon's hoard: a vast cap, fast growth, and big cash-outs pay extra.", cost: 18000, desc: 'Cap 20,000. Grows 30% a wave. Cashing out 5,000 or more pays 20% extra.', set: { cap: 20000, growth: 0.3, hoardBonus: 0.2, hoardMin: 5000 } },
+    { name: "Dragon's Hoard", blurb: "A dragon's hoard: a vast cap, high interest, and big cash-outs pay extra.", cost: 18000, desc: 'Cap 20,000. Interest 30% a wave. Cashing out 5,000 or more pays 20% extra.', set: { cap: 20000, growth: 0.3, hoardBonus: 0.2, hoardMin: 5000 } },
     { name: 'Ember Tide', blurb: "Embers flow from every kill at full rate, and it pays out every wave.", cost: 17000, desc: 'Gathers 250% of bounties from every kill on the map, at full rate. +4,000 cap. Empties into your gold at each wave clear.', add: { cap: 4000 }, set: { glean: 2.5, gleanFull: true, autoCash: true } },
     { name: 'Second Heartfire', blurb: "Always warm, and it guards the Heartfire with its embers.", cost: 19000, desc: 'Always warm: wards in range attack 50% faster and deal 35% more. When an enemy gets through, it pays 40 embers for each life instead of you.', set: { warmRate: 0.5, warmDmg: 0.35, warmAt: 0, guard: 40 } },
   ],

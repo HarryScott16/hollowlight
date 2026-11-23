@@ -2,18 +2,18 @@
 // The renderer learns what happened through `game.fx`, a queue of small event objects.
 import { mapById } from '../data/maps.js';
 import { difficultyById } from '../data/difficulty.js';
-import { RULES } from '../data/rules.js';
+import { RULES, vaultRate } from '../data/rules.js';
 import { TOWERS } from '../data/towers.js';
-import { WAVES } from '../data/waves.js';
+import { WAVES, campaignWaves } from '../data/waves.js';
 import { ENEMIES, pops } from '../data/enemies.js';
 import { SHIELD_MULT } from '../data/damage.js';
 import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { buildMap, mulberry32 } from './path.js';
 import { Grid } from './grid.js';
-import { createEnemy, updateEnemy, inherit, applySlow, regrow } from './enemies.js';
+import { createEnemy, updateEnemy, inherit, applySlow, regrow, strongScore } from './enemies.js';
 import { createTower, computeStats, upgradeInfo, updateTower, snipeHit, ignite, startLure, castStar, updateOrbs } from './towers.js';
 import { updateProjectiles, updateZones, launchShell, updateMines, isLow } from './projectiles.js';
-import { endlessWave } from './endless.js';
+import { endlessWave, endlessToughAfter } from './endless.js';
 
 const scratch = [];
 const buf = [];
@@ -35,6 +35,7 @@ export class Game {
       this.grid = new Grid(data.width, data.height);
     }
     this.diff = difficultyById(diffId);
+    this.waves = campaignWaves(this.diff.campaign || WAVES.length);   // 40 waves, or Hard's 60
     this.reset();
   }
 
@@ -116,7 +117,12 @@ export class Game {
     const wave = this.waveAt(this.wave);
     this.wave++;
     this.goldMul = RULES.popGold(this.wave);
-    const D = this.map.data, tough = this.diff.tough(this.wave) * (D.tough ? D.tough(this.wave) : 1), more = this.diff.count(this.wave);
+    const D = this.map.data, more = this.diff.count(this.wave);
+    // A map's own ramp evens out a 40-wave campaign: it holds at its wave-40 value through Hard's
+    // waves 41-60, and endless after them picks it up from there (on a 40-wave campaign: as is).
+    const len = this.waves.length, mapWave = this.wave <= len ? Math.min(this.wave, 40) : this.wave - (len - 40);
+    let tough = this.diff.tough(this.wave) * (D.tough ? D.tough(mapWave) : 1);
+    if (this.wave > this.waves.length) tough *= endlessToughAfter(this.waves.length);   // (after Hard's 60)
     for (const g of wave.groups) {
       const mods = { hpMul: (g.hpMul || 1) * tough, speedMul: g.speedMul || 1, veiled: !!g.veiled, mending: !!g.mending };
       // A boss's own health multiplier doesn't pass to what it sheds or summons.
@@ -213,6 +219,7 @@ export class Game {
     if (!t || !t.bank || this.over) return 0;
     const n = Math.floor(t.bank);
     t.bank -= n;
+    t.held = 0;   // the interest bonus for leaving it starts again
     // Dragon's Hoard: a big cash-out pays extra.
     const extra = t.stats.hoardBonus && n >= t.stats.hoardMin ? Math.floor(n * t.stats.hoardBonus) : 0;
     t.goldEarned = (t.goldEarned || 0) + n + extra;
@@ -337,7 +344,7 @@ export class Game {
       let score;
       if (mode === 'first') score = e.dist * e.prog;
       else if (mode === 'last') score = -e.dist * e.prog;
-      else if (mode === 'strong') score = (e.hp + e.shield) * 10000 + e.dist;
+      else if (mode === 'strong') score = strongScore(e);
       else score = -d2;
       e._score = score;
       scratch.push(e);
@@ -858,7 +865,12 @@ export class Game {
       if (payer) payer.goldEarned = (payer.goldEarned || 0) + tithe + interest;
       for (const t of this.towers) {
         if (t.def.kind === 'snare') t.charges = t.stats.charges;
-        else if (t.def.kind === 'vault' && t.bank > 0 && t.bank < t.stats.cap) t.bank = Math.min(t.stats.cap, t.bank * (1 + t.stats.growth));
+        else if (t.def.kind === 'vault' && t.bank > 0) {
+          // Interest: grows past the cap (up to the ceiling), and more the longer it's left.
+          const top = t.stats.cap * RULES.vaultCeiling;
+          if (t.bank < top) t.bank = Math.min(top, t.bank * (1 + vaultRate(t)));
+          t.held = (t.held || 0) + 1;
+        }
       }
       // Ember Tide: pays out by itself at each wave clear.
       for (const t of this.towers) if (t.stats.autoCash && t.bank >= 1) this.cashOut(t);

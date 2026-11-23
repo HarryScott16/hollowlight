@@ -6,7 +6,7 @@
 //   - any canvas state left behind by a frame section on the game canvas: unbalanced save/restore,
 //     a clip still active, alpha, blend mode or line dash not back to normal.
 //
-//   CANVAS_MODULES=<dir>/node_modules node tools/canvascheck.mjs [wave=60] [frames=1500] [only=mortar:1,...] [map=hollowmere]
+//   CANVAS_MODULES=<dir>/node_modules node tools/canvascheck.mjs [wave=60] [frames=1500] [only=mortar:1,...] [map=hollowmere] [diff=medium]
 // only=type:path,... limits the wards (path 0-2 = Q W E). Exits non-zero on any problem.
 import { startGame } from './harness.mjs';
 import { TOWERS, TOWER_ORDER } from '../public/js/data/towers.js';
@@ -22,7 +22,7 @@ const errs = [];
 const ce = console.error;
 console.error = (...a) => { errs.push(a.map((x) => (x && x.stack) || String(x)).join(' ')); };
 
-const { g, ui, frames, key, createCanvas } = await startGame({ dpr: 1, query: `?map=${arg('map', 'hollowmere')}` });
+const { g, ui, frames, key, createCanvas } = await startGame({ dpr: 1, query: `?map=${arg('map', 'hollowmere')}&difficulty=${arg('diff', 'medium')}` });
 
 // 1. calls a browser would throw on, on every canvas
 const proto = Object.getPrototypeOf(createCanvas(1, 1).getContext('2d'));

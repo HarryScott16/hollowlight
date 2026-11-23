@@ -1,3 +1,90 @@
+# Update 2026-11-23: upgrade tree, Vault interest, Wandering Light anchor, Strong targeting, Hard to 60
+
+On `master` (dev, :3001); not shipped to the live site.
+
+- **Upgrade tree** (`ui/tree.js`, key **U**): all three paths, tiers 1-5, each tier's one-line
+  description and cost, marked Owned / Next / Later / Locked (with the reason: two paths taken,
+  another path past tier 2, or this tier 5 held by another ward of the kind). Opened from the upgrade
+  panel (where clicking a Next tier buys it) and from the shop (right-click a ward, the button in the
+  shop's info line, or U while hovering or placing one). The game holds while it's open.
+- **Ember Vault interest:** paid on its embers at each wave clear: its rate (10% base, 15-30% up the
+  Great Brazier path) plus 2% for every wave it's left uncashed (up to +10%). Kills fill it to its cap
+  as before; interest can grow it to twice the cap. Cashing out resets the bonus. Holding it means
+  compounding interest instead of the kills it no longer collects.
+- **Wandering Light anchor:** a rune-stone at its post, drawn with the ground (both skins), with a
+  faint thread to the light when it roams off. Clicking the anchor (or any of a Swarm's lights) selects it.
+- **Strong targeting:** ranks enemies by kind (total layers: boss > colossus > hulk > shells > ...),
+  then by how far along the road they are. Used by every ward on Strong (Longeye and Prism by default).
+- **Hard is 60 waves.** 41-44 the iron tide, 45-49 a dark sky, 50 the Bastion and Veilmother together,
+  51-54 the siege, 55-59 the last hours, 60 **The Last Dark** (a new boss: a black sun with a corona
+  that drags Dreadhulks behind it and calls a host at every fifth of its health). The boss waves are
+  their stretch's full wave plus the bosses. Toughness grows 7.5% a wave past 40; the small Gloom stop
+  growing (for the frame rate). A map's own ramp holds at its wave-40 value, and endless after wave 60
+  carries on from Hard's toughness, not wave 40's.
+- **Ashfork's ramp** is now x1.4 by wave 40 (was x1.3): with Strong targeting every medium build won
+  Ashfork Medium with lives to spare.
+
+Bot results, seed 1 (12 target builds):
+
+**Easy** (won: lives left of 250; lost: the wave)
+| Build | Group | Hollowmere | Ashfork | Rimecoil | Mirefen |
+|---|---|---|---|---|---|
+| lazy | lazy | lost on 11 | lost on 11 | lost on 11 | lost on 11 |
+| minimal | lazy | lost on 12 | lost on 12 | lost on 15 | lost on 11 |
+| lazyTier1 | lazy | lost on 12 | lost on 13 | lost on 16 | lost on 11 |
+| mixed | medium | won 250 | won 250 | won 250 | won 250 |
+| mixedAlt | medium | won 250 | won 250 | won 250 | won 250 |
+| focused | medium | won 250 | won 250 | won 250 | won 250 |
+| mixed12 | medium | won 250 | won 250 | won 250 | won 249 |
+| strongAlt | strong | won 250 | won 250 | won 250 | won 250 |
+| strongThird | strong | won 250 | won 250 | won 250 | won 250 |
+| newA | strong | won 250 | won 250 | won 250 | won 250 |
+| strong12 | strong | won 250 | won 250 | won 250 | won 250 |
+| strong12B | strong | won 250 | won 250 | won 250 | won 250 |
+**Medium** (won: lives left of 150)
+| Build | Group | Hollowmere | Ashfork | Rimecoil | Mirefen |
+|---|---|---|---|---|---|
+| lazy | lazy | lost on 9 | lost on 9 | lost on 9 | lost on 7 |
+| minimal | lazy | lost on 9 | lost on 10 | lost on 10 | lost on 8 |
+| lazyTier1 | lazy | lost on 10 | lost on 10 | lost on 10 | lost on 9 |
+| mixed | medium | won 150 | won 150 | won 150 | won 74 |
+| mixedAlt | medium | lost on 39 | lost on 40 | won 150 | lost on 39 |
+| focused | medium | won 78 | won 83 | won 27 | won 130 |
+| mixed12 | medium | lost on 40 | won 138 | lost on 40 | won 150 |
+| strongAlt | strong | won 150 | won 150 | won 150 | won 150 |
+| strongThird | strong | won 150 | won 150 | won 150 | won 150 |
+| newA | strong | won 150 | won 150 | won 150 | won 150 |
+| strong12 | strong | won 150 | won 137 | won 150 | won 150 |
+| strong12B | strong | won 150 | won 150 | won 150 | won 98 |
+**Hard** (60 waves; won: lives left of 100)
+| Build | Group | Hollowmere | Ashfork | Rimecoil | Mirefen |
+|---|---|---|---|---|---|
+| lazy | lazy | lost on 8 | lost on 9 | lost on 8 | lost on 6 |
+| minimal | lazy | lost on 9 | lost on 10 | lost on 10 | lost on 8 |
+| lazyTier1 | lazy | lost on 10 | lost on 10 | lost on 10 | lost on 9 |
+| mixed | medium | lost on 33 | lost on 37 | lost on 37 | lost on 33 |
+| mixedAlt | medium | lost on 31 | lost on 32 | lost on 33 | lost on 31 |
+| focused | medium | lost on 32 | lost on 36 | lost on 33 | lost on 32 |
+| mixed12 | medium | lost on 31 | lost on 35 | lost on 34 | lost on 32 |
+| strongAlt | strong | won 100 | lost on 59 | won 100 | lost on 59 |
+| strongThird | strong | lost on 60 | won 23 | won 100 | won 100 |
+| newA | strong | lost on 30 | lost on 30 | lost on 30 | lost on 30 |
+| strong12 | strong | lost on 10 | lost on 27 | won 72 | won 100 |
+| strong12B | strong | won 100 | won 100 | won 100 | won 80 |
+
+Against the targets:
+- **Easy, Medium:** met on every map. Lazy builds lose at 6-16, medium builds split between scraping
+  wins and losses at 39-40 on Medium, strong builds win (almost all untouched).
+- **Hard:** medium builds lose at 31-37 everywhere. Of the strong builds that get past 40, most win
+  and the last waves push most of them hard (in waves 55-60 the Gloom get 85-100% of the way along
+  the road against most winners; `strong12B` holds them at 70% on Ashfork and 39% on Mirefen); one per
+  map falls at 59-60 (none on Rimecoil). `newA` loses to the Bastion at 30 as before.
+- **`strong12` on Hard Hollowmere loses at wave 10** (it won with 27 before). The Gravemaw wave is a
+  coin flip for this build, which buys its economy wards early: over seeds 1-8 it won 6 of 8 with the
+  old Strong rule and 5 of 8 with the new one, so it's chance at that wave, not the new rule.
+- **Medium on Hollowmere changed**, as expected from the targeting change: `focused` now wins (78 lives),
+  `mixedAlt` loses on 39 instead of 38, and `mixed12` loses on 40 (it won with 82).
+
 # Morning summary: maps, difficulties and menus (`maps` branch)
 
 Everything is on **`maps`**, committed in steps and pushed to GitHub. Nothing is merged into `master`.

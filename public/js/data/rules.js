@@ -31,7 +31,16 @@ export const RULES = {
   // break bleeds lives over several waves instead of collapsing in one; a boss costs at most this.
   endlessMaxLeak: 5,
   endlessBossLeak: 40,
+  // Ember Vault interest, paid on its embers at each wave clear: the vault's own rate (`growth`),
+  // plus vaultHold for every wave it has been left uncashed (up to vaultHoldMax). Kills only fill a
+  // vault to its cap, but interest keeps growing it up to vaultCeiling x the cap, so leaving it to
+  // build is a real choice: compounding interest against the kills it no longer collects.
+  vaultHold: 0.02,
+  vaultHoldMax: 0.1,
+  vaultCeiling: 2,
 };
+// A Vault's interest rate for the next wave clear (its embers grow by this much).
+export function vaultRate(t) { return t.stats.growth + Math.min(RULES.vaultHoldMax, RULES.vaultHold * (t.held || 0)); }
 
 export const TARGET_MODES = [
   { id: 'first', label: 'First' },

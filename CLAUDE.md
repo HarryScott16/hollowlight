@@ -28,7 +28,8 @@ separately: an error is logged as `[Hollowlight] error in the ...` and counted i
 `window.hollowlight.frameErrors`, and the loop keeps running (smoke.js fails on any).
 Test mode for checking art: `?test=1` or Shift+T (unlimited gold and lives, wave jumping; `ui/testmode.js`).
 It is off on the public site (`js/site.js` says `PUBLIC`; the live server serves its own copy).
-Keys: wards 1-9, 0, -, = (shop order); Q W E upgrade; R the selected ward's action (cash out an Ember
+Keys: wards 1-9, 0, -, = (shop order); Q W E upgrade; U the upgrade tree (`ui/tree.js`: of the selected
+ward, or the one placed/hovered in the shop; right-click a shop ward too); R the selected ward's action (cash out an Ember
 Vault, move a Wandering Light's post); abilities A S D F G H J K, then Z C V B; X the Flare.
 It lives only in the UI layer and must never touch the simulation, the bots or balance.
 
@@ -42,13 +43,25 @@ It lives only in the UI layer and must never touch the simulation, the bots or b
   `tools/maps.mjs` renders every map and prints its road and flight lengths and build space.
 - Difficulties live in `data/difficulty.js`. **Medium must stay exactly as it is**: every Medium lever
   is the identity, and bot results on Hollowmere Medium must not change. Easy and Hard use start gold,
-  lives, enemy toughness, wave size and the clear reward.
+  lives, enemy toughness, wave size and the clear reward. Hard's campaign is **60 waves** (`campaign`):
+  waves 41-60 are `HARD_WAVES` in `data/waves.js` (themed stretches, the Bastion and Veilmother at 50,
+  The Last Dark at 60); endless starts after a difficulty's last wave (`game.waves`, `totalWaves`).
 - `Game.load(map, difficulty)`; the bot takes `--map=` and `--diff=`, and perf.mjs / canvascheck.mjs
   take `map=`.
 - Menus: `ui/menu.js` (title -> Play -> map select -> difficulty -> game; a returning player also
   gets a smaller "Continue: map, difficulty" shortcut; settings, pause), records in `ui/records.js`
   (best wave per map and difficulty, last choice, skin; test runs never count). `?map=`,
   `?difficulty=` and `?test=1` skip the menus; `?skin=` wins over the saved skin.
+
+## Targeting and economy
+
+- "Strong" ranks enemies by kind (`rank` = total layers, `pops()`: boss > colossus > hulk > shells...),
+  then by how far along the road they are (`strongScore` in `sim/enemies.js`), never by health left.
+- Ember Vault interest (`RULES.vaultHold`, `vaultHoldMax`, `vaultCeiling`; `vaultRate`): its `growth`
+  plus 2% per wave left uncashed (max +10%), paid at each wave clear, and it can grow the bank to 2x
+  the cap (kills only fill to the cap). Cashing out resets the bonus.
+- A Wandering Light has an anchor stone at its post (`Renderer.drawAnchors`, shared by both skins);
+  clicking it selects the ward (`UI.wardAt` checks anchors first, then the lights).
 
 ## Tier 5
 

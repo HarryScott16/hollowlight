@@ -170,3 +170,8 @@ export function regrow(game, e) {
 }
 
 const DOT = { dot: true };
+
+// "Strong" targeting: the toughest kind of Gloom first (a boss, then a Gloomcolossus, a Dreadhulk,
+// the shells...: `rank` in data/enemies.js), and among the same kind the one closest to the
+// Heartfire. Ranking by kind rather than health left keeps a ward on one big target until it falls.
+export function strongScore(e) { return e.def.rank * 1e5 + e.dist * e.prog; }

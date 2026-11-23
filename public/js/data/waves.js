@@ -50,18 +50,40 @@ const STRETCHES = {
     mix: [['colossus', 0.22], ['dreadhulk', 0.12], ['nullback', 0.12], ['husk', 0.07], ['aegis', 0.12], ['mender', 0.07],
       ['herald', 0.07], ['gloomwing', 0.25, 0.33], ['wisp', 0.08]],
   },
+  // Hard only (waves 41-60, see HARD_WAVES below).
+  ironTide: {
+    banner: 'The iron tide: plated hosts behind shields, half of them unseen',
+    mix: [['colossus', 0.24], ['dreadhulk', 0.14, 0.3], ['husk', 0.12, 0.5], ['nullback', 0.14, 0.5], ['aegis', 0.14], ['mender', 0.08],
+      ['gloomwing', 0.1], ['herald', 0.04]],
+  },
+  darkSky: {
+    banner: 'A dark sky: great flocks, most of them Veiled, over Arcane-proof hides',
+    mix: [['gloomwing', 0.36, 0.6], ['wisp', 0.06], ['nullback', 0.14], ['herald', 0.08], ['aegis', 0.06],
+      ['colossus', 0.18, 0.5], ['dreadhulk', 0.08], ['mender', 0.04]],
+  },
+  siege: {
+    banner: 'The siege: colossi behind shield walls, healers and heralds driving them on',
+    mix: [['colossus', 0.3], ['dreadhulk', 0.1], ['aegis', 0.18], ['mender', 0.1], ['herald', 0.1], ['nullback', 0.08],
+      ['gloomwing', 0.14, 0.4]],
+  },
+  lastHours: {
+    banner: 'The last hours: everything the night has left',
+    mix: [['colossus', 0.24, 0.3], ['dreadhulk', 0.12, 0.3], ['nullback', 0.1], ['husk', 0.06], ['aegis', 0.12], ['mender', 0.07],
+      ['herald', 0.07], ['gloomwing', 0.26, 0.5], ['wisp', 0.06]],
+  },
 };
 const HULKS = new Set(['dreadhulk', 'colossus']);
-const FIRST = { veiledArmour: 21, airAndHide: 25, shieldWall: 31, longNight: 35 };
+const FIRST = { veiledArmour: 21, airAndHide: 25, shieldWall: 31, longNight: 35, ironTide: 41, darkSky: 45, siege: 51, lastHours: 55 };
 
 function themed(wave, name, opts = {}) {
   const st = STRETCHES[name];
   const budget = BUDGET(wave);
-  const dur = 40 + (wave - 20) * 0.6;
+  const dur = Math.min(60, 40 + (wave - 20) * 0.6);
   const start = opts.colossusIntro ? 8 : 0;
   // Small and mid-sized Gloom grow slowly (60% of wave 21's budget, +4% a wave) so the enemy
   // count stays where the browser holds its frame rate; hulks and colossi carry the rest.
-  const small = BUDGET(21) * 0.6 * (1 + 0.04 * (wave - 21));
+  // (Past wave 40, on Hard, they stop growing: the extra budget all goes to the hulks, like endless.)
+  const small = BUDGET(21) * 0.6 * (1 + 0.04 * (Math.min(wave, 40) - 21));
   let smallPops = 0, bigShare = 0;
   for (const [type, share] of st.mix) {
     if (HULKS.has(type)) bigShare += share;
@@ -169,3 +191,43 @@ WAVES.forEach((w, i) => {
     grp.count = n;
   }
 });
+
+// ---- Hard: waves 41-60 -------------------------------------------------------------------------
+// Hard's campaign is 60 waves (Easy and Medium end at 40). The climb carries on with the same
+// themed-stretch recipe: the pop budget keeps its 4.5% a wave, the small Gloom stop growing (as in
+// endless, for the frame rate), toughness grows 7.5% a wave (HARD_TOUGH: tuned with the bots, so a
+// strong defence with its tier 5s is pushed to the edge by 56-60 and about one in four falls; at 7%
+// none is touched, at 8% most fall) and pace only +0.5% a wave. Hard's difficulty multipliers
+// still apply on top, and a map's own ramp holds at its wave-40 value (Game.startWave).
+//   41-44 ironTide   plated hosts, half Veiled, behind Aegis lines and Menders
+//   45-49 darkSky    great flocks (mostly Veiled) over Nullbacks; a black sky at 47
+//   50    the Bastion and the Veilmother together
+//   51-54 siege      colossi behind shield walls; Veiled giants at 53
+//   55-59 lastHours  everything; a black sky at 57, Veiled giants at 58
+//   60    The Last Dark
+export const HARD_TOUGH = (wave) => TOUGH(40) * 1.075 ** Math.max(0, wave - 40);
+// A boss wave: its stretch's full themed wave with the bosses at its head (and a last rush), so it
+// is the peak of its stretch rather than a lull.
+function bossWave(wave, stretch, bosses, banner, rush = []) {
+  return { groups: [...bosses, ...themed(wave, stretch).groups, ...rush], banner };
+}
+export const HARD_PACE = (wave) => PACE(40) + 0.005 * Math.max(0, wave - 40);
+export const HARD_WAVES = [
+  /* 41-44 */ themed(41, 'ironTide'), themed(42, 'ironTide'), themed(43, 'ironTide'), themed(44, 'ironTide', { flock: 160 }),
+  /* 45-49 */ themed(45, 'darkSky'), themed(46, 'darkSky'), themed(47, 'darkSky', { flock: 280 }), themed(48, 'darkSky'), themed(49, 'darkSky'),
+  /* 50 */ bossWave(50, 'darkSky', [g('bastion', 1, 1, 0, { hpMul: 1.6 }), g('veilmother', 1, 1, 14, { hpMul: 2.2 })], 'The Bastion and the Veilmother march together'),
+  /* 51-54 */ themed(51, 'siege'), themed(52, 'siege'), themed(53, 'siege', { veiledGiants: true }), themed(54, 'siege'),
+  /* 55-59 */ themed(55, 'lastHours'), themed(56, 'lastHours'), themed(57, 'lastHours', { flock: 320 }),
+  themed(58, 'lastHours', { veiledGiants: true }), themed(59, 'lastHours', { banner: 'The last hours before the dawn' }),
+  /* 60 */ bossWave(60, 'lastHours', [g('lastdark', 1, 1)], 'The Last Dark comes to put out the Heartfire',
+    [g('herald', 14, 1, 46), g('gloomwing', 80, 0.22, 47), g('skitter', 180, 0.07, 48)]),
+];
+HARD_WAVES.forEach((w, i) => {
+  const tough = HARD_TOUGH(41 + i), pace = HARD_PACE(41 + i);
+  for (const grp of w.groups) {
+    if (!ENEMIES[grp.type].boss) grp.hpMul = Math.round(tough * 1000) / 1000;
+    grp.speedMul = pace;
+  }
+});
+// The campaign for a difficulty: 40 waves, or 60 on Hard (data/difficulty.js `campaign`).
+export function campaignWaves(n) { return n > WAVES.length ? WAVES.concat(HARD_WAVES.slice(0, n - WAVES.length)) : WAVES; }

@@ -21,7 +21,7 @@
 // Gold per pop keeps tapering (RULES.popGold) so tier 5 prices stay meaningful.
 import { pops, ENEMIES } from '../data/enemies.js';
 import { mulberry32 } from './path.js';
-import { TOUGH, PACE } from '../data/waves.js';
+import { TOUGH, PACE, HARD_TOUGH } from '../data/waves.js';
 
 // Growth per wave of the total health on the field, in each band of endless waves.
 const BANDS = [[60, 1.055], [80, 1.07], [Infinity, 1.08]];
@@ -40,6 +40,12 @@ export const ENDLESS = {
   bossHp: (n) => 40000 * 1.05 ** (n - 40),                       // every endless boss, whichever it is
   maxSpawns: (n) => Math.min(600, 450 + Math.max(0, n - 40) * 3),
 };
+
+// Endless after a longer campaign (Hard's 60 waves) carries on from that campaign's toughness, not
+// wave 40's: every endless wave's Gloom are this much tougher (1 after a 40-wave campaign).
+export function endlessToughAfter(campaignLength) {
+  return campaignLength > 40 ? HARD_TOUGH(campaignLength) / ENDLESS.toughMul(campaignLength) : 1;
+}
 
 // Modifiers switch on at these waves and stay on. Each is announced once with a banner.
 export const MODIFIERS = [

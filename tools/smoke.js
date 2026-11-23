@@ -290,6 +290,63 @@ frames(30);
   console.log(`menus: ${MAP_ORDER.length} maps x ${DIFFICULTY_ORDER.length} difficulties started through the menus and played`);
 }
 
+// The upgrade tree, the Wandering Light's anchor, Strong targeting, Vault interest, Hard's 60 waves.
+{
+  ui.menu.start('hollowmere', 'medium');
+  game.gold = 1e6;
+  const tr = ui.tree, fail = (msg) => { console.error(msg); errors++; };
+  // From the shop: nothing owned, tier 1 of every path is next, the rest later.
+  for (const type of order) {
+    tr.show(type);
+    if (!tr.open) fail(`upgrade tree for ${type} did not open`);
+    for (let pi = 0; pi < 3; pi++) {
+      if (tr.stateOf(pi, 0).state !== 'next' || tr.stateOf(pi, 3).state !== 'later') fail(`tree ${type}: unplaced states wrong`);
+    }
+    tr.close();
+  }
+  if (ui.paused) fail('closing the upgrade tree left the game paused');
+  // A placed ward: owned, next, and the two path rules.
+  let b = null;
+  for (let y = 60; y < 700 && !b; y += 20) for (let x = 60; x < 1080 && !b; x += 20) if (game.canPlace('bolt', x, y)) b = game.place('bolt', x, y);
+  ui.select(b); ui.buyUpgrade(0); ui.buyUpgrade(0); ui.buyUpgrade(0); ui.buyUpgrade(1);
+  tr.show(b.type, b);
+  const st = (pi, k) => tr.stateOf(pi, k);
+  if (st(0, 2).state !== 'owned' || st(0, 3).state !== 'next' || st(1, 0).state !== 'owned' || st(1, 1).state !== 'next') fail(`tree: owned/next wrong ${b.tiers}`);
+  if (st(1, 2).state !== 'locked' || st(1, 2).reason !== 'cap') fail('tree: the past-tier-2 rule is not shown');
+  if (st(2, 0).state !== 'locked' || st(2, 0).reason !== 'paths') fail('tree: the two-paths rule is not shown');
+  tr.close();
+  // A Wandering Light is picked by its anchor, wherever its light has gone.
+  let w = null;
+  for (let y = 80; y < 700 && !w; y += 20) for (let x = 80; x < 1060 && !w; x += 20) if (game.canPlace('wander', x, y)) w = game.place('wander', x, y);
+  w.x += 120; w.y += 60;   // as if it had roamed off
+  if (ui.wardAt(w.hx, w.hy - 6) !== w) fail('the Wandering Light anchor does not select it');
+  // Strong: the toughest kind first, and of one kind the one furthest along.
+  const ENEMIES = (await import('../public/js/data/enemies.js')).ENEMIES;
+  if (!(ENEMIES.colossus.rank > ENEMIES.dreadhulk.rank && ENEMIES.dreadhulk.rank > ENEMIES.husk.rank && ENEMIES.gravemaw.rank > ENEMIES.colossus.rank)) fail('Strong ranks are out of order');
+  const { strongScore } = await import('../public/js/sim/enemies.js');
+  const fake = (type, dist) => ({ def: ENEMIES[type], dist, prog: 1 });
+  if (!(strongScore(fake('colossus', 10)) > strongScore(fake('husk', 3000)) && strongScore(fake('husk', 900)) > strongScore(fake('husk', 100)))) fail('Strong scores are wrong');
+  // Vault interest grows past the cap, up to the ceiling, and cashing out resets the bonus.
+  let v = null;
+  for (let y = 80; y < 700 && !v; y += 20) for (let x = 80; x < 1060 && !v; x += 20) if (game.canPlace('vault', x, y)) v = game.place('vault', x, y);
+  v.bank = v.stats.cap;
+  game.enemies.length = 0; game.spawners.length = 0;
+  for (let k = 0; k < 3; k++) { game.wave++; game.step(1 / 60); }
+  if (!(v.bank > v.stats.cap && v.held === 3)) fail(`vault interest did not grow past the cap (${v.bank}, held ${v.held})`);
+  ui.select(v); ui.updatePanel(); ui.wardAction();
+  if (v.held !== 0) fail('cashing out did not reset the interest bonus');
+  ui.select(null);
+  // Hard is 60 waves; the others 40.
+  ui.menu.start('hollowmere', 'hard');
+  if (game.totalWaves !== 60) fail(`Hard has ${game.totalWaves} waves`);
+  game.gold = 1e6; game.lives = 1e6;
+  game.wave = 59; game.rewarded = 59; game.startWave(); frames(240);
+  if (!game.enemies.some((e) => e.type === 'lastdark')) fail('Hard wave 60 has no Last Dark');
+  ui.menu.start('hollowmere', 'medium');
+  if (game.totalWaves !== 40) fail(`Medium has ${game.totalWaves} waves`);
+  console.log('upgrade tree, anchor, Strong, Vault interest and Hard 60 checked');
+}
+
 errors += window.hollowlight.frameErrors || 0;
 const r = ui.renderer;
 if (r.stateLeaks) { console.error(`canvas state leaks: ${r.stateLeaks}`); errors += r.stateLeaks; }

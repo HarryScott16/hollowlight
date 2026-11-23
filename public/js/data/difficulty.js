@@ -13,6 +13,8 @@
 //                           holds). On Easy a slipped boss hurts but doesn't end the run, so a
 //                           light defence gets past the first boss and on into the teens
 //   maxLeak                 the most lives any other enemy that gets through can cost (Medium: 25)
+//   campaign                waves before the win and endless (40; Hard plays on to 60: waves 41-60
+//                           are HARD_WAVES in data/waves.js, with a boss at 50 and The Last Dark at 60)
 // Prices, the waves themselves and leak costs (but for Easy's caps) are the same on every
 // difficulty, so what a player learns (what counters what, what a ward costs) carries over.
 import { RULES } from './rules.js';
@@ -32,9 +34,9 @@ export const DIFFICULTIES = {
   },
   hard: {
     id: 'hard', name: 'Hard',
-    desc: 'Fewer lives, more and tougher Gloom. Every gold piece counts.',
-    startGold: 600, startLives: 100, count: (wave) => (wave <= 10 ? 1 : 1.15), reward: 1,
-    tough: (wave) => 1 + Math.max(0, wave - 10) * 0.045,   // x1 to wave 10, rising to x2.35 by wave 40 (the long night)
+    desc: 'Fewer lives, more and tougher Gloom, and 60 waves before the dawn. Every gold piece counts.',
+    startGold: 600, startLives: 100, count: (wave) => (wave <= 10 ? 1 : 1.15), reward: 1, campaign: 60,
+    tough: (wave) => 1 + Math.max(0, wave - 10) * 0.045,   // x1 to wave 10, x2.35 by wave 40, x3.25 by 60 (the long night)
   },
 };
 export const DIFFICULTY_ORDER = ['easy', 'medium', 'hard'];
