@@ -36,23 +36,32 @@ export class Menu {
     return card;
   }
 
+  // The title invites a choice: Play leads to the map select, then the difficulty, then the game.
+  // A returning player also gets a smaller shortcut back into their last map and difficulty.
   showTitle() {
-    const last = lastChoice(), map = MAPS[last.map] || MAPS.hollowmere, diff = DIFFICULTIES[last.difficulty] || DIFFICULTIES.medium;
     const logo = el('div', 'menu-logo');
     logo.append(el('div', 'menu-flame'), el('h1', null, 'Hollowlight'), el('p', 'menu-tag', 'Keep the Heartfire burning through the night.'));
-    const best = bestFor(map.id, diff.id);
-    const play = button('', 'primary menu-play', () => this.start(map.id, diff.id));
-    play.append(el('span', 'menu-play-main', 'Play'), el('span', 'menu-play-sub', `${map.name} · ${diff.name}${best.wave ? ` · best wave ${best.wave}${best.won ? ' ✓' : ''}` : ''}`));
+    const play = button('', 'primary menu-play', () => this.showMaps());
+    play.append(el('span', 'menu-play-main', 'Play'), el('span', 'menu-play-sub', 'Choose a map and difficulty'));
     const actions = el('div', 'menu-actions');
-    actions.append(play, button('Choose map', 'menu-btn', () => this.showMaps()), button('Settings', 'menu-btn', () => this.showSettings(() => this.showTitle())));
+    actions.append(play);
+    const last = lastChoice();
+    if (last.saved && MAPS[last.map] && DIFFICULTIES[last.difficulty]) {
+      const map = MAPS[last.map], diff = DIFFICULTIES[last.difficulty], best = bestFor(map.id, diff.id);
+      const cont = button('', 'menu-btn menu-continue', () => this.start(map.id, diff.id));
+      cont.append(el('span', null, `Continue: ${map.name}, ${diff.name}`));
+      if (best.wave) cont.append(el('span', 'menu-continue-best', `best wave ${best.wave}${best.won ? ' ✓' : ''}`));
+      actions.append(cont);
+    }
+    actions.append(button('Settings', 'menu-btn', () => this.showSettings(() => this.showTitle())));
     if (this.ui.game.wave > 0 && !this.ui.game.over) actions.append(button('Back to the game', 'menu-btn', () => this.hide()));
     this.screen(null, logo, actions);
   }
 
   showMaps() {
-    const grid = el('div', 'menu-maps');
+    const grid = el('div', 'menu-maps'), last = lastChoice();
     for (const id of MAP_ORDER) {
-      const m = MAPS[id], card = button('', 'menu-map', () => this.showDifficulty(id));
+      const m = MAPS[id], card = button('', `menu-map${last.saved && id === last.map ? ' last' : ''}`, () => this.showDifficulty(id));
       card.append(this.preview(id), el('span', 'menu-map-name', m.name), el('span', 'menu-map-desc', m.desc));
       const bests = el('span', 'menu-map-best');
       for (const d of DIFFICULTY_ORDER) {

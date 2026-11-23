@@ -71,7 +71,7 @@ Object.assign(globalThis, {
     devicePixelRatio: 1,
     AudioContext: function () { return anything('audio'); },
   },
-  localStorage: { getItem: () => null, setItem: () => {} },
+  localStorage: (() => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) }; })(),
   requestAnimationFrame: (cb) => { frameCb = cb; },
 });
 Object.defineProperty(globalThis, 'performance', { value: { now: () => now }, configurable: true });
@@ -92,7 +92,15 @@ const { game, ui } = globalThis.window.hollowlight;
 ui.renderer.enableStateCheck();   // every frame section must leave the canvas state clean
 // The title screen opens first (no ?map= in this run): start Hollowmere on Medium through it.
 if (!ui.menu || !ui.menu.open) { console.error('the title screen did not open'); process.exitCode = 1; }
-ui.menu.start('hollowmere', 'medium');
+// A first visit has nothing to continue; after a game starts, the title offers to continue it.
+{
+  const { lastChoice } = await import('../public/js/ui/records.js');
+  if (lastChoice().saved) { console.error('a first visit already has a Continue choice'); process.exitCode = 1; }
+  ui.menu.showMaps(); ui.menu.showDifficulty('hollowmere');
+  ui.menu.start('hollowmere', 'medium');
+  const c = lastChoice();
+  if (!c.saved || c.map !== 'hollowmere' || c.difficulty !== 'medium') { console.error('the last choice was not remembered for Continue'); process.exitCode = 1; }
+}
 for (const cb of listeners.pointerdown || []) cb({}); // starts the (stub) audio context
 
 ui.setSpeed(3);

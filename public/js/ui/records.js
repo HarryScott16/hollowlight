@@ -1,5 +1,5 @@
 // What this browser remembers: the best wave per map and difficulty, the last map and difficulty
-// played (for the Play button), and the skin. All in localStorage; every read and write is guarded
+// played (for the Continue shortcut), and the skin. All in localStorage; every read and write is guarded
 // (private windows and blocked storage just remember nothing).
 const KEY = 'hollowlight.records';
 
@@ -24,7 +24,11 @@ export function recordWave(map, diff, wave, won = false) {
   return wave > cur.wave;
 }
 
-export function lastChoice() { return load('hollowlight.last', { map: 'hollowmere', difficulty: 'medium' }); }
+// The last map and difficulty played; `saved` is false for a first visit (nothing remembered yet).
+export function lastChoice() {
+  const v = load('hollowlight.last', null);
+  return v && v.map ? { ...v, saved: true } : { map: 'hollowmere', difficulty: 'medium', saved: false };
+}
 export function saveChoice(map, difficulty) { save('hollowlight.last', { map, difficulty }); }
 export function savedSkin() { return load('hollowlight.skin', null); }
 export function saveSkin(skin) { save('hollowlight.skin', skin); }

@@ -121,6 +121,9 @@ Seed 1. On Medium the Hollowmere column is the existing suite, unchanged.
 | strong12 | strong | won 150 | won 135 | won 150 | won 150 |
 | strong12B | strong | won 150 | won 150 | won 150 | won 98 |
 
+Later fix (Starhost lights kept apart): only `mixed12` moved on Hollowmere Medium, the one build
+with several Swarm lights, from won 75 to **won 82**. The other maps and difficulties weren't rerun.
+
 **Hard** (won: lives left of 100; lost: the wave)
 
 | Build | Group | Hollowmere | Ashfork | Rimecoil | Mirefen |
@@ -163,9 +166,10 @@ Seed 1. On Medium the Hollowmere column is the existing suite, unchanged.
 
 - **Title screen:**
   - "Hollowlight" in glowing gold over a dusk sky, with a flickering flame.
-  - A big **Play** button that goes straight into your last map and difficulty, labelled with them
-    and your best wave.
-  - Choose map and Settings buttons.
+  - A big **Play** button that leads to the map select, then the difficulty, then the game.
+  - For a returning player, a smaller **Continue: map, difficulty** shortcut (with the best wave there)
+    that starts the last map and difficulty played straight away.
+  - Settings.
 - **Map select:** a painted preview of each map (the game's own painter), its name and a short
   description, plus **your best wave on Easy, Medium and Hard** (a ✓ marks a campaign win).
 - **Difficulty select:** Easy, Medium and Hard, each with one line and your best on that map. Your last

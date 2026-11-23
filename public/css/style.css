@@ -380,6 +380,8 @@ body.details .tp-hint { display: none; }
 .menu-play { display: flex; flex-direction: column; align-items: center; padding: 12px 18px; border-radius: 10px; }
 .menu-play-main { font-size: 26px; letter-spacing: 0.06em; }
 .menu-play-sub { font-size: 13px; font-weight: 500; opacity: 0.92; }
+.menu-continue { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 14px; padding: 8px 14px; }
+.menu-continue-best { font-size: 12px; color: var(--dim); }
 /* map select */
 .menu-maps { display: grid; gap: clamp(10px, 1.6vw, 18px); width: 100%; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); }
 .menu-map {
@@ -388,6 +390,7 @@ body.details .tp-hint { display: none; }
   transition: transform 0.12s, border-color 0.12s;
 }
 .menu-map:hover { transform: translateY(-3px); border-color: var(--gold); }
+.menu-map.last { border-color: rgba(255, 190, 90, 0.55); }
 .menu-preview { width: 100%; height: auto; aspect-ratio: 14 / 9; border-radius: 8px; display: block; border: 1px solid rgba(0, 0, 0, 0.4); }
 .menu-map-name { font-size: 19px; font-weight: 800; color: #fff1c8; }
 .menu-map-desc { color: var(--dim); font-size: 13px; min-height: 3.6em; }
