@@ -84,7 +84,7 @@ for (const p of ranked) {
   const c = p.c, a = (key) => W(c[key]);
   const cost4 = c['4alone1'] ? c['4alone1'].cost : 0, cost5 = c['5alone1'] ? c['5alone1'].cost : 0;
   const x = p.late4 > 0 ? (p.late / p.late4).toFixed(1) : '-';
-  P(`| ${p.name} | ${p.t4} | ${k(cost4)} -> ${k(cost5)} | ${a('4alone1')} -> ${a('5alone1')} | ${a('4alone41')} -> ${a('5alone41')} | ${a('4full1')} -> ${a('5full1')} | ${a('4full41')} -> ${a('5full41')} | ${noAttack(p.type) ? '-' : `${k(p.late4)} -> ${k(p.late)}`} | ${noAttack(p.type) ? '-' : x} |`);
+  P(`| ${p.name} (${wardName[p.type]}, ${p.pname}) | ${p.t4} | ${k(cost4)} -> ${k(cost5)} | ${a('4alone1')} -> ${a('5alone1')} | ${a('4alone41')} -> ${a('5alone41')} | ${a('4full1')} -> ${a('5full1')} | ${a('4full41')} -> ${a('5full41')} | ${noAttack(p.type) ? '-' : `${k(p.late4)} -> ${k(p.late)}`} | ${noAttack(p.type) ? '-' : x} |`);
 }
 P();
 
@@ -102,7 +102,7 @@ P('|---|---|---|---|---|');
 for (const p of ranked) {
   const c = p.c['5alone1'];
   const top = c ? Object.entries(c.leaks).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t, n]) => `${t} ${Math.round(n)}`).join(', ') : '-';
-  P(`| ${p.name} | ${pct(p.c['5alone1'])} | ${pct(p.c['5reveal1'])} | ${pct(p.c['5full1'])} | ${top} |`);
+  P(`| ${p.name} (${wardName[p.type]}, ${p.pname}) | ${pct(p.c['5alone1'])} | ${pct(p.c['5reveal1'])} | ${pct(p.c['5full1'])} | ${top} |`);
 }
 P();
 
@@ -127,7 +127,7 @@ if (sup.length) {
       row.s = ['a1', 'a41', 'r1', 'r41'].reduce((s, key) => s + (row[key] ? row[key].waves : 0), 0);
       if (!best || row.s > best.s) best = row;
     }
-    const name = label || TOWERS[type].paths[path].tiers[4].name;
+    const name = label || `${TOWERS[type].paths[path].tiers[4].name} (${wardName[type]}, ${TOWERS[type].paths[path].name})`;
     const v = (x) => (x ? f1(x.waves) : '-');
     P(`| ${name} | ${path < 0 ? '-' : TOWERS[type].paths[best.minor].name} | ${v(best.a1)} | ${v(best.a41)} | ${v(best.r1)} | ${v(best.r41)} | ${best.r41 ? k(best.r41.late) : '-'} |`);
   }
@@ -144,7 +144,7 @@ for (const map of [...new Set(runs.map((r) => r.map))].filter((m) => m !== MAIN)
     const o = (cond, start) => cell(map, p.type, p.path, 5, cond, start);
     if (!o('alone', 1) && !o('full', 1)) continue;
     const pair = (cond, start) => `${W(p.c[`5${cond}${start}`])} -> ${W(o(cond, start))}`;
-    P(`| ${p.name} | ${pair('alone', 1)} | ${pair('alone', 41)} | ${pair('full', 1)} | ${pair('full', 41)} |`);
+    P(`| ${p.name} (${wardName[p.type]}, ${p.pname}) | ${pair('alone', 1)} | ${pair('alone', 41)} | ${pair('full', 1)} | ${pair('full', 41)} |`);
   }
   P();
 }
