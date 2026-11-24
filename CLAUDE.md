@@ -125,9 +125,10 @@ every ward for each skin; `bolt-parts.js` and `parts.js` hold props both skins s
   in `parts.js`): each skin supplies only what looks up out of it.
 - Twelve wards. The Snare is `flat` (drawn with the ground, before enemies, no ghosts); the
   Wandering Light `float`s (no plinth: a hovering rune-disc carries its notches). A Swarm is one
-  ward with ghost lights wheeling round it (1 / 2 / 2 / 6 for the Starhost; `Renderer.ghostsOf`),
-  evenly spaced so they never merge, and its stars leave from them (`pickGhost`). The simulation's
-  `lights` are only the bookkeeping for its casts and are never drawn.
+  ward drawn as its lights: equal full-size copies of the ward wheeling round an empty centre (2 / 3
+  / 3 / 6 for the Starhost; `Renderer.swarmLights`), evenly spaced at all times so they never merge,
+  and its stars leave from the one facing the target (`pickLight`). The simulation's `lights` are
+  only the bookkeeping for its casts and are never drawn.
 - Wards are upright (three-quarter view) and grow with every tier on their main path, so a tier 4
   is clearly bigger and more imposing than a tier 0 (about x1.35). Height caps (checked by
   `tools/wards.mjs`): about 46 px for a base ward, 68 px for a tier 4, 104 px for a tier 5 (x1.5).

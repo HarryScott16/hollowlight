@@ -21,8 +21,9 @@ On `master` (dev, :3001); not shipped to the live site.
   their stretch's full wave plus the bosses. Toughness grows 7.5% a wave past 40; the small Gloom stop
   growing (for the frame rate). A map's own ramp holds at its wave-40 value, and endless after wave 60
   carries on from Hard's toughness, not wave 40's.
-- **Swarm / Starhost drawing:** one ward with ghost lights wheeling round it (six round the Starhost),
-  evenly spaced at all times so they never merge; its stars leave from the ghosts. The simulation of
+- **Swarm / Starhost drawing:** drawn as its lights, as it first looked: equal full-size copies of the
+  ward wheeling round an empty centre (2, 3, 3, and six for the Starhost), evenly spaced at all times,
+  attacking too, so they never merge; each star leaves from the light facing its target. The simulation of
   its lights is exactly as it was before the earlier "lights kept apart" fix, which is reverted (the
   Hard table above has `mixed12` on Hollowmere at 32 with that revert; Medium is unchanged by it).
 - **Ashfork's ramp** is now x1.4 by wave 40 (was x1.3): with Strong targeting every medium build won

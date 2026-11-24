@@ -387,13 +387,21 @@ export class UI {
 
   // Wards stand upright, so a click on a ward's body (above its footprint) selects it too.
   // The ward under the pointer. A Wandering Light roams, so it can also be picked by its anchor
-  // (the rune-stone at its post, checked first: it's small and never moves).
+  // (the rune-stone at its post, checked first: it's small and never moves), and a Swarm by any of
+  // the lights it's drawn as (Renderer.swarmLights).
   wardAt(x, y) {
     for (const t of this.game.towers) {
       if (t.def.kind !== 'wander') continue;
       if ((t.hx - x) ** 2 + ((t.hy - 6) - y) ** 2 < 15 * 15) return t;
     }
-    return this.game.towerAt(x, y) || this.game.towerAt(x, y + 18) || this.game.towerAt(x, y + 34);
+    const hit = this.game.towerAt(x, y) || this.game.towerAt(x, y + 18) || this.game.towerAt(x, y + 34);
+    if (hit) return hit;
+    const r = this.renderer;
+    if (r && r.swarmCount) for (const t of this.game.towers) {
+      if (!r.swarmCount(t)) continue;
+      for (const P of r.swarmLights(t)) if ((P.x - x) ** 2 + (P.y - 16 - y) ** 2 < 22 * 22) return t;
+    }
+    return null;
   }
 
   // Hidden test switch between the two ward skins (also ?skin=lantern / ?skin=kindling).
