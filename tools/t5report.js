@@ -1,61 +1,14 @@
-// Tables for docs/tier5-report.md from the runs tools/t5study.js wrote (JSON lines).
+// Tables for docs/tier5-report.md from the runs tools/t5study.js wrote (JSON lines; averaged in
+// tools/t5data.js, which also explains W1, E41 and late DPS). Charts: tools/t5charts.js.
 //   node tools/t5report.js <hollowmere.jsonl> [other-map.jsonl ...]   (markdown on stdout)
-// Waves: "W1" is the last wave cleared starting from wave 1 (the campaign is 40 waves, then
-// endless); "E41" is waves cleared past 40 when starting at wave 41 in endless (0 = lost wave 41).
-// Means over the seeds. Late DPS: damage per second over the last 3 waves it played.
-import { readFileSync } from 'node:fs';
-import { TOWERS, TOWER_ORDER } from '../public/js/data/towers.js';
-import { ENEMIES } from '../public/js/data/enemies.js';
+import { TOWERS } from '../public/js/data/towers.js';
+import { load, CAUSES, wardName, noAttack, mean } from './t5data.js';
 
 const files = process.argv.slice(2);
 if (!files.length) { console.log('usage: node tools/t5report.js <runs.jsonl> [more.jsonl ...]'); process.exit(1); }
-const runs = files.flatMap((f) => readFileSync(f, 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)));
-const MAIN = runs[0].map;
-const CONDS = ['alone', 'reveal', 'full'];
-const CAUSES = ['veiled', 'flyers', 'armour', 'shields', 'healers', 'hulks', 'numbers', 'bosses'];
-const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
+const { runs, MAIN, cell, paths, ranked } = load(files);
 const f1 = (x) => (Number.isNaN(x) ? '-' : (Math.round(x * 10) / 10).toString());
 const k = (x) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}M` : x >= 1e4 ? `${Math.round(x / 1e3)}k` : x >= 1e3 ? `${(x / 1e3).toFixed(1)}k` : String(Math.round(x)));
-
-// One cell: the final runs of a ward/path/tier/condition/start on a map.
-function cell(map, type, path, tier, cond, start) {
-  const same = (r) => r.kind === 'solo' && r.map === map && r.type === type && r.path === path && r.tier === tier && r.cond === cond && r.start === start;
-  const fin = runs.find((r) => same(r) && r.role === 'final');
-  if (!fin) return null;
-  // The chosen setup's seed-1 run was made while choosing it (role "select"): count it too.
-  const rs = runs.filter((r) => same(r) && r.minor === fin.minor && r.spot === fin.spot);
-  const causes = {}, leaks = {}, last = {};
-  for (const r of rs) {
-    for (const c in r.causes) causes[c] = (causes[c] || 0) + r.causes[c] / rs.length;
-    for (const c in r.leaks) leaks[c] = (leaks[c] || 0) + r.leaks[c] / rs.length;
-    for (const c in r.lastCauses) last[c] = (last[c] || 0) + r.lastCauses[c] / rs.length;
-  }
-  // Runs from before solo.js put a Snare's flyer leaks under "flyers" in every condition.
-  if (TOWERS[type].kind === 'snare' && cond === 'full' && !causes.flyers) {
-    for (const [name, n] of Object.entries(leaks)) if (ENEMIES[name.replace('veiled ', '')].flying) { causes.flyers = (causes.flyers || 0) + n; causes.numbers -= n; }
-  }
-  const cl = rs.map((r) => (start > 1 ? r.cleared - (start - 1) : r.cleared));
-  return {
-    n: rs.length, waves: mean(cl), lo: Math.min(...cl), hi: Math.max(...cl), capped: rs.some((r) => r.capped), timedOut: rs.some((r) => r.timedOut),
-    dps: mean(rs.map((r) => r.dps)), late: mean(rs.map((r) => r.dpsLate)), kills: mean(rs.map((r) => r.kills)), dmg: mean(rs.map((r) => r.dmg)),
-    cost: rs[0].cost, minor: rs[0].minor, x: rs[0].x, y: rs[0].y, causes, leaks, last,
-  };
-}
-const paths = TOWER_ORDER.flatMap((type) => [0, 1, 2].map((path) => ({ type, path, name: TOWERS[type].paths[path].tiers[4].name, t4: TOWERS[type].paths[path].tiers[3].name, pname: TOWERS[type].paths[path].name })));
-const noAttack = (type) => TOWERS[type].kind === 'aura' || TOWERS[type].kind === 'vault';
-const score = (a, b) => (a ? a.waves : 0) + (b ? b.waves : 0);   // W1 + E41
-const wardName = { bolt: 'Bolt Ward', mortar: 'Mortar', rime: 'Rime Spire', coil: 'Storm Coil', longeye: 'Longeye', censer: 'Censer', prism: 'Prism', beacon: 'Beacon', snare: 'Thornlight Snare', moth: 'Moth Lantern', wander: 'Wandering Light', vault: 'Ember Vault' };
-
-for (const p of paths) {
-  p.c = {};
-  for (const tier of [5, 4]) for (const cond of CONDS) for (const start of [1, 41]) p.c[`${tier}${cond}${start}`] = cell(MAIN, p.type, p.path, tier, cond, start);
-  const g = (t, c) => score(p.c[`${t}${c}1`], p.c[`${t}${c}41`]);
-  p.alone = g(5, 'alone'); p.reveal = g(5, 'reveal'); p.full = g(5, 'full');
-  p.alone4 = g(4, 'alone'); p.full4 = g(4, 'full');
-  p.late = p.c['5full41'] ? p.c['5full41'].late : 0;
-  p.late4 = p.c['4full41'] ? p.c['4full41'].late : 0;
-}
-const ranked = paths.slice().sort((a, b) => b.alone - a.alone || b.full - a.full);
 const powerRank = new Map(paths.slice().sort((a, b) => b.full - a.full || b.late - a.late).map((p, i) => [p, i + 1]));
 const W = (c) => (c ? `${f1(c.waves)}${c.capped ? '+' : ''}${c.timedOut ? '*' : ''}` : '-');
 
