@@ -28,6 +28,7 @@ A full run takes a minute or two and uses well under 200 MB.
 | `render-ideas.mjs` | `kindlings/ideas/*.png`: all 13 new-ward ideas in the Kindlings style |
 | `render-chosen.mjs` | `chosen/*.png`: the four chosen wards in both skins, the Wandering Light attack sheets and the lineup |
 | `render-progression.mjs` | `progression/*.png`: the proposed upgrade progression on the Bolt Ward, both skins (`dir-bolt-progression.mjs`) |
+| `render-nw2.mjs` | `new-wards-2/*.png`: six new ward concepts (`docs/new-wards-2.md`) in both skins, their attacks, the 18-ward lineup and silhouette test, and the water wards on each map; prints the height and body-box checks and each map's water. Unlike the other scripts it draws with the game's *current* ward kit (`nw2-art.mjs` registers the six into the skin tables in its own process; effects in `nw2-fx.mjs`) |
 
 Library files:
 - `sheet.mjs`: canvas, labels, turf, greyscale, silhouette and blur
