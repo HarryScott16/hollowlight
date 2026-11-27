@@ -60,7 +60,30 @@ for (const p of ranked) {
 P();
 
 // Support wards beside a partner.
-const sup = runs.filter((r) => r.kind === 'support' && r.map === MAIN);
+for (const [KIND, TITLE, NOTE, ROWS] of [
+  ['support', null, null, null],
+  ['support-m', '### Moth Lantern support tier 5s beside a Mortar', 'A lure helps wards that need flyers brought low, so these two stand beside a partner that can\'t hit flyers: a Mortar, Rapid Loader tier 4 with Big Shells 2, which also spends what it earns.', [['none', -1, 'partner alone'], ['moth', 0], ['moth', 1]]],
+]) {
+const sup = runs.filter((r) => r.kind === KIND && r.map === MAIN);
+if (sup.length && KIND === 'support-m') {
+  P(TITLE); P(); P(NOTE); P();
+  P('| Tier 5 | 2nd path | Alone W1 | Alone E41 | Reveal W1 | Reveal E41 |');
+  P('|---|---|--:|--:|--:|--:|');
+  for (const [type, path, label] of ROWS) {
+    let best = null;
+    for (const minor of path < 0 ? [0] : [0, 1, 2].filter((q) => q !== path)) {
+      const get = (cond, start) => { const rs = sup.filter((r) => r.type === type && r.path === path && r.minor === minor && r.cond === cond && r.start === start); return rs.length ? { waves: mean(rs.map((r) => (start > 1 ? r.cleared - 40 : r.cleared))) } : null; };
+      const row = { minor, a1: get('alone', 1), a41: get('alone', 41), r1: get('reveal', 1), r41: get('reveal', 41) };
+      row.s = ['a1', 'a41', 'r1', 'r41'].reduce((q, key) => q + (row[key] ? row[key].waves : 0), 0);
+      if (!best || row.s > best.s) best = row;
+    }
+    const name = label || `${TOWERS[type].paths[path].tiers[4].name} (${wardName[type]}, ${TOWERS[type].paths[path].name})`;
+    const v = (x) => (x ? f1(x.waves) : '-');
+    P(`| ${name} | ${path < 0 ? '-' : TOWERS[type].paths[best.minor].name} | ${v(best.a1)} | ${v(best.a41)} | ${v(best.r1)} | ${v(best.r41)} |`);
+  }
+  P();
+  continue;
+}
 if (sup.length) {
   P('### Support tier 5s beside a partner');
   P();
@@ -68,7 +91,7 @@ if (sup.length) {
   P();
   P('| Tier 5 | 2nd path | Alone W1 | Alone E41 | Reveal W1 | Reveal E41 | Partner late DPS (reveal, E41) |');
   P('|---|---|--:|--:|--:|--:|--:|');
-  const rows = [['none', -1, 'partner alone'], ['beacon', 0], ['beacon', 1], ['beacon', 2], ['vault', 0], ['vault', 1], ['vault', 2], ['moth', 0], ['moth', 1]];
+  const rows = [['none', -1, 'partner alone'], ['beacon', 0], ['beacon', 1], ['beacon', 2], ['vault', 0], ['vault', 1], ['vault', 2]];
   for (const [type, path, label] of rows) {
     let best = null;
     for (const minor of path < 0 ? [0] : [0, 1, 2].filter((q) => q !== path)) {
@@ -85,6 +108,7 @@ if (sup.length) {
     P(`| ${name} | ${path < 0 ? '-' : TOWERS[type].paths[best.minor].name} | ${v(best.a1)} | ${v(best.a41)} | ${v(best.r1)} | ${v(best.r41)} | ${best.r41 ? k(best.r41.late) : '-'} |`);
   }
   P();
+}
 }
 
 // Other maps: whatever was run there.

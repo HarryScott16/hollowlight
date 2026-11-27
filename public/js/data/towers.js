@@ -454,7 +454,7 @@ const TIER5 = {
   ],
   moth: [
     { name: 'False Moon', blurb: "A false moon: every flyer on the map turns to circle it.", cost: 17000, desc: 'Lures flyers from anywhere on the map, up to 120 at once. Circling flyers take +250% damage.', set: { lureGlobal: true, lureMax: 120, lureAmp: 2.5 } },
-    { name: 'Amber Trap', blurb: "Flyers it holds set in amber: held still, then grounded for good.", cost: 16000, desc: 'Lures up to 60. Released flyers are held still for 2.5s and never fly high again. Circling flyers take +150% damage.', set: { lureMax: 60, releaseHold: 2.5, groundDur: 9999, lureAmp: 1.5 } },
+    { name: 'Amber Trap', blurb: "Flyers it holds set in amber: held still, then grounded for good.", cost: 16000, desc: 'Lures up to 60 from twice as far (x2 range). Released flyers are held still for 2.5s and never fly high again. Circling flyers take +150% damage.', set: { lureMax: 60, releaseHold: 2.5, groundDur: 9999, lureAmp: 1.5 }, mul: { range: 2 } },
     { name: 'Moth Queen', blurb: "A Moth Queen leads the swarm: its moths sting everything in its light.", cost: 19000, desc: 'Capstone power x12 (all its damage). 900 damage/s to every flyer in its light (x1.3 range), lures up to 60, and its moths sting up to 30 ground enemies in its light for 30% of that.', set: { lureDps: 900, lureMax: 60, mothAll: 0.3, mothHits: 30, mothSky: true }, mul: { range: 1.3 }, power: 12 },
   ],
   wander: [
