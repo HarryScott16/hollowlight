@@ -1,6 +1,15 @@
-# New ward concepts, round 2: five chosen to build (designed 2026-11-25, decided 2026-11-27)
+# New ward concepts, round 2: five chosen and built (designed 2026-11-25, decided and built 2026-11-27)
 
-Design only: no game code was changed, and nothing is built yet. Of the six concepts, five are chosen to build (decisions below); the Runewright is kept at the end for reference. The mock-ups are drawn with the game's own ward kit, so they use the same units, tier ladder, notches and pips, crowns, tier 5 sigil and diadem, body-and-face rule and height caps as the real wards. They live in `docs/concepts/new-wards-2/`, rendered by `docs/concepts/_src/render-nw2.mjs` (art in `nw2-art.mjs`, effects in `nw2-fx.mjs`), and in the gallery on port 3002 under "New ward concepts". Numbers (damage, costs, radii) are first estimates to show the shape of each ward, not tuned balance.
+**Built (2026-11-27).** The five are in the game (second shop row, Tab): data in `data/towers-new.js`, simulation in `sim/newwards.js`, art in `render/wards/newwards.js` (both skins, ported from the mock-ups; the lava variants are used on Ashfork), world effects in `render/newfx.js`. Where the build differs from the design below:
+- **Numbers.** All rebalanced against the other wards (`tools/report.js`) and the bots: the Avatar's motes deal 10 (not 6); the Ferrylight costs 325 and throws 18-damage bolts (x1.2 rate, pierce 2); the Undertow costs 400 and its whirl deals 8/s; Lampwright candles burn 9/s. Tidecaller, Abyss, Wickstorm and Beaconwax add damage rather than setting it (so the second path can't reset it), and every path has damage steps up to tier 4 so it pulls its weight.
+- **Tier 5s.** Each has a fitted *capstone power* like every tier 5 (see `docs/tier5-report.md`), and some got a crowd tool so they can stand alone: every Avatar tier 5's motes chain on kills (Syzygy also pours three streams; Zenith's flares are wider); Heartline throws lances, x5 rate, +60 range, and its chain sweeps everything in reach every 3s; Harbour Star's beams burn; Lantern Armada has 8 rafts; every Undertow tier 5 has a second whirlpool and +40 reach; Eternal Vigil keeps 20 candles, thrown in pairs.
+- **Abilities** are one per path (the button shows the one it would fire), keys Y I O P N.
+- **Candle caps** as designed: 24 per Lampwright (Wickstorm tier 4), 160 on the map; one drawImage per candle (a batched path of dots in huge crowds).
+- **R actions:** move the Undertow's whirlpool, lend a Grand Orrery star, move the Undying Taper.
+
+The rest of this document is the design as decided.
+
+Design only (as written): no game code was changed, and nothing is built yet. Of the six concepts, five are chosen to build (decisions below); the Runewright is kept at the end for reference. The mock-ups are drawn with the game's own ward kit, so they use the same units, tier ladder, notches and pips, crowns, tier 5 sigil and diadem, body-and-face rule and height caps as the real wards. They live in `docs/concepts/new-wards-2/`, rendered by `docs/concepts/_src/render-nw2.mjs` (art in `nw2-art.mjs`, effects in `nw2-fx.mjs`), and in the gallery on port 3002 under "New ward concepts". Numbers (damage, costs, radii) are first estimates to show the shape of each ward, not tuned balance.
 
 ## Decisions (2026-11-27)
 

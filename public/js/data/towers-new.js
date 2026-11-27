@@ -39,14 +39,14 @@ export const NEW_TOWERS = {
       { name: 'Solar', blurb: 'The motes heat their target until it bursts in a solar flare.', tiers: [
         { name: 'Kindled Core', blurb: 'Hotter motes.', cost: 180, desc: 'x1.5 damage.', mul: { damage: 1.5 } },
         { name: 'Heat', blurb: 'Motes build Heat; enough of it bursts into a flare.', cost: 420, desc: 'Each mote adds 1 Heat to its target. At 12 Heat it flares: 60 Radiant damage to everything within 40.', set: { heatAt: 12, flareDmg: 60, flareRadius: 40 } },
-        { name: 'Solar Flare', blurb: 'Bigger, quicker flares that tear a share of the target away.', cost: 1500, desc: 'Flares at 10 Heat for 180 within 55, plus 3% of the target\'s full health (1% for bosses).', set: { heatAt: 10, flareDmg: 180, flareRadius: 55, flarePct: 0.03, flarePctBoss: 0.01 } },
-        { name: 'Noonfire', blurb: 'Flares leave the Gloom sun-marked and soft for every ward.', cost: 7000, desc: 'x2 damage. Flares deal 720, and what they hit takes +15% damage from every ward for 3s.', set: { flareDmg: 720, sunMark: 0.15, sunMarkDur: 3 }, mul: { damage: 2 } },
+        { name: 'Solar Flare', blurb: 'Bigger, quicker flares that tear a share of the target away.', cost: 1500, desc: 'Flares at 10 Heat for 110 within 55, plus 3% of the target\'s full health (1% for bosses).', set: { heatAt: 10, flareDmg: 110, flareRadius: 55, flarePct: 0.03, flarePctBoss: 0.01 } },
+        { name: 'Noonfire', blurb: 'Flares leave the Gloom sun-marked and soft for every ward.', cost: 7000, desc: 'x2 damage. Flares deal 450, and what they hit takes +15% damage from every ward for 3s.', set: { flareDmg: 450, sunMark: 0.15, sunMarkDur: 3 }, mul: { damage: 2 } },
       ] },
       { name: 'Orrery', blurb: 'A court of stars, each firing on its own target.', tiers: [
         { name: 'First Star', blurb: 'A star orbits it and fires at a second target.', cost: 180, desc: 'One star, firing 3 motes/s at its own target.', set: { stars: 1, starRate: 3 } },
         { name: 'Twin Stars', blurb: 'Two stars, and a longer reach.', cost: 420, desc: '2 stars. x1.5 damage, +20 range.', set: { stars: 2 }, add: { range: 20 }, mul: { damage: 1.5 } },
-        { name: 'Orrery', blurb: 'Four stars on a brass armillary, each with its own targeting.', cost: 1500, desc: '4 stars (First, Strong, Close, Flyers), 4 motes/s each. Stars deal x2 to flyers. x2 damage.', set: { stars: 4, starRate: 4, starAir: 2, starModes: true }, mul: { damage: 2 } },
-        { name: 'Starwheel', blurb: 'Six stars, firing twice as fast.', cost: 7000, desc: '6 stars, 6 motes/s each. x3 damage, x1.5 rate.', set: { stars: 6, starRate: 6 }, mul: { damage: 3, rate: 1.5 } },
+        { name: 'Orrery', blurb: 'Four stars on a brass armillary, each with its own targeting.', cost: 1500, desc: '4 stars (First, Strong, Close, Flyers), 4 motes/s each. Stars deal x2 to flyers. x1.3 damage.', set: { stars: 4, starRate: 4, starAir: 2, starModes: true }, mul: { damage: 1.3 } },
+        { name: 'Starwheel', blurb: 'Six stars, firing twice as fast.', cost: 7000, desc: '6 stars, 6 motes/s each. x2 damage, x1.3 rate.', set: { stars: 6, starRate: 6 }, mul: { damage: 2, rate: 1.3 } },
       ] },
       { name: 'Eclipse', blurb: 'It feeds on the light of the wards around it.', tiers: [
         { name: 'Penumbra', blurb: 'Tethers to nearby wards and grows stronger for each.', cost: 180, desc: 'Tethers to up to 6 wards within 120: +6% damage each. Tethered wards lose 3%.', set: { tethers: 6, tetherRange: 120, tetherBonus: 0.06, tetherDrain: 0.03 } },
@@ -65,7 +65,7 @@ export const NEW_TOWERS = {
       { name: 'Hymn', blurb: 'The notes build to one crushing crescendo.', tiers: [
         { name: 'Deeper Voice', blurb: 'Every note hits harder.', cost: 170, desc: 'x1.4 damage.', mul: { damage: 1.4 } },
         { name: 'Rising Hymn', blurb: 'Every few notes, a crescendo on the strongest enemy.', cost: 400, desc: 'x1.5 damage. Every 6th note is a crescendo: x10 on the strongest enemy in the song.', set: { cresEvery: 6, cresMul: 10 }, mul: { damage: 1.5 } },
-        { name: 'Crescendo', blurb: 'More often, far harder, and it stuns.', cost: 1400, desc: 'x2.5 damage. Every 4th note, x25, and it stuns for 1s (Heavies are slowed 50% instead).', set: { cresEvery: 4, cresMul: 25, cresStun: 1 }, mul: { damage: 2.5 } },
+        { name: 'Crescendo', blurb: 'More often, far harder, and it stuns.', cost: 1400, desc: 'x1.7 damage. Every 4th note, x25, and it stuns for 1s (Heavies are slowed 50% instead).', set: { cresEvery: 4, cresMul: 25, cresStun: 1 }, mul: { damage: 1.7 } },
         { name: 'Grand Crescendo', blurb: 'Every third note brings the house down.', cost: 6600, desc: 'x3 damage. Every 3rd note, x40.', set: { cresEvery: 3, cresMul: 40 }, mul: { damage: 3 } },
       ] },
       { name: 'Chorus', blurb: 'More singers, faster notes.', tiers: [
@@ -91,13 +91,13 @@ export const NEW_TOWERS = {
       { name: 'Harpooner', blurb: 'Piercing harpoons that drag the Gloom back up the road.', tiers: [
         { name: 'Barbed Hook', blurb: 'Hooks hit harder and pierce.', cost: 100, desc: 'x1.5 damage, pierce 3.', mul: { damage: 1.5 }, set: { pierce: 3 } },
         { name: 'Harpoon', blurb: 'Harpoons drag their first victim back.', cost: 240, desc: 'Pierce 4. The first enemy hit is dragged 30 back up the road (not Heavies).', set: { pierce: 4, drag: 30 } },
-        { name: 'Harpoon Gun', blurb: 'A deck gun on a winch: through armour, dragging further.', cost: 800, desc: 'x2.5 damage, ignores armour, drags 60. Heavies are slowed 40% for 1.5s instead.', mul: { damage: 2.5 }, set: { armorPierce: 1, drag: 60, heavySlow: 0.4 } },
+        { name: 'Harpoon Gun', blurb: 'A deck gun on a winch: through armour, dragging further.', cost: 800, desc: 'x1.7 damage, ignores armour, drags 60. Heavies are slowed 40% for 1.5s instead.', mul: { damage: 1.7 }, set: { armorPierce: 1, drag: 60, heavySlow: 0.4 } },
         { name: 'Whaler', blurb: 'Drags whole chains of Gloom back.', cost: 4000, desc: 'Drags 90, and up to 3 enemies per harpoon.', set: { drag: 90, dragChain: 3 } },
       ] },
       { name: 'Flotilla', blurb: 'It launches little light-rafts that patrol the water and fire.', tiers: [
         { name: 'Oarsman', blurb: 'Throws faster.', cost: 90, desc: 'x1.3 rate.', mul: { rate: 1.3 } },
         { name: 'Light-raft', blurb: 'A light-raft patrols the water and fires its own bolts.', cost: 260, desc: 'One raft patrols the pond, firing its own bolts (range 140). x1.3 damage.', set: { rafts: 1, raftRange: 140, raftRate: 1, raftPatrol: 60, raftSpeed: 40 }, mul: { damage: 1.3 } },
-        { name: 'Flotilla', blurb: 'Three rafts, roaming further.', cost: 800, desc: '3 rafts, patrolling up to 300 away (on water). x1.8 damage.', set: { rafts: 3, raftPatrol: 300 }, mul: { damage: 1.8 } },
+        { name: 'Flotilla', blurb: 'Three rafts, roaming further.', cost: 800, desc: '3 rafts, patrolling up to 300 away (on water). x1.4 damage.', set: { rafts: 3, raftPatrol: 300 }, mul: { damage: 1.4 } },
         { name: 'Lantern Fleet', blurb: 'Five quicker rafts.', cost: 4000, desc: '5 rafts, faster and firing twice as often. x2.5 damage.', set: { rafts: 5, raftSpeed: 70, raftRate: 2 }, mul: { damage: 2.5 } },
       ] },
       { name: 'Lighthouse Barge', blurb: 'A sweeping beam that Dazzles the Gloom it lights.', tiers: [
@@ -116,8 +116,8 @@ export const NEW_TOWERS = {
     paths: [
       { name: 'Maelstrom', blurb: 'Bigger, crueller whirlpools.', tiers: [
         { name: 'Strong Current', blurb: 'A stronger pull and a deeper slow.', cost: 100, desc: 'Slow 45%, pulls back 18/s.', set: { slow: 0.45, pull: 18 } },
-        { name: 'Whirlpool', blurb: 'A wider whirl that softens everything in it.', cost: 260, desc: 'Radius 55, 12 damage/s. Gloom inside take +15% from everything.', set: { whirlRadius: 55, damage: 12, whirlAmp: 0.15 } },
-        { name: 'Maelstrom', blurb: 'A maelstrom: small Gloom spin helplessly as they enter.', cost: 850, desc: 'Radius 70, 20 damage/s, pulls 30/s. Small Gloom spin in place for 1s as they enter.', set: { whirlRadius: 70, damage: 20, pull: 30, spin: 1 } },
+        { name: 'Whirlpool', blurb: 'A wider whirl that softens everything in it.', cost: 260, desc: 'Radius 55, 11 damage/s. Gloom inside take +15% from everything.', set: { whirlRadius: 55, damage: 11, whirlAmp: 0.15 } },
+        { name: 'Maelstrom', blurb: 'A maelstrom: small Gloom spin helplessly as they enter.', cost: 850, desc: 'Radius 70, 15 damage/s, pulls 30/s. Small Gloom spin in place for 1s as they enter.', set: { whirlRadius: 70, damage: 15, pull: 30, spin: 1 } },
         { name: 'Great Whirl', blurb: 'A great whirl that drowns the road.', cost: 4200, desc: 'Radius 85, 40 damage/s.', set: { whirlRadius: 85, damage: 40 } },
       ] },
       { name: 'Tidecaller', blurb: 'Waves surge across the road, knocking crowds back.', tiers: [

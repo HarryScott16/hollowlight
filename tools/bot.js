@@ -120,7 +120,7 @@ Object.assign(STRATEGIES, {
 // Builds with the five round-2 wards (data/towers-new.js) in the mix: a Lampwright early (cheap),
 // the water wards where the map has ponds in reach, the premium Avatar and Choir after the first
 // boss, as a player saving up would.
-const ALL17 = ['bolt', 'rime', 'lamp', 'mortar', 'coil', 'ferry', 'censer', 'prism', 'undertow', 'longeye', 'choir', 'snare', 'wander', 'avatar', 'beacon', 'mortar', 'lamp', 'coil'];
+const ALL17 = ['bolt', 'rime', 'mortar', 'lamp', 'coil', 'ferry', 'censer', 'prism', 'undertow', 'longeye', 'choir', 'snare', 'wander', 'avatar', 'beacon', 'mortar', 'lamp', 'coil'];
 const NEWR_A = { avatar: [0, 1], choir: [1, 0], ferry: [0, 2], undertow: [0, 2], lamp: [0, 2] };
 const NEWR_B = { avatar: [1, 0], choir: [0, 1], ferry: [1, 0], undertow: [1, 0], lamp: [1, 0] };
 const NEWR_C = { avatar: [2, 0], choir: [2, 1], ferry: [2, 0], undertow: [2, 1], lamp: [2, 1] };
