@@ -17,7 +17,8 @@ for (const [key, v] of Object.entries(P)) {
   const below = def.cost + def.paths[Number(pi)].tiers.slice(0, 4).reduce((a, t) => a + t.cost, 0) + 300;   // (+ a minor path at tier 2, roughly)
   const oldTotal = below + t5.cost;
   const f = 1 + 0.6 * Math.max(0, Math.min(1, (v.wave - 60) / 40));
-  const cost = Math.round((oldTotal * f - below) / 500) * 500;
+  // Already baked (it has a power): keep its price, only the power changes (so a rerun doesn't compound).
+  const cost = t5.power ? t5.cost : Math.round((oldTotal * f - below) / 500) * 500;
   const pw = round(v.power);
   // find this tier 5's line: `{ name: '<name>', ... cost: N, desc: '...'`
   const nameLit = `name: ${JSON.stringify(t5.name).replace(/^"|"$/g, "'")}`;
