@@ -129,6 +129,9 @@ export function buildMap(data) {
       return { route: best.index, path: best.path, dist: best.path.nearest(x, y) * best.path.step, d: bd };
     },
     width: data.width, height: data.height,
+    // Water wards: a spot at least `margin` inside a pond's shore (lava on Ashfork, frozen lakes on Rimecoil).
+    inWater(x, y, margin = 0) { return data.ponds.some((p) => p.rx > margin && p.ry > margin && ((x - p.x) / (p.rx - margin)) ** 2 + ((y - p.y) / (p.ry - margin)) ** 2 < 1); },
+    nearWater(x, y, d) { return data.ponds.some((p) => ((x - p.x) / (p.rx + d)) ** 2 + ((y - p.y) / (p.ry + d)) ** 2 < 1); },
     // Terrain-only check (other towers are checked by the game).
     buildable(x, y) {
       if (x < 22 || y < 22 || x > data.width - 22 || y > data.height - 22) return false;

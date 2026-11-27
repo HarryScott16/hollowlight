@@ -1,10 +1,11 @@
 // DOM user interface: HUD, ward shop, upgrade panel, wave preview and canvas input.
 import { MAP } from '../data/map.js';
-import { TOWERS, TOWER_ORDER, WARD_KEYS } from '../data/towers.js';
+import { TOWERS, TOWER_ORDER, SHOP_ROWS, ROW_KEYS } from '../data/towers.js';
 import { ENEMIES, pops } from '../data/enemies.js';
 import { DAMAGE_TYPES } from '../data/damage.js';
 import { RULES, TARGET_MODES, vaultRate } from '../data/rules.js';
 import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
+import { abilityFor } from '../sim/game.js';
 import { upgradeInfo, computeStats, estimateDps } from '../sim/towers.js';
 import { drawWardIcon, nextSkin, skinName } from '../render/wardArt.js';
 import { drawEnemyIcon } from '../render/enemyArt.js';
@@ -73,11 +74,11 @@ function statRows(def, s) {
   const rows = [
     ['Layers/s, crowd', fmt(estimateDps(k, s, true) / 10)],
     ['Damage/s, one target', fmt(estimateDps(k, s, false))],
-    [k === 'beam' ? 'Damage/s at x1' : k === 'flame' ? 'Flame damage/s' : 'Damage', num(s.damage)],
+    [k === 'beam' ? 'Damage/s at x1' : k === 'flame' ? 'Flame damage/s' : k === 'undertow' ? 'Whirl damage/s' : k === 'lamp' ? 'Candle burn/s' : k === 'choir' ? 'Damage per note' : k === 'avatar' ? 'Damage per mote' : 'Damage', num(s.damage)],
   ];
   // A beam ramps and a flame pours: neither has an attack rate.
   if (k === 'beam') rows.push(['Max charge', `x${s.maxCharge} in ${num(s.ramp)}s`]);
-  else if (k !== 'flame') rows.push([k === 'pulse' ? 'Pulses/s' : 'Attacks/s', num(s.rate)]);
+  else if (k !== 'flame' && s.rate !== undefined) rows.push([k === 'pulse' ? 'Pulses/s' : k === 'choir' ? 'Notes/s' : k === 'avatar' ? 'Motes/s' : k === 'lamp' ? 'Throws/s' : 'Attacks/s', num(s.rate)]);
   rows.push(['Range', s.global ? 'whole map' : String(Math.round(s.range))]);
   if (k === 'bolt') {
     rows.push(['Bolts per shot', String(s.shots)], ['Pierce', s.pierce >= 999 ? 'all' : String(s.pierce)]);
@@ -138,6 +139,44 @@ function statRows(def, s) {
     rows.push(['Beams', String(s.beams)]);
     if (s.keep) rows.push(['Charge kept on new target', pct(s.keep)]);
     if (s.burstMul) rows.push(['Kill bursts', `${pct(s.burstMul)} of beam, ${s.burstRadius} wide`]);
+  } else if (k === 'avatar') {
+    rows.push(['Sees Veiled within', String(s.sight)]);
+    if (s.heatAt) rows.push(['Flare', `at ${s.heatAt} Heat: ${num(s.flareDmg)} within ${s.flareRadius}`]);
+    if (s.flarePct) rows.push(['Flare tears', `${pct(s.flarePct)} of full health (bosses ${pct(s.flarePctBoss)})`]);
+    if (s.sunMark) rows.push(['Sun-marked take', `+${pct(s.sunMark)} for ${s.sunMarkDur}s`]);
+    if (s.stars) rows.push(['Stars', `${s.stars}, ${s.starRate} motes/s each`]);
+    if (s.lend) rows.push(['Stars it can lend', String(s.lend)]);
+    if (s.tethers) rows.push(['Tethers', `${s.tethers} within ${s.tetherRange}, +${pct(s.tetherBonus)} each`]);
+    if (s.tetherDrain) rows.push(['Tethered wards lose', pct(s.tetherDrain)]);
+    if (s.syzygyEvery) rows.push(['Alignment', `every ${s.syzygyEvery}s, x${s.syzygyMul}`]);
+  } else if (k === 'choir') {
+    rows.push(['Enemies per note', `up to ${s.maxHits}`], ['Hush', 'no haste in the song']);
+    if (s.cresEvery) rows.push(['Crescendo', `every ${s.cresEvery} notes, x${s.cresMul}${s.cresStun ? `, stun ${s.cresStun}s` : ''}`]);
+    if (s.bellRadius) rows.push(['Bell', `hits all within ${s.bellRadius}`]);
+    if (s.echoMul) rows.push(['Echo', `${pct(s.echoMul)} on the whole map`]);
+    if (s.wispChance) rows.push(['Wisps', `${pct(s.wispChance)} of kills, ${num(s.wispDmg)} through ${s.wispPierce}`]);
+    if (s.redeem) rows.push(['Lantern-wisps', `${s.redeem}s`]);
+  } else if (k === 'ferry') {
+    rows.push(['Pierce', String(s.pierce)]);
+    if (s.armorPierce) rows.push(['Armour ignored', pct(s.armorPierce)]);
+    if (s.drag) rows.push(['Drags back', `${s.drag}${s.dragChain > 1 ? `, ${s.dragChain} per harpoon` : ''}`]);
+    if (s.anchor) rows.push(['Anchored', `${s.anchor}s (bosses ${s.anchorBoss}s)`]);
+    if (s.rafts) rows.push(['Light-rafts', `${s.rafts}, range ${s.raftRange}${s.shoreParty ? `, ashore ${s.shoreParty}` : ''}`]);
+    if (s.dazzle) rows.push(['Dazzle', `${pct(s.dazzle)} slower${s.dazzleAmp ? `, +${pct(s.dazzleAmp)} taken` : ''}`]);
+    if (s.twinBeams) rows.push(['Twin beams', `both: stopped ${s.harbourStop}s`]);
+  } else if (k === 'undertow') {
+    rows.push(['Whirl radius', String(s.whirlRadius)], ['Slow', pct(s.slow)], ['Pulls back', `${s.pull}/s`]);
+    if (s.whirlAmp) rows.push(['In the whirl take', `+${pct(s.whirlAmp)}`]);
+    if (s.waveEvery) rows.push(['Waves', `every ${s.waveEvery}s, back ${s.waveBack}${s.waves > 1 ? `, ${s.waves} stretches` : ''}`]);
+    if (s.deep) rows.push(['Centre', `+${num(s.deep)}/s`]);
+    if (s.grip || s.abyssEvery) rows.push(['Pulls under', s.abyssEvery ? `1-2 layers every ${s.abyssEvery}s` : `1 layer after ${s.grip}s`]);
+    if (s.drown) rows.push(['Heavies drown', `${pct(s.drown)}/s`]);
+  } else if (k === 'lamp') {
+    rows.push(['Candles', `up to ${s.candleMax}, ${s.tossN} per throw`], ['Candle', `${s.candleR} wide, ${s.candleLife}s`], ['Burn', `${num(s.damage)}/s, Scorched`]);
+    if (s.waxSlow || s.candleSlow) rows.push(['Slow', pct(Math.max(s.waxSlow || 0, s.candleSlow || 0))]);
+    if (s.candleReveal) rows.push(['Reveals Veiled', `within ${s.candleReveal}`]);
+    if (s.vigilAmp) rows.push(['Near a candle take', `+${pct(s.vigilAmp)}`]);
+    rows.push(['Candles on the map', `at most ${RULES.candleCap}`]);
   }
   rows.push(['Sees Veiled', yes(s.detect)]);
   return rows;
@@ -186,15 +225,30 @@ export class UI {
     const list = $('shop-list');
     this.shopButtons = {};
     this.shopIcons = {};
-    TOWER_ORDER.forEach((type, i) => {
+    this.shopRow = 0;
+    // Two rows: the twelve wards, then the round-2 wards. Tab (or these tabs) switches; the number
+    // row picks a ward in the row that's showing.
+    const tabs = el('div', 'shop-tabs');
+    this.rowTabs = SHOP_ROWS.map((row, r) => {
+      const tb = el('button', 'shop-tab', r === 0 ? `Wards ${row.length}` : `New ${row.length}`);
+      tb.type = 'button';
+      tb.title = `${r === 0 ? 'The first twelve wards' : 'The round-2 wards: Heartfire Avatar, Astral Choir, Ferrylight, The Undertow, Lampwright'} [Tab]`;
+      tb.addEventListener('click', () => this.setShopRow(r));
+      tabs.append(tb);
+      return tb;
+    });
+    list.before(tabs);
+    TOWER_ORDER.forEach((type) => {
       const def = TOWERS[type];
+      const r = SHOP_ROWS[0].includes(type) ? 0 : 1, i = SHOP_ROWS[r].indexOf(type);
       const b = el('button', 'shop-btn');
       b.type = 'button';
-      b.title = `${def.name} (${WARD_KEYS[i]}). Right-click: its upgrade tree`;
+      b.dataset.row = String(r);
+      b.title = `${def.name} (${r ? 'Tab, then ' : ''}${ROW_KEYS[i]}). Right-click: its upgrade tree`;
       const c = iconCanvas(48);
       drawWardIcon(c, type);
       this.shopIcons[type] = c;
-      b.append(el('span', 'key', WARD_KEYS[i]), c, el('span', 'cost', String(def.cost)));
+      b.append(el('span', 'key', ROW_KEYS[i]), c, el('span', 'cost', String(def.cost)));
       // Click a ward, then click the map (Shift keeps placing); or drag it from here onto the map.
       b.addEventListener('pointerdown', (ev) => {
         if (ev.button !== undefined && ev.button !== 0) return;
@@ -213,14 +267,21 @@ export class UI {
       list.append(b);
       this.shopButtons[type] = b;
     });
+    this.setShopRow(0);
     this.showShopInfo(null);
+  }
+
+  setShopRow(r) {
+    this.shopRow = r;
+    for (const t in this.shopButtons) this.shopButtons[t].hidden = this.shopButtons[t].dataset.row !== String(r);
+    this.rowTabs.forEach((tb, i) => tb.classList.toggle('active', i === r));
   }
 
   showShopInfo(type) {
     const info = $('shop-info');
     info.textContent = '';
     if (!type) {
-      info.textContent = 'Hover a ward to see what it does. Keys: 1-9, 0, - and = pick a ward (in shop order). Q W E upgrade the selected ward, U shows its upgrade tree (right-click a ward here for its tree), R is its special action (cash out a Vault, move a Wandering Light). Abilities: A S D F G H J K for the first eight wards, Z C V B for the last four, X the Flare. Space pauses, Enter calls the next wave, Esc cancels, Shift shows numbers, ` shows FPS.';
+      info.textContent = 'Hover a ward to see what it does. Keys: 1-9, 0, - and = pick a ward in the shop row that\'s showing; Tab switches rows (the second row holds the five new wards). Q W E upgrade the selected ward, U shows its upgrade tree (right-click a ward here for its tree), R is its special action (cash out a Vault, move a Wandering Light\'s post or an Undertow\'s whirlpool, lend a Grand Orrery\'s star, move an Undying Taper). Abilities: A S D F G H J K for the first eight wards, Z C V B for the next four, Y I O P N for the new five, X the Flare. Space pauses, Enter calls the next wave, Esc cancels, Shift shows numbers, ` shows FPS.';
       return;
     }
     const def = TOWERS[type];
@@ -254,12 +315,12 @@ export class UI {
       b.append(cd, el('span', 'ab-name', name), el('span', 'ab-key', key), time);
       b.addEventListener('click', use);
       list.append(b);
-      this.abButtons.push({ id, b, cd, time, state: '' });
+      this.abButtons.push({ id, b, cd, time, state: '', nameEl: b.querySelector('.ab-name'), shown: name });
     };
     add('flare', 'Flare', FLARE.key, FLARE.desc, 'flare', () => this.game.useFlare());
     for (const type of TOWER_ORDER) {
       const ab = ABILITIES[type];
-      add(type, ab.name, ab.key, `${ab.desc} Unlocks when a ${TOWERS[type].name} reaches tier 4.`, '', () => this.game.useAbility(type));
+      add(type, ab.name, ab.key, `${ab.desc} Unlocks when a ${TOWERS[type].name} reaches tier 4${ab.paths ? ' (the ability depends on its path)' : ''}.`, '', () => this.game.useAbility(type));
     }
     $('last-light').title = LAST_LIGHT.desc;
   }
@@ -271,7 +332,12 @@ export class UI {
       let left, max, locked = false;
       if (a.id === 'flare') { left = g.flareCd; max = FLARE.cd; } else {
         const t = g.abilityTower(a.id);
-        if (!t) locked = true; else { left = t.abilityCd; max = ABILITIES[a.id].cd; }
+        if (!t) locked = true; else {
+          const ab = abilityFor(t);
+          left = t.abilityCd; max = ab.cd;
+          // A round-2 ward's ability depends on its path: show the one this button would fire.
+          if (ABILITIES[a.id].paths && a.shown !== ab.name) { a.shown = ab.name; a.nameEl.textContent = ab.name; a.b.title = `${ab.name} [${ABILITIES[a.id].key}]: ${ab.desc}`; }
+        }
       }
       const state = locked ? 'locked' : left <= 0 ? 'ready' : 'cd';
       if (!locked && a.id !== 'flare') open++;
@@ -438,9 +504,10 @@ export class UI {
       this.mouse.inside = true;
       if (ev.button === 2) { this.setPlacing(null); this.moving = null; return; }
       if (ev.button !== 0) return;
-      if (this.moving) {   // a Wandering Light's new post
+      if (this.moving) {   // a Wandering Light's new post, or where a round-2 ward points (R)
         const t = this.moving;
-        if (this.game.movePost(t, this.mouse.x, this.mouse.y)) { this.moving = null; this.canvas.classList.remove('placing'); }
+        const ok = t.def.kind === 'wander' ? this.game.movePost(t, this.mouse.x, this.mouse.y) : this.game.aimWard(t, this.mouse.x, this.mouse.y);
+        if (ok) { this.moving = null; this.canvas.classList.remove('placing'); }
         return;
       }
       if (this.placing) {
@@ -485,8 +552,8 @@ export class UI {
         this.game.useAbility(abType);
       } else if (k === 'x' || k === 'X') {
         this.game.useFlare();
-      } else if (WARD_KEYS.includes(k)) {
-        const type = TOWER_ORDER[WARD_KEYS.indexOf(k)];
+      } else if (ROW_KEYS.includes(k)) {
+        const type = SHOP_ROWS[this.shopRow][ROW_KEYS.indexOf(k)];
         if (type) this.setPlacing(this.placing === type ? null : type);
       } else if (this.selected && (k === 'r' || k === 'R') && !ev.shiftKey) {
         this.wardAction();
@@ -513,6 +580,9 @@ export class UI {
         this.sellSelected();
       } else if (this.selected && 'qwe'.includes(k.toLowerCase()) && k.length === 1) {
         this.buyUpgrade('qwe'.indexOf(k.toLowerCase()));
+      } else if (k === 'Tab' && !this.selected) {
+        ev.preventDefault();
+        this.setShopRow((this.shopRow + 1) % SHOP_ROWS.length);
       } else if (k === 'Tab' && this.game.towers.length) {
         ev.preventDefault();
         const i = this.game.towers.indexOf(this.selected);
@@ -527,7 +597,7 @@ export class UI {
     const t = this.selected;
     if (!t) return;
     if (t.def.kind === 'vault') { this.game.cashOut(t); this.updatePanel(); }
-    else if (t.def.kind === 'wander') { this.moving = this.moving === t ? null : t; this.canvas.classList.toggle('placing', !!this.moving); }
+    else if (t.def.kind === 'wander' || this.game.wardAimKind(t)) { this.moving = this.moving === t ? null : t; this.canvas.classList.toggle('placing', !!this.moving); }
   }
 
   select(tower) {
@@ -601,7 +671,7 @@ export class UI {
     // A Vault's cash-out and a Wandering Light's move, also on R.
     // (it shares a row with the Sell button, at the bottom of the panel)
     let action = null;
-    if (def.kind === 'vault' || def.kind === 'wander') {
+    if (def.kind === 'vault' || def.kind === 'wander' || this.game.wardAimKind(t)) {
       action = el('button', 'action-btn');
       action.type = 'button';
       action.addEventListener('click', () => this.wardAction());
@@ -703,6 +773,12 @@ export class UI {
       const txt = `Cash out ${Math.floor(t.bank)}  [R]`;
       if (refs.action.textContent !== txt) refs.action.textContent = txt;
       refs.action.disabled = t.bank < 1;
+    } else if (this.game.wardAimKind(t) && refs.action) {
+      const k = this.game.wardAimKind(t);
+      const txt = this.moving === t ? (k === 'lend' ? 'Click a ward to lend it a star' : 'Click the road in reach') : k === 'whirl' ? 'Move its whirlpool  [R]' : k === 'lend' ? 'Lend a star  [R]' : 'Move the taper  [R]';
+      if (refs.action.textContent !== txt) refs.action.textContent = txt;
+      refs.dmg.textContent = fmt(t.dmg);
+      refs.kills.textContent = String(t.kills);
     } else if (t.def.kind === 'wander') {
       const txt = this.moving === t ? 'Click the map for its new post' : 'Move its post  [R]';
       if (refs.action.textContent !== txt) refs.action.textContent = txt;

@@ -3,19 +3,25 @@ import { TOWERS } from '../data/towers.js';
 import { RULES } from '../data/rules.js';
 import { applySlow, strongScore } from './enemies.js';
 import { mark, addZone, newBolt, newShell } from './projectiles.js';
+import { NEW_BEHAVIOURS, newTowerFields } from './newwards.js';
 
 const TAU = Math.PI * 2;
 
+// A tier 5's `power` multiplies everything it deals (POWER_KEYS), after its own mul/set.
+export const POWER_KEYS = ['damage', 'burnDps', 'poolDps', 'wyrmDps', 'shatterDmg', 'eruptDmg', 'mineDmg', 'lureDps', 'flareDmg', 'wispDmg', 'deep'];
 export function computeStats(def, tiers) {
   const s = { ...def.base };
+  let power = 1;
   def.paths.forEach((path, pi) => {
     for (let t = 0; t < tiers[pi]; t++) {
       const up = path.tiers[t];
       if (up.set) Object.assign(s, up.set);
       if (up.add) for (const k in up.add) s[k] = (s[k] || 0) + up.add[k];
       if (up.mul) for (const k in up.mul) s[k] = (s[k] || 0) * up.mul[k];
+      if (up.power) power *= up.power;
     }
   });
+  if (power !== 1) for (const k of POWER_KEYS) if (s[k]) s[k] *= power;
   return s;
 }
 
@@ -101,6 +107,44 @@ export function estimateDps(kind, s, crowd = true) {
     if (s.field) d += s.damage * s.fieldMul * 4 * (crowd ? Math.min(s.fieldHits, 12) : 1);
     return d;
   }
+  // Round-2 wards (sim/newwards.js). Rough, like the rest: for the upgrade panel and tools/report.js.
+  if (kind === 'avatar') {
+    let d = s.damage * s.rate * (1 + (s.tetherBonus || 0) * (s.tethers ? Math.min(s.tethers, 5) : 0));
+    if (s.heatAt) d += (s.flareDmg * (crowd ? 4 : 1) * s.rate) / s.heatAt * (1 + (s.sunMark || 0));
+    if (s.stars) d += s.stars * s.starRate * s.damage * (crowd ? 1 : 0.3);
+    if (s.syzygyEvery) d *= 1.3;
+    return d;
+  }
+  if (kind === 'choir') {
+    const hits = crowd ? Math.min(s.maxHits, 25 * (s.range / 230) ** 2) : 1;
+    let d = s.damage * s.rate * hits;
+    if (s.cresEvery) d += (s.damage * s.cresMul * s.rate) / s.cresEvery * (s.bellRadius && crowd ? 4 : 1);
+    if (s.echoMul) d *= 1 + s.echoMul * (crowd ? 1.5 : 1);
+    if (s.wispChance && crowd) d += s.wispChance * s.rate * hits * 0.3 * (s.wispDmg || 0) * Math.min(s.wispPierce || 1, 3);
+    return d;
+  }
+  if (kind === 'ferry') {
+    let d = s.damage * s.rate * (crowd ? Math.min(s.pierce, 5) : 1);
+    if (s.rafts) d += s.rafts * s.raftRate * s.damage * 0.7;
+    if (s.dazzleAmp) d *= 1 + s.dazzleAmp;
+    if (s.drag && crowd) d *= 1 + s.drag / 150 * Math.min(s.dragChain || 1, 3);
+    return d;
+  }
+  if (kind === 'undertow') {
+    const hits = crowd ? Math.min(30, 6 * (s.whirlRadius / 40) ** 2) : 1;
+    let d = (s.damage + (s.deep || 0) * 0.3) * hits * (1 + (s.whirlAmp || 0)) * (1 + s.slow);
+    if (s.waveEvery && crowd) d *= 1 + (s.waveBack / 40) * 0.25 * (s.waves || 1) * (4 / s.waveEvery);
+    if (s.abyssEvery && crowd) d += 60 / s.abyssEvery;
+    return d;
+  }
+  if (kind === 'lamp') {
+    const alive = Math.min(s.candleMax, s.rate * s.tossN * s.candleLife);
+    const hits = crowd ? Math.min(8, 1 + (s.candleR / 12) ** 2 * 1.5) : 1;
+    let d = s.damage * alive * hits * 0.35;
+    if (s.taper) d += s.damage * s.taperMul * (crowd ? 10 : 1);
+    if (s.vigilAmp) d *= 1 + s.vigilAmp;
+    return d;
+  }
   return 0;
 }
 
@@ -121,6 +165,7 @@ export function createTower(game, type, x, y) {
     fresh: 0, freshWave: -1, groundBonus: 0, lured: 0, pathNear: undefined, nearPath: null, phx: null, sold: false,   // set later (one shape for every ward)
     t5T: 0, t5N: 0, splitTokens: 0, eruptTokens: 0, markTokens: 0,   // tier 5 timers and rate limits
   };
+  newTowerFields(t);
   // The game it stands in (not enumerable: keeps the tower plain to copy and inspect).
   Object.defineProperty(t, 'game', { value: game, enumerable: false, writable: true });
   return t;
@@ -422,10 +467,13 @@ function snipe(game, t, dt) {
   t.recoil = 1;
   shotList.length = 0;
   for (const e of targets) shotList.push(e);
+  // Eye of Fate: every volley also strikes every Doomed enemy in range.
+  if (s.fateVolley) for (const e of (s.global ? game.enemies : game.grid.query(t.x, t.y, s.range, buf))) if (e.alive && e.doomT > game.time && !shotList.includes(e) && game.targetable(e, s)) shotList.push(e);
+  let shown = 0;
   for (const e of shotList) {
     const x = e.x, y = e.y;
     snipeHit(game, t, s, e, s.damage);
-    game.emit('snipe', { x: t.x, y: t.y, tx: x, ty: y, flak: s.flakRadius || 0, spot: s.spotRadius || 0, big: s.damage >= 300 });
+    if (shown++ < 8) game.emit('snipe', { x: t.x, y: t.y, tx: x, ty: y, flak: s.flakRadius || 0, spot: s.spotRadius || 0, big: s.damage >= 300 });
   }
 }
 
@@ -448,6 +496,7 @@ function doom(game, t, s) {
 }
 
 const KING = { big: true };
+const DAWN = { quiet: true, armorPierce: 1, shieldMul: 2 };   // Seal of Dawn's ring: through plate, x2 to shields
 export function snipeHit(game, t, s, e, dmg, big) {
   const x = e.x, y = e.y;
   const opts = { armorPierce: s.armorPierce || 0, shieldMul: s.shieldMul || 0, big: big || dmg >= 300 };
@@ -459,6 +508,23 @@ export function snipeHit(game, t, s, e, dmg, big) {
     if (e.alive) { if (e.def.boss) applySlow(e, 0.3, 1); else e.stunT = Math.max(e.stunT, s.stagger); }
   }
   if (s.shieldStall && e.alive && e.maxShield > 0) e.shieldCd = Math.max(e.shieldCd, s.shieldStall);
+  // Kingslayer: a shot that kills carries on to the nearest enemy within 90, up to killChain times.
+  if (s.killChain && !e.alive && !t.chaining) {
+    t.chaining = true;
+    let cx = x, cy = y;
+    for (let j = 0; j < s.killChain; j++) {
+      game.grid.query(cx, cy, 90, buf);
+      let nx = null, nd = 1e9;
+      for (const o of buf) { if (!o.alive || !game.targetable(o, s)) continue; const d = (o.x - cx) ** 2 + (o.y - cy) ** 2; if (d < nd) { nd = d; nx = o; } }
+      if (!nx) break;
+      const ox = nx.x, oy = nx.y;
+      snipeHit(game, t, s, nx, dmg, big);
+      if (j < 3) game.emit('snipe', { x: cx, y: cy, tx: ox, ty: oy, flak: 0, spot: 0, big: false });
+      cx = ox; cy = oy;
+      if (nx.alive) break;
+    }
+    t.chaining = false;
+  }
   if (s.spotRadius) {
     game.grid.query(x, y, s.spotRadius, buf);
     for (const o of buf) if (o.veiled && o.alive) o.revealT = Math.max(o.revealT, s.spotDur);
@@ -752,7 +818,17 @@ function snare(game, t, dt) {
   t.charges = Math.min(s.charges, t.charges + s.refill * dt);
   if (s.mineMax) sowMines(game, t, s, dt);
   if (s.sealEvery && (t.t5T -= dt) <= 0) seal(game, t, s);
-  if (t.charges < 1 && !free) return;
+  // Seal of Dawn: every dawnEvery seconds a ring of dawn light bites every ground enemy near it.
+  if (s.dawnEvery && (t.mineT -= dt) <= 0) {
+    t.mineT = s.dawnEvery;
+    game.grid.query(t.x, t.y, s.dawnRadius, buf);
+    hitList.length = 0;
+    for (const e of buf) if (e.alive && !e.def.flying && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 <= s.dawnRadius ** 2) hitList.push(e);
+    for (const e of hitList) if (e.alive) game.damage(e, s.damage, s.type, t, DAWN);
+    game.emit('dawnpulse', { x: t.x, y: t.y, r: s.dawnRadius });
+  }
+  const freeBites = free || s.freeBites;
+  if (t.charges < 1 && !freeBites) return;
   game.grid.query(t.x, t.y, s.radius + 30, buf);
   for (let i = 0; i < buf.length; i++) {
     const e = buf[i];
@@ -761,10 +837,10 @@ function snare(game, t, dt) {
     if (e.snaredBy === t.id && !(s.rebite && game.time - e.snareAt >= s.rebite)) continue;
     const reach = s.radius + e.r * 0.5;
     if ((e.x - t.x) ** 2 + (e.y - t.y) ** 2 > reach * reach) continue;
-    if (t.charges < 1 && !free) break;
+    if (t.charges < 1 && !freeBites) break;
     e.snaredBy = t.id;
     e.snareAt = game.time;
-    if (!free) t.charges -= 1;
+    if (!freeBites) t.charges -= 1;
     t.recoil = 1;
     bite(game, t, s, e);
   }
@@ -841,7 +917,12 @@ function lure(game, t, dt) {
     startLure(e, t, s.lureDur);
     n++;
   }
-  // Moth Queen: the moths sting ground enemies in its light too.
+  // Moth Queen: the moths sting every flyer in its light, lured or not...
+  if (s.mothSky) for (const e of list) {
+    if (!e.alive || !e.def.flying || (e.lure === t && e.lureT > 0) || (e.x - t.x) ** 2 + (e.y - t.y) ** 2 > s.range * s.range) continue;
+    game.damage(e, s.lureDps * LURE_TICK, s.type, t, DOT);
+  }
+  // ...and ground enemies in its light too.
   if (s.mothAll) {
     let k = 0;
     for (const e of list) {
@@ -908,6 +989,16 @@ function wander(game, t, dt) {
     }
     if (L.cd < 0) L.cd = 0;
   }
+  // Dawnbringer: every dawnEvery seconds the torch flares, hitting every enemy near its post.
+  if (s.dawnEvery && (t.t5T -= dt) <= 0) {
+    t.t5T = s.dawnEvery;
+    const R = s.dawnRadius || s.torchRange;
+    game.grid.query(t.hx, t.hy, R, buf);
+    hitList.length = 0;
+    for (const e of buf) if (game.targetable(e, s, true) && (e.x - t.hx) ** 2 + (e.y - t.hy) ** 2 <= R * R) hitList.push(e);
+    for (const e of hitList) if (e.alive) game.damage(e, s.damage * s.dawnMul, s.type, t, QUIET);
+    game.emit('dawnpulse', { x: t.hx, y: t.hy, r: R });
+  }
   const L0 = t.lights[0];
   t.x = L0.x; t.y = L0.y; t.ang = L0.ang; t.recoil = L0.recoil; t.target = L0.tgt;
 }
@@ -930,7 +1021,7 @@ function vault(game, t) {
   if (warm !== t.warm) { t.warm = warm; game.refreshGlobals(); }
 }
 
-const BEHAVIOURS = { bolt, mortar, pulse, chain, snipe, flame, beam, aura, snare, lure, wander, vault };
+const BEHAVIOURS = { bolt, mortar, pulse, chain, snipe, flame, beam, aura, snare, lure, wander, vault, ...NEW_BEHAVIOURS };
 
 export function updateTower(game, t, dt) {
   // Overdraw: the attack timer runs buffRate times faster.

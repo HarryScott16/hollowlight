@@ -37,6 +37,10 @@ export function createEnemy(game, type, dist, wave, mods, root, route = 0) {
     // Set later by wards (declared here so every enemy has the same shape: V8 keeps property access
     // fast only while objects share a hidden class).
     snareAt: 0, magmaT: 0, magmaSrc: null, markSrc: null, doomT: 0, _score: 0, _d2: 0,
+    // round-2 wards (sim/newwards.js): sun-marks and Zenith (Avatar), the song (Choir), Dazzle and
+    // Harbour Star (Ferrylight), the whirl (Undertow), candles and Vigil (Lampwright)
+    sunT: 0, sunPct: 0, zenithPct: 0, songT: 0, songSrc: null, noPhaseT: 0, dazzleT: 0, dazzleAmp: 0, hushT: 0, harbourCd: 0,
+    whirlIn: false, whirlT: 0, whirlAmp: 0, gripT: 0, vigilT: 0, vigilAmp: 0, candleAt: -9, candleSrc: null, candleTick: -1,
   };
   path.posAt(dist, e, e.off);
   return e;
@@ -76,6 +80,11 @@ export function updateEnemy(game, e, dt) {
   if (e.rootT > 0) e.rootT -= dt;
   if (e.groundT > 0) e.groundT -= dt;
   if (e.lureImm > 0) e.lureImm -= dt;
+  if (e.sunT > 0) e.sunT -= dt;
+  if (e.dazzleT > 0) e.dazzleT -= dt;
+  if (e.whirlT > 0) e.whirlT -= dt;
+  if (e.vigilT > 0) e.vigilT -= dt;
+  if (e.hushT > 0) e.hushT -= dt;
   // Scorched enemies can't recharge shields, regenerate or regrow layers.
   const seared = e.searT > 0;
   if (seared) e.searT -= dt;

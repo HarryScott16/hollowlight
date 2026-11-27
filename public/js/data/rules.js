@@ -31,6 +31,16 @@ export const RULES = {
   // break bleeds lives over several waves instead of collapsing in one; a boss costs at most this.
   endlessMaxLeak: 5,
   endlessBossLeak: 40,
+  // The early campaign teaches sight and anti-air without ending runs over them: on waves up to
+  // earlyLeakWave, a Veiled or flying enemy that gets through costs earlyLeak lives (the Veilmother,
+  // a Veiled boss, earlyBossLeak). From the next wave they cost the full amount.
+  // Lampwright candles: at most this many on the map (all Lampwrights together; the oldest go out).
+  candleCap: 160,
+  // A water ward stands at least this far inside a pond's shore.
+  waterMargin: 12,
+  earlyLeakWave: 20,
+  earlyLeak: 1,
+  earlyBossLeak: 10,
   // Ember Vault interest, paid on its embers at each wave clear: the vault's own rate (`growth`),
   // plus vaultHold for every wave it has been left uncashed (up to vaultHoldMax). Kills only fill a
   // vault to its cap, but interest keeps growing it up to vaultCeiling x the cap, so leaving it to

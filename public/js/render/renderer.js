@@ -6,7 +6,8 @@ import { RULES } from '../data/rules.js';
 import { Particles } from './particles.js';
 import { FlameFx } from './flames.js';
 import { paintBackground } from './background.js';
-import { drawWard, wardMuzzle, wardTop, wardBox, wardColor, initWardArt, setSkin, skinFromQuery, setWardRefresh, pruneWardCache } from './wardArt.js';
+import { drawWard, wardMuzzle, wardTop, wardBox, wardColor, initWardArt, setSkin, skinFromQuery, setWardRefresh, pruneWardCache, setWaterKind } from './wardArt.js';
+import { NewFx } from './newfx.js';
 import { DMG, DETAIL, glow } from './wards/kit.js';
 import { drawEnemy, drawEnemyBody, flushEnemyBars, setEnemyBase, initSprites, ENEMY_COLORS } from './enemyArt.js';
 
@@ -47,6 +48,7 @@ export class Renderer {
     this.tracers = [];    // Longeye shots
     this.wisps = [];      // Ember Vault: embers flying in from kills
     this.flameFx = new FlameFx(this);   // Ember Censer flamethrowers
+    this.newFx = new NewFx(this);       // the round-2 wards' world effects
     this.pops = new Map(); // tower id -> remaining pop time
     this.multi = new Map(); // tower id -> { n, t, x, y } for multi-kill callouts
     this.shake = 0;
@@ -72,11 +74,14 @@ export class Renderer {
     this._m = [0, 0];
     this.snow = null;     // Endless Winter snowfall
     if (typeof location !== 'undefined') { const s = skinFromQuery(location.search); if (s) setSkin(s); }
+    { const th = game.map && game.map.data.theme; setWaterKind(th === 'ash' ? 'lava' : th === 'snow' ? 'ice' : 'water'); }
     this.resize();
   }
 
   // After the game loads another map: repaint its ground, drop the old map's effects.
   mapChanged() {
+    const th = this.game.map.data.theme;
+    setWaterKind(th === 'ash' ? 'lava' : th === 'snow' ? 'ice' : 'water');
     this.scale = 0;   // forces the repaint
     this.resize();
     this.clearFx();
@@ -88,6 +93,7 @@ export class Renderer {
     this.arcs.length = this.rings.length = this.texts.length = this.stains.length = this.bolts.length = 0;
     this.tracers.length = this.wisps.length = 0;
     this.flameFx.clear();
+    this.newFx.clear();
     this.pops.clear();
     this.multi.clear();
     this.shake = 0;
@@ -528,6 +534,7 @@ export class Renderer {
           this.banner = { text: `Wave ${f.n}`, sub: f.banner, boss: f.boss, t: f.banner ? 3 : 2, max: f.banner ? 3 : 2 };
           break;
         default:
+          this.newFx.event(f);   // the round-2 wards' events (render/newfx.js)
       }
     }
     fx.length = 0;
@@ -723,6 +730,7 @@ export class Renderer {
     this.flameFx.drawScorch(ctx);
     this.drawLandmarks(ctx);
     this.drawZones(ctx, dt);
+    this.newFx.drawGround(ctx, dt);
     this.drawAuras(ctx);
     this.drawSnares(ctx, dt, ui);
 
@@ -804,6 +812,7 @@ export class Renderer {
     this.drawTethers(ctx);
     pt = this.mark('enemies', pt);
     this.drawTier5(ctx, dt);
+    this.newFx.drawAir(ctx, dt);
     pt = this.mark('t5fx', pt);
 
     for (const t of game.towers) {

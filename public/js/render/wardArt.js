@@ -9,6 +9,11 @@ import { KINDLINGS } from './wards/kindlings.js';
 import { LANTERNS } from './wards/lanterns.js';
 import { mainPath, WARD_DMG, DMG, setCanvasFactory, shadow } from './wards/kit.js';
 import { ascendBehind, ascendBack, ascendFront, clearAscendCache } from './wards/ascend.js';
+import { NEW_KINDLINGS, NEW_LANTERNS } from './wards/newwards.js';
+
+// The round-2 wards (both skins) join the skin tables.
+Object.assign(KINDLINGS, NEW_KINDLINGS);
+Object.assign(LANTERNS, NEW_LANTERNS);
 
 export const SKINS = { kindling: { name: 'Kindlings', art: KINDLINGS }, lantern: { name: 'Lanterns', art: LANTERNS } };
 let skin = 'kindling';
@@ -43,7 +48,12 @@ function pathInfo(tiers) {
   }
   return P;
 }
-function artFor(type) { return SKINS[skin].art[type] || null; }
+// Water wards stand on the map's water: 'water', 'lava' (Ashfork: their lava variants) or 'ice'
+// (Rimecoil: in a hole broken in the frozen lake). Set by the renderer when a map loads.
+let waterKind = 'water';
+export function setWaterKind(k) { if (k !== waterKind) { waterKind = k; sprites.clear(); live.clear(); } }
+export function getWaterKind() { return waterKind; }
+function artFor(type) { const A = SKINS[skin].art; return (waterKind === 'lava' && A[type + '_lava']) || A[type] || null; }
 export function isConverted(type) { return !!artFor(type); }
 
 // ---- sprite cache ------------------------------------------------------------------------------
@@ -94,6 +104,7 @@ export function pruneWardCache(ids) { for (const id of live.keys()) if (!ids.has
 
 function drawLive(ctx, art, P, d, sp, st, pop, type) {   // ctx is already in ward units
   // A floating ward (the Wandering Light) bobs gently; its shadow is drawn in `back`, on the ground.
+  st.water = waterKind;
   if (art.float) { if (art.shadow) art.shadow(ctx, P, st); ctx.translate(0, Math.sin(st.time * 2.2 + (st.id || 0)) * 1.6); }
   if (P.t5) ascendBack(ctx, type, P, st, d, skin);
   if (art.back) art.back(ctx, P, st, d);

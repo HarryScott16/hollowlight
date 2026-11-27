@@ -105,18 +105,23 @@ for (const cb of listeners.pointerdown || []) cb({}); // starts the (stub) audio
 
 ui.setSpeed(3);
 game.gold = 1e7;
-import { TOWER_ORDER as order, WARD_KEYS } from '../public/js/data/towers.js';
+import { TOWER_ORDER as order, SHOP_ROWS, ROW_KEYS } from '../public/js/data/towers.js';
 import { ABILITIES } from '../public/js/data/abilities.js';
 import { upgradeInfo } from '../public/js/sim/towers.js';
 // Every ward type, near the path, three times (so each path's tier 3/4 art and effects get drawn).
 const cands = [];
 for (let y = 40; y < 700; y += 24) for (let x = 40; x < 1100; x += 24) if (game.map.buildable(x, y)) cands.push([x, y]);
+// water wards go on ponds
+const wet = [];
+for (let y = 20; y < 710; y += 8) for (let x = 20; x < 1110; x += 8) if (game.map.inWater(x, y, 12)) wet.push([x, y]);
+const candsFor = (type) => (TOWERS[type].water ? wet : cands);
 const N = order.length;
 let placed = 0;
 for (let i = 0; placed < N * 3 && i < cands.length; i += 5) {
   const type = order[placed % N];
   if (TOWERS[type].onPath) continue;
-  const t = game.place(type, cands[i][0], cands[i][1]);
+  const L = candsFor(type), c = L[(i * 7) % L.length];
+  const t = game.place(type, c[0], c[1]);
   if (t) { placed++; ui.select(t); }
   // Snares go on the road: three along the path, placed through the UI's pointer handler.
   while (TOWERS[order[placed % N]] && TOWERS[order[placed % N]].onPath && placed < N * 3) {
@@ -197,7 +202,8 @@ frames(30);
   const p = game.map.path;
   const spotFor = (type, n) => {
     if (TOWERS[type].onPath) { const i = Math.round((200 + n * 90) / p.step); return [p.xs[i] + 3, p.ys[i] - 2]; }
-    for (let k = 0; k < cands.length; k++) { const [x, y] = cands[(k * 37 + n * 11) % cands.length]; if (game.canPlace(type, x, y)) return [x, y]; }
+    const L = candsFor(type);
+    for (let k = 0; k < L.length; k++) { const [x, y] = L[(k * 37 + n * 11) % L.length]; if (game.canPlace(type, x, y)) return [x, y]; }
     return null;
   };
   const check = (what) => {
@@ -222,7 +228,13 @@ frames(30);
     canvas.fire('pointerup', ev(at[0], at[1])); for (const cb of listeners.pointerup || []) cb(ev(at[0], at[1]));
     check(`${type}: placed by drag`);
     // 3. a third, so each path gets to be the main one
-    at = spotFor(type, 2); keyDown(WARD_KEYS[order.indexOf(type)]); canvas.fire('pointermove', ev(at[0], at[1])); canvas.fire('pointerdown', ev(at[0], at[1]));
+    // the number row picks from the shop row that's showing; Tab (nothing selected) switches rows
+    const row = SHOP_ROWS[0].includes(type) ? 0 : 1;
+    ui.select(null);
+    if (row !== ui.shopRow) keyDown('Tab');
+    if (ui.shopRow !== row) { console.error(`${type}: Tab didn't switch the shop row`); errors++; }
+    at = spotFor(type, 2); keyDown(ROW_KEYS[SHOP_ROWS[row].indexOf(type)]); canvas.fire('pointermove', ev(at[0], at[1])); canvas.fire('pointerdown', ev(at[0], at[1]));
+    ui.setShopRow(0);
     check(`${type}: placed by key`);
     const mine = game.towers.slice(n0);
     if (mine.length !== 3) { console.error(`${type}: expected 3 placed (click, drag, key), got ${mine.length}`); errors++; }
@@ -234,6 +246,14 @@ frames(30);
       if (t.tiers[i] !== 5) { console.error(`${type}: path ${i} didn't reach tier 5 (${t.tiers.join('')})`); errors++; }
       keyDown('r');   // the ward's own action
       if (t.def.kind === 'wander') { canvas.fire('pointermove', ev(560, 380)); check(`${type}: choosing a post`); canvas.fire('pointerdown', ev(560, 380)); }
+      const aim = game.wardAimKind(t);
+      if (aim) {   // the round-2 wards' R: a road point in reach, or (lending a star) another ward
+        let ax, ay;
+        if (aim === 'lend') { const w = game.towers.find((o) => o !== t && o.type !== 'avatar' && !o.def.onPath) || game.place('bolt', ...spotFor('bolt', 5)); ax = w.x; ay = w.y; }
+        else { const nr = game.map.nearestRoute(t.x, t.y), pt = { x: 0, y: 0 }; nr.path.posAt(nr.dist + 20, pt, 0); ax = pt.x; ay = pt.y; }
+        canvas.fire('pointermove', ev(ax, ay)); check(`${type}: aiming (${aim})`); canvas.fire('pointerdown', ev(ax, ay));
+        if (ui.moving) { console.error(`${type}: R (${aim}) didn't take`); errors++; ui.moving = null; }
+      }
       check(`${type}: R action`);
     });
     // only one of each tier 5: a fourth ward can't take path 0 to tier 5 while the first holds it
@@ -250,6 +270,7 @@ frames(30);
     for (const t of mine) t.abilityCd = 0;
     keyDown(ABILITIES[type].key.toLowerCase());
     check(`${type}: ability ${ABILITIES[type].name}`);
+    if (ABILITIES[type].paths && mine.every((t) => t.abilityCd === 0)) { console.error(`${type}: its ability key did nothing`); errors++; }
     keyDown('l'); check(`${type}: other skin`); keyDown('l');
     for (const t of mine) { ui.select(t); ui.sellSelected(); }
     check(`${type}: sold`);

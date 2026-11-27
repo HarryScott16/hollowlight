@@ -4,7 +4,7 @@
 // ability when any ward of that type reaches tier 4 on any path. A freshly unlocked ability
 // starts one-third charged. When several wards of a type have it, the button fires whichever is
 // ready first. Keys, in build-bar order: the home row for the first eight wards (A S D F G H J K),
-// the bottom row for the last four (Z C V B), and X for the Flare.
+// the bottom row for the next four (Z C V B), Y I O P N for the second shop row, and X for the Flare.
 
 export const FLARE = {
   name: 'Heartfire Flare', key: 'X', cd: 60,
@@ -68,5 +68,52 @@ export const ABILITIES = {
   vault: {
     name: 'Windfall', key: 'B', cd: 60, mul: 2,
     desc: 'This Ember Vault\'s embers double at once (up to twice its cap).',
+  },
+  // Round-2 wards: one ability per path, unlocked by that path's tier 4 (the button shows the
+  // ability of the ward it would fire). Keys Y I O P N (the second shop row).
+  avatar: {
+    name: 'Avatar', key: 'Y', cd: 45,
+    desc: 'Its path\'s ability: Sunfall (Solar), Starfall (Orrery) or Corona (Eclipse).',
+    paths: [
+      { name: 'Sunfall', cd: 45, dur: 6, pct: 0.04, desc: 'A pillar of sunlight on the strongest enemy for 6s: 4% of its full health a second, bosses included.' },
+      { name: 'Starfall', cd: 40, radius: 50, mul: 8, back: 3, desc: 'Every star dives onto its target and bursts (x8 damage within 50), returning after 3s.' },
+      { name: 'Corona', cd: 50, dur: 8, desc: 'For 8s every tethered ward attacks 40% faster and the torrent doubles.' },
+    ],
+  },
+  choir: {
+    name: 'Choir', key: 'I', cd: 45,
+    desc: 'Its path\'s ability: Fortissimo (Hymn), Chorale (Chorus) or Release (Requiem).',
+    paths: [
+      { name: 'Fortissimo', cd: 40, notes: 5, desc: 'The next 5 notes are all crescendos.' },
+      { name: 'Chorale', cd: 45, dur: 6, desc: 'For 6s every note strikes twice.' },
+      { name: 'Release', cd: 50, desc: 'Every living wisp joins one flood that sweeps the road back toward the Rift, through everything.' },
+    ],
+  },
+  ferry: {
+    name: 'Ferrylight', key: 'O', cd: 35,
+    desc: 'Its path\'s ability: Reel In (Harpooner), Broadside (Flotilla) or Lightfall (Lighthouse Barge).',
+    paths: [
+      { name: 'Reel In', cd: 30, drag: 300, desc: 'Harpoons the strongest non-boss in range and drags it 300 back up the road.' },
+      { name: 'Broadside', cd: 40, dur: 4, desc: 'For 4s every raft fires fans of 6 bolts, three times as often.' },
+      { name: 'Lightfall', cd: 45, dur: 6, stop: 1, desc: 'The beam stops and holds its spot for 6s; everything in it stops dead for 1s (bosses are slowed).' },
+    ],
+  },
+  undertow: {
+    name: 'Undertow', key: 'P', cd: 45,
+    desc: 'Its path\'s ability: Riptide (Maelstrom), Flood (Tidecaller) or Maw (Abyss).',
+    paths: [
+      { name: 'Riptide', cd: 40, dur: 5, desc: 'For 5s it pulls everything within 140 of the whirl into its centre (not bosses).' },
+      { name: 'Flood', cd: 50, dur: 6, desc: 'For 6s the road within 220 of the whirl floods: everything at half speed, non-Heavies pushed back 120.' },
+      { name: 'Maw', cd: 45, dur: 4, desc: 'For 4s the whirl swallows every non-tough enemy within 80.' },
+    ],
+  },
+  lamp: {
+    name: 'Lampwright', key: 'N', cd: 40,
+    desc: 'Its path\'s ability: Wax Seal (Tallow), Wickfall (Wickstorm) or Night Watch (Beaconwax).',
+    paths: [
+      { name: 'Wax Seal', cd: 40, dur: 1.5, heavy: 0.5, desc: 'The wax hardens: everything standing on a candle is stuck for 1.5s (Heavies 0.5s, not bosses).' },
+      { name: 'Wickfall', cd: 40, n: 24, desc: 'Scatters 24 candles over the road in range at once (within the caps).' },
+      { name: 'Night Watch', cd: 50, dur: 10, desc: 'For 10s every candle flares: twice the reveal radius, and a 40% slow.' },
+    ],
   },
 };

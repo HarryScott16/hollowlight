@@ -149,6 +149,10 @@ main { flex: 1; display: flex; min-height: 0; }
 #side h2 .hint { text-transform: none; letter-spacing: 0; font-weight: 400; opacity: 0.7; margin-left: 6px; }
 
 #shop-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 6px; }
+.shop-tabs { display: flex; gap: 6px; margin-bottom: 6px; }
+.shop-tab { flex: 1; padding: 3px 6px; font: inherit; font-size: 12px; color: #d8cfee; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; cursor: pointer; }
+.shop-tab.active { color: #1d1030; background: #ffe45c; border-color: #ffe45c; font-weight: 600; }
+.shop-btn[hidden] { display: none; }
 .shop-btn { display: flex; flex-direction: column; align-items: center; padding: 4px 2px 5px; gap: 1px; position: relative; }
 .shop-btn canvas { width: 48px; height: 48px; }
 .shop-btn .cost { color: var(--gold); font-size: 13px; font-weight: 600; }

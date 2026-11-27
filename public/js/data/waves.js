@@ -5,6 +5,8 @@
 //
 //   1-5    the basics, one new layer per wave
 //   6-15   Veiled, Herald, Dreadhulk, Gloomwing, Gravemaw (boss), Aegis, Nullback, Wisp, Mender
+//          (up to wave 20 Veiled and flyers come in small groups and cost 1 life each if they get
+//          through, RULES.earlyLeak; the big flocks and Veiled hosts start at 21)
 //   16-30  themed waves that punish a defence with no answer to armour, flyers or stealth;
 //          Veilmother (20), Gloomcolossus (23), Bastion (30)
 //   31-40  everything at once, bigger every wave; The Hollow King (40)
@@ -91,10 +93,16 @@ function themed(wave, name, opts = {}) {
   }
   const bigBudget = Math.max(0, budget - smallPops);
   const rows = [];
+  // Waves 21-24 ease the Veiled and the flyers in: the Veiled share of each group goes x0, 0.2,
+  // 0.45, then 1, and the Gloomwing and Wisp counts x0.05, 0.2, 0.5, then 1. A defence with no sight
+  // or anti-air starts to bleed here instead of falling all at once on wave 21.
+  const k = name === 'veiledArmour' ? Math.min(3, wave - 21) : 3;
+  const veilEase = [0, 0.2, 0.45, 1][k], countEase = [0.05, 0.2, 0.5, 1][k];
   for (const [type, share, veil = 0] of st.mix) {
-    const v = opts.veiledGiants && HULKS.has(type) ? 0.5 : veil;
-    const n = HULKS.has(type) ? Math.max(1, Math.round((bigBudget * share) / bigShare / pops(type)))
+    const v = (opts.veiledGiants && HULKS.has(type) ? 0.5 : veil) * veilEase;
+    let n = HULKS.has(type) ? Math.max(1, Math.round((bigBudget * share) / bigShare / pops(type)))
       : Math.max(1, Math.round((small * share) / pops(type)));
+    if (type === 'gloomwing' || type === 'wisp') n = Math.max(1, Math.round(n * countEase));
     const nv = Math.round(n * v);
     if (n - nv > 0) rows.push({ type, n: n - nv, veiled: false });
     if (nv > 0) rows.push({ type, n: nv, veiled: true });
@@ -124,35 +132,35 @@ export const WAVES = [
   /* 3 */ { groups: [g('shambler', 40, 0.35), g('skitter', 20, 0.3, 8)] },
   /* 4 */ { groups: [g('brood', 6, 1.0), g('shambler', 50, 0.25, 7), g('brood', 10, 0.7, 12)] },
   /* 5 */ { groups: [g('husk', 3, 1.5), g('brood', 25, 0.45, 6), g('skitter', 60, 0.12, 10), g('husk', 5, 1.2, 16)] },
-  /* 6 */ { groups: [g('shambler', 12, 0.4, 0, V), g('husk', 6, 1.2, 6), g('brood', 25, 0.45, 8), g('shambler', 40, 0.25, 12), g('skitter', 20, 0.25, 18, V)],
+  /* 6 */ { groups: [g('shambler', 3, 1.5, 0, V), g('shambler', 9, 0.6, 1), g('husk', 6, 1.2, 6), g('brood', 25, 0.45, 8), g('shambler', 40, 0.25, 12), g('skitter', 17, 0.3, 18), g('skitter', 3, 1.2, 19, V)],
     banner: 'Veiled Gloom: only some wards can see them' },
   /* 7 */ { groups: [g('herald', 3, 1.5), g('shambler', 40, 0.3, 6), g('herald', 3, 3, 8), g('brood', 32, 0.4, 10), g('skitter', 50, 0.18, 16), g('husk', 2, 2, 20)],
     banner: 'Heralds: Gloom near them run faster' },
-  /* 8 */ { groups: [g('dreadhulk', 1, 1), g('husk', 5, 1.4, 10), g('brood', 28, 0.4, 12), g('shambler', 40, 0.25, 16), g('herald', 4, 2.5, 12), g('skitter', 20, 0.2, 22, V)],
+  /* 8 */ { groups: [g('dreadhulk', 1, 1), g('husk', 5, 1.4, 10), g('brood', 28, 0.4, 12), g('shambler', 40, 0.25, 16), g('herald', 4, 2.5, 12), g('skitter', 17, 0.22, 22), g('skitter', 3, 1.2, 23, V)],
     banner: 'A Dreadhulk approaches' },
-  /* 9 */ { groups: [g('gloomwing', 4, 1.5), g('husk', 8, 1.0, 7), g('brood', 32, 0.35, 9), g('shambler', 60, 0.18, 13), g('gloomwing', 6, 1.2, 16), g('shambler', 15, 0.4, 20, V), g('herald', 3, 3, 14)],
+  /* 9 */ { groups: [g('gloomwing', 3, 1.5), g('husk', 8, 1.0, 7), g('brood', 32, 0.35, 9), g('shambler', 60, 0.18, 13), g('gloomwing', 3, 1.5, 16), g('brood', 2, 1, 17), g('shambler', 12, 0.45, 20), g('shambler', 3, 1.5, 21, V), g('herald', 3, 3, 14)],
     banner: 'Gloomwings: flyers that Mortars and Rime can\'t hit' },
-  /* 10 */ { groups: [g('gravemaw', 1, 1), g('husk', 8, 1.2, 4), g('brood', 30, 0.4, 8), g('herald', 4, 3, 10), g('skitter', 80, 0.1, 16), g('gloomwing', 8, 1, 20)],
+  /* 10 */ { groups: [g('gravemaw', 1, 1), g('husk', 8, 1.2, 4), g('brood', 30, 0.4, 8), g('herald', 4, 3, 10), g('skitter', 80, 0.1, 16), g('gloomwing', 5, 1.4, 20), g('brood', 2, 1, 21)],
     banner: 'The Gravemaw rises' },
-  /* 11 */ { groups: [g('aegis', 6, 1.2), g('husk', 12, 0.8, 8), g('brood', 40, 0.3, 10), g('aegis', 20, 0.6, 14), g('shambler', 100, 0.12, 16), g('gloomwing', 12, 0.8, 20), g('herald', 4, 3, 18), g('skitter', 30, 0.2, 24, V)],
+  /* 11 */ { groups: [g('aegis', 6, 1.2), g('husk', 12, 0.8, 8), g('brood', 43, 0.3, 10), g('aegis', 20, 0.6, 14), g('shambler', 100, 0.12, 16), g('gloomwing', 5, 1.5, 20), g('herald', 4, 3, 18), g('skitter', 26, 0.22, 24), g('skitter', 4, 1.2, 25, V)],
     banner: 'Aegis: shields that recharge. Storm Coils break them; fire stops the recharge' },
-  /* 12 */ { groups: [g('dreadhulk', 2, 6), g('husk', 16, 0.7, 3), g('brood', 50, 0.25, 7), g('aegis', 20, 0.6, 10), g('gloomwing', 15, 0.7, 14), g('herald', 6, 2.5, 12), g('shambler', 40, 0.25, 18, V), g('skitter', 60, 0.12, 22)] },
+  /* 12 */ { groups: [g('dreadhulk', 2, 6), g('husk', 16, 0.7, 3), g('brood', 55, 0.25, 7), g('aegis', 20, 0.6, 10), g('gloomwing', 6, 1.4, 14), g('herald', 6, 2.5, 12), g('shambler', 35, 0.25, 18), g('shambler', 5, 1.2, 19, V), g('skitter', 60, 0.12, 22)] },
   /* 13 */ { groups: [g('nullback', 4, 1.5), g('nullback', 14, 0.9, 8), g('husk', 16, 0.8, 10), g('brood', 50, 0.25, 12), g('aegis', 20, 0.6, 16), g('herald', 6, 2.5, 14), g('shambler', 100, 0.12, 20)],
     banner: 'Nullbacks: Arcane barely scratches them' },
-  /* 14 */ { groups: [g('wisp', 15, 0.5), g('dreadhulk', 2, 5, 8), g('husk', 20, 0.7, 10), g('brood', 60, 0.22, 12), g('wisp', 40, 0.3, 16), g('gloomwing', 20, 0.6, 18), g('aegis', 20, 0.6, 20), g('herald', 8, 2, 16), g('skitter', 80, 0.12, 24)],
+  /* 14 */ { groups: [g('wisp', 3, 1.5), g('dreadhulk', 2, 5, 8), g('husk', 20, 0.7, 10), g('brood', 65, 0.22, 12), g('wisp', 3, 1.5, 16), g('shambler', 50, 0.22, 17), g('gloomwing', 6, 1.4, 18), g('brood', 4, 1, 19), g('aegis', 20, 0.6, 20), g('herald', 8, 2, 16), g('skitter', 80, 0.12, 24)],
     banner: 'Wisps: always Veiled' },
-  /* 15 */ { groups: [g('mender', 4, 1.5), g('shambler', 30, 0.2, 2), g('husk', 20, 0.8, 9), g('mender', 6, 2.5, 11), g('brood', 70, 0.22, 12), g('nullback', 12, 1, 15), g('aegis', 25, 0.5, 18), g('herald', 8, 2, 16), g('gloomwing', 20, 0.6, 20), g('wisp', 40, 0.3, 24), g('dreadhulk', 2, 6, 14)],
+  /* 15 */ { groups: [g('mender', 4, 1.5), g('shambler', 30, 0.2, 2), g('husk', 20, 0.8, 9), g('mender', 6, 2.5, 11), g('brood', 75, 0.22, 12), g('nullback', 12, 1, 15), g('aegis', 25, 0.5, 18), g('herald', 8, 2, 16), g('gloomwing', 6, 1.4, 20), g('brood', 4, 1, 21), g('wisp', 5, 1.2, 24), g('shambler', 35, 0.3, 25), g('dreadhulk', 2, 6, 14)],
     banner: 'Menders: they regrow and patch the Gloom around them. Fire stops them' },
 
   // ---- 16-30: themed waves ------------------------------------------------------------------
   /* 16 armour */ { groups: [g('dreadhulk', 3, 4), g('husk', 40, 0.4, 3), g('nullback', 20, 0.8, 8), g('brood', 60, 0.25, 10), g('mender', 6, 2.5, 12), g('herald', 8, 2, 14), g('aegis', 30, 0.5, 18)],
     banner: 'Iron and hide' },
-  /* 17 flyers */ { groups: [g('gloomwing', 26, 0.36), g('husk', 30, 0.6, 4), g('brood', 80, 0.2, 8), g('gloomwing', 52, 0.3, 14), g('aegis', 20, 0.6, 12), g('herald', 10, 2, 10), g('skitter', 150, 0.08, 20), g('dreadhulk', 2, 6, 16)],
+  /* 17 flyers */ { groups: [g('gloomwing', 4, 1.5), g('husk', 44, 0.42, 4), g('brood', 80, 0.2, 8), g('gloomwing', 8, 1, 14), g('aegis', 20, 0.6, 12), g('herald', 10, 2, 10), g('skitter', 150, 0.08, 20), g('dreadhulk', 2, 6, 16)],
     banner: 'The sky darkens' },
-  /* 18 stealth */ { groups: [g('wisp', 60, 0.2), g('brood', 40, 0.3, 4, V), g('husk', 25, 0.7, 8), g('dreadhulk', 3, 5, 10), g('shambler', 60, 0.2, 12, V), g('wisp', 60, 0.2, 20), g('aegis', 25, 0.5, 16), g('mender', 8, 2, 14), g('herald', 10, 2, 18), g('nullback', 20, 0.8, 22), g('brood', 50, 0.25, 26)],
+  /* 18 stealth */ { groups: [g('wisp', 4, 1.2), g('brood', 38, 0.32, 4), g('brood', 2, 2, 5, V), g('husk', 25, 0.7, 8), g('dreadhulk', 3, 5, 10), g('shambler', 58, 0.2, 12), g('shambler', 2, 2, 13, V), g('wisp', 4, 1.2, 20), g('shambler', 110, 0.13, 21), g('aegis', 25, 0.5, 16), g('mender', 8, 2, 14), g('herald', 10, 2, 18), g('nullback', 20, 0.8, 22), g('brood', 50, 0.25, 26)],
     banner: 'Things you cannot see' },
-  /* 19 */ { groups: [g('dreadhulk', 4, 4), g('husk', 30, 0.6, 3), g('nullback', 25, 0.7, 7), g('aegis', 30, 0.5, 10), g('gloomwing', 60, 0.3, 12), g('wisp', 60, 0.25, 16), g('mender', 10, 2, 14), g('herald', 12, 1.8, 12), g('brood', 80, 0.2, 20), g('skitter', 100, 0.1, 26)] },
-  /* 20 */ { groups: [g('veilmother', 1, 1), g('dreadhulk', 4, 5, 6), g('husk', 40, 0.6, 8), g('brood', 30, 0.4, 12, V), g('aegis', 30, 0.5, 14), g('gloomwing', 30, 0.5, 18), g('herald', 10, 2.5, 16), g('mender', 8, 3, 20), g('shambler', 100, 0.15, 24), g('nullback', 20, 0.9, 28)],
+  /* 19 */ { groups: [g('dreadhulk', 4, 4), g('husk', 38, 0.5, 3), g('nullback', 25, 0.7, 7), g('aegis', 30, 0.5, 10), g('gloomwing', 10, 1.2, 12), g('brood', 6, 1, 13), g('wisp', 5, 1.2, 16), g('shambler', 55, 0.28, 17), g('mender', 10, 2, 14), g('herald', 12, 1.8, 12), g('brood', 80, 0.2, 20), g('skitter', 100, 0.1, 26)] },
+  /* 20 */ { groups: [g('veilmother', 1, 1, 0, { summonEvery: 20, summonCount: 2 }), g('dreadhulk', 4, 5, 6), g('husk', 40, 0.6, 8), g('brood', 34, 0.38, 12), g('brood', 4, 1.5, 13, V), g('aegis', 30, 0.5, 14), g('gloomwing', 8, 1.2, 18), g('brood', 5, 1, 19), g('herald', 10, 2.5, 16), g('mender', 8, 3, 20), g('shambler', 100, 0.15, 24), g('nullback', 20, 0.9, 28)],
     banner: 'The Veilmother: only wards that see Veiled can target her' },
   /* 21-24 */ themed(21, 'veiledArmour'), themed(22, 'veiledArmour'), themed(23, 'veiledArmour', { colossusIntro: true }), themed(24, 'veiledArmour'),
   /* 25-29 */ themed(25, 'airAndHide'), themed(26, 'airAndHide'), themed(27, 'airAndHide'), themed(28, 'airAndHide'), themed(29, 'airAndHide'),

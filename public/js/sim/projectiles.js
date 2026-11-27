@@ -1,4 +1,5 @@
 // Projectiles, explosions and lingering ground zones. No DOM access.
+import { hookHit } from './newwards.js';
 import { applySlow } from './enemies.js';
 const buf = [];
 // A flyer circling a Moth Lantern (or still grounded by Flypaper) flies low: anything can hit it.
@@ -43,6 +44,7 @@ function hitBolt(game, p, e) {
   const s = p.s;
   game.damage(e, p.dmg, s.type, p.src, s.armorPierce ? { armorPierce: s.armorPierce } : null);
   if (e.alive && s.knockback && !e.def.heavy) game.pushBack(e, s.knockback, p.src);
+  if (p.hook && p.drag) hookHit(game, p, e);   // Ferrylight harpoons
   // Worldpiercer: the giant lance stuns everything it passes through.
   if (p.rend && e.alive && !e.def.boss) e.stunT = Math.max(e.stunT, e.def.heavy ? p.rend * 0.4 : p.rend);
   // Thousand Bolts: a bolt that kills splits into new bolts.

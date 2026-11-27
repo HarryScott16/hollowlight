@@ -131,6 +131,12 @@ export function runSolo(o) {
       return targetable(e, s, true);   // `area` skips only the veil check
     };
   }
+  // Full: an immunity (the Hollow King's to Frost) is a blind spot too. The ward's damage of an
+  // immune type lands as plain damage instead (test only; the game keeps the immunity).
+  if (cond === 'full') {
+    const damage = game.damage.bind(game);
+    game.damage = (e, amount, dtype, src, opts) => damage(e, amount, e.def.mult && e.def.mult[dtype] === 0 ? 'true' : dtype, src, opts);
+  }
   const airOn = () => { if (cond === 'full') t.stats.hitsAir = true; };
   airOn();
   if (start > 1) {   // straight into endless at `start`, fresh lives
@@ -141,7 +147,11 @@ export function runSolo(o) {
   // Leaks: lives lost by enemy type and by cause, over the run and in the losing wave.
   const leaks = {}, causes = {}, lastCauses = {};
   const leak = game.leak.bind(game);
+  // A ward whose damage only exists on the ground (the Snare) can never reach flyers, whatever
+  // switch is set; in the full condition its blind spot is removed by letting flyers through free.
+  const groundOnly = cond === 'full' && ['snare', 'undertow', 'lamp'].includes(def.kind);
   game.leak = (e) => {
+    if (groundOnly && e.def.flying) { leaks.freeFlyers = (leaks.freeFlyers || 0) + 1; return; }
     const before = game.lives;
     leak(e);
     const lost = before - game.lives;   // (0 when Last Light saves it)
@@ -157,6 +167,7 @@ export function runSolo(o) {
   let timedOut = false;
   const guard = stallGuard(game);
   const marks = [];   // [time, damage] at each wave's start, for the late damage rate
+  const livesAt = [];   // lives at the end of each wave played
   for (;;) {
     if (game.over === 'win') game.continueEndless();
     if (game.over || timedOut || game.wave >= cap) break;
@@ -174,6 +185,7 @@ export function runSolo(o) {
       w += STEP;
       if (guard.check()) { timedOut = true; break; }
     }
+    livesAt.push(game.lives);
   }
   const lost = game.over === 'lose';
   const cleared = lost || timedOut ? game.wave - 1 : game.wave;
@@ -188,7 +200,7 @@ export function runSolo(o) {
     partner: o.partner ? `${t.type} ${t.tiers.join('')}` : undefined,
     cleared, capped: !lost && !timedOut, timedOut, stalled: timedOut ? guard.reason : undefined, pushback: Math.round(game.pushback), lives: game.lives, dmg: Math.round(t.dmg), kills: t.kills,
     time: Math.round(time), dps: Math.round(t.dmg / Math.max(1, time)), dpsLate,
-    leaks, causes, lastCauses: lastCauses[game.wave] || {},
+    leaks, causes, lastCauses: lastCauses[game.wave] || {}, livesAt: livesAt.join(','),
   };
 }
 

@@ -54,9 +54,13 @@
 export const PATH_COLORS = ['#ffae2b', '#2fe0ff', '#c86bff'];
 const TAU = Math.PI * 2;
 
-export const TOWER_ORDER = ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon', 'snare', 'moth', 'wander', 'vault'];
-// Build keys, in TOWER_ORDER: the number row.
-export const WARD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
+import { NEW_TOWERS, NEW_TIER5, NEW_ORDER } from './towers-new.js';
+// Every ward, in shop order: the first row (the twelve), then the second row (round 2, Tab).
+export const TOWER_ORDER = ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon', 'snare', 'moth', 'wander', 'vault', ...NEW_ORDER];
+export const SHOP_ROWS = [TOWER_ORDER.slice(0, 12), NEW_ORDER];
+// Build keys: the number row picks a ward in the shop row that's showing (Tab switches rows).
+export const ROW_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
+export const WARD_KEYS = ROW_KEYS;   // (first row; the second row uses the same keys)
 
 export const TOWERS = {
   bolt: {
@@ -414,7 +418,7 @@ const TIER5 = {
     { name: 'Magma Heart', blurb: "Fire pools turn to magma that mires the Gloom, and what dies in it erupts.", cost: 20000, desc: 'x1.5 shell damage. Pools are magma: 140 damage/s for 9s, slowing 40%. Gloom that die in magma erupt for 80 within 55 (up to 15 a second).', mul: { damage: 1.5 }, set: { poolDps: 140, poolDur: 9, magma: 0.4, eruptDmg: 80, eruptRadius: 55, eruptRate: 15 } },
   ],
   rime: [
-    { name: 'Permafrost', blurb: "Every pulse freezes, deep enough to freeze hulks and stall bosses.", cost: 17500, desc: 'Every pulse freezes for 2s, and frozen enemies take +100% damage. Hulks freeze for 1s, bosses are slowed 50%. x2.5 damage, x1.25 rate.', mul: { damage: 2.5, rate: 1.25 }, set: { freezeEvery: 1, freezeDur: 2, frozenAmp: 1, freezeHeavy: 1, bossSlow: 0.5 } },
+    { name: 'Permafrost', blurb: "Every pulse freezes, deep enough to freeze hulks and stall bosses.", cost: 17500, desc: 'Every pulse freezes for 2s, and frozen enemies take +100% damage. Hulks freeze for 1s, bosses are slowed 50%. x2.5 damage, x1.25 rate. Pulses reach up to 80 enemies.', mul: { damage: 2.5, rate: 1.25 }, set: { maxHits: 80, freezeEvery: 1, freezeDur: 2, frozenAmp: 1, freezeHeavy: 1, bossSlow: 0.5 } },
     { name: 'Avalanche', blurb: "Shatters set off more shatters: one death can sweep a frozen crowd.", cost: 19000, desc: 'x3 damage. Shatters deal 500 within 85 (up to 50 a second), and everything a shatter hits is chilled and can shatter in turn.', mul: { damage: 3 }, set: { shatterDmg: 500, shatterRadius: 85, shatterRate: 50, shatterChain: true } },
     { name: 'Whiteout', blurb: "A blizzard over the whole map: everything slowed, nothing hidden.", cost: 17000, desc: 'Every enemy on the map is slowed 35% and Veiled enemies are revealed to every ward. Every 4s a frost wave hits every enemy on the map for its pulse damage. x2 damage.', mul: { damage: 2 }, set: { globalSlow: 0.35, globalReveal: true, waveEvery: 4 } },
   ],
@@ -424,9 +428,9 @@ const TIER5 = {
     { name: 'Eye of the Storm', blurb: "A storm field: everything near it is Charged, slowed and shocked constantly.", cost: 20000, desc: 'Everything in range takes a shock (a third of its damage) 4 times a second and is Charged: +60% Arcane damage taken, 35% slower. Stun chance 40%. x1.5 damage, x1.2 rate.', mul: { damage: 1.5, rate: 1.2 }, set: { field: true, fieldMul: 0.35, fieldHits: 40, chargedPct: 0.6, chargedSlow: 0.35, chargedDur: 3, stunChance: 0.4 } },
   ],
   longeye: [
-    { name: 'Kingslayer', blurb: "Each shot tears a share of a hulk's or boss's whole health away.", cost: 20500, desc: 'x2 damage, x1.3 rate. Shots at hulks also deal 3% of their full health, and at bosses 1.2%. Hulks are staggered 0.35s, bosses slowed 30%.', mul: { damage: 2, rate: 1.3 }, set: { pctHeavy: 0.03, pctBoss: 0.012, stagger: 0.35 } },
+    { name: 'Kingslayer', blurb: "Each shot tears a share of a hulk's or boss's whole health away, and a kill carries on to the next.", cost: 20500, desc: 'x2 damage, x1.3 rate. Shots at hulks also deal 3% of their full health, and at bosses 1.2%. Hulks are staggered 0.35s, bosses slowed 30%. A shot that kills carries on to the nearest enemy, up to 8 times.', mul: { damage: 2, rate: 1.3 }, set: { pctHeavy: 0.03, pctBoss: 0.012, stagger: 0.35, killChain: 8 } },
     { name: 'Shrapnel Storm', blurb: "Every burst throws shrapnel that bursts again: whole flocks fall.", cost: 19500, desc: 'x2 damage, x1.3 rate. Each burst throws shrapnel at 5 more enemies nearby, each bursting again for half damage.', mul: { damage: 2, rate: 1.3 }, set: { shrapnel: 5, flakHits: 50 } },
-    { name: 'Eye of Fate', blurb: "It picks out the toughest Gloom on the map and dooms them for every ward.", cost: 18000, desc: 'The 10 toughest enemies on the map are Doomed: +60% damage from everything, and they can\'t hide. x2.5 damage, x1.2 rate.', mul: { damage: 2.5, rate: 1.2 }, set: { doom: 10, doomPct: 0.6 } },
+    { name: 'Eye of Fate', blurb: "It dooms the toughest Gloom on the map for every ward, and shoots every Doomed one it can see.", cost: 18000, desc: 'The 40 toughest enemies on the map are Doomed: +60% damage from everything, and they can\'t hide. Every volley also strikes every Doomed enemy in range. x2.5 damage, x1.2 rate.', mul: { damage: 2.5, rate: 1.2 }, set: { doom: 40, doomPct: 0.6, fateVolley: true } },
   ],
   censer: [
     { name: 'Phoenix', blurb: "A phoenix rises from the pyre and sweeps the road, setting everything ablaze.", cost: 19000, desc: 'A phoenix flies up and down the path near it, burning everything within 36 (ground and air) for x3 flame damage and setting it alight. Flames x2, burns x2.', mul: { damage: 2, burnDps: 2 }, set: { phoenix: true, phoenixMul: 3 } },
@@ -444,19 +448,19 @@ const TIER5 = {
     { name: 'Golden Age', blurb: "A golden age: a fortune every wave, and every upgrade costs less.", cost: 18000, desc: '+1,000 gold each wave, plus 8% of your banked gold (up to 2,000). Upgrades up to tier 4 cost 15% less.', set: { tithe: 1000, interest: 0.08, interestCap: 2000, discount: 0.15 } },
   ],
   snare: [
-    { name: 'Thornwall', blurb: "A wall of iron briars: whatever stands on it is bitten again and again.", cost: 17500, desc: 'x2 damage, x2 charges, x2 refill. Enemies on it are slowed 80% and bitten again every 0.5s while they stand on it.', mul: { damage: 2, charges: 2, refill: 2 }, set: { rebite: 0.5, slow: 0.8, slowDur: 1 } },
+    { name: 'Thornwall', blurb: "A wall of iron briars: whatever stands on it is bitten again and again.", cost: 17500, desc: 'x2 damage, and its bites cost no charges. The briars spread x2.5 wider along the road; enemies on it are slowed 80% and bitten again every 0.5s while they stand on it.', mul: { damage: 2, radius: 2.5 }, set: { rebite: 0.5, slow: 0.8, slowDur: 1, freeBites: true } },
     { name: 'Constellation', blurb: "Mines link into constellations: when one bursts, its neighbours burst too.", cost: 19000, desc: 'Up to 30 mines, 5 a second, reaching 320. Bursts deal 160 on up to 35 within 70 and stun 0.6s, and set off every mine within 150.', set: { mineMax: 30, mineEvery: 0.2, mineDmg: 160, mineRadius: 70, mineHits: 35, mineRange: 320, mineChain: 150 } },
-    { name: 'Seal of Dawn', blurb: "A great seal that binds even bosses, and bound Gloom take more from every ward.", cost: 18000, desc: 'Every 8s it binds the strongest enemy within 240 for 3s (bosses 1.5s); bound enemies take +50% damage. Holds a Heavy every 3s. x2 damage.', mul: { damage: 2 }, set: { sealEvery: 8, sealDur: 3, sealBoss: 1.5, sealRange: 240, sealAmp: 0.5, heavyRootEvery: 3 } },
+    { name: 'Seal of Dawn', blurb: "A great seal that binds even bosses, and bound Gloom take more from every ward.", cost: 18000, desc: 'Every 8s it binds the strongest enemy within 240 for 3s (bosses 1.5s); bound enemies take +50% damage. Holds a Heavy every 3s. Every second a ring of dawn bites every ground enemy within 150, through armour and x2 to shields. x2 damage.', mul: { damage: 2 }, set: { sealEvery: 8, sealDur: 3, sealBoss: 1.5, sealRange: 240, sealAmp: 0.5, heavyRootEvery: 3, dawnEvery: 1, dawnRadius: 150 } },
   ],
   moth: [
     { name: 'False Moon', blurb: "A false moon: every flyer on the map turns to circle it.", cost: 17000, desc: 'Lures flyers from anywhere on the map, up to 80 at once. Circling flyers take +80% damage.', set: { lureGlobal: true, lureMax: 80, lureAmp: 0.8 } },
     { name: 'Amber Trap', blurb: "Flyers it holds set in amber: held still, then grounded for good.", cost: 16000, desc: 'Lures up to 30. Released flyers are held still for 2.5s and never fly high again. Circling flyers take +35% damage.', set: { lureMax: 30, releaseHold: 2.5, groundDur: 9999, lureAmp: 0.35 } },
-    { name: 'Moth Queen', blurb: "A Moth Queen leads the swarm: its moths sting everything in its light.", cost: 18500, desc: '900 damage/s to circling flyers, lures up to 20, and its moths sting up to 30 ground enemies in its light for 30% of that.', set: { lureDps: 900, lureMax: 20, mothAll: 0.3, mothHits: 30 } },
+    { name: 'Moth Queen', blurb: "A Moth Queen leads the swarm: its moths sting everything in its light.", cost: 18500, desc: '900 damage/s to every flyer in its light (x1.3 range), lures up to 60, and its moths sting up to 30 ground enemies in its light for 30% of that.', set: { lureDps: 900, lureMax: 60, mothAll: 0.3, mothHits: 30, mothSky: true }, mul: { range: 1.3 } },
   ],
   wander: [
     { name: 'Falling Sky', blurb: "Every fourth cast pulls a star out of the sky onto the crowd.", cost: 19500, desc: 'x1.6 damage. Every 4th cast is a falling star: x4 damage that bursts on up to 30 enemies within 130 and stuns them 1s (not hulks).', mul: { damage: 1.6 }, set: { skyEvery: 4, skyMul: 4, skyRadius: 130, skyHits: 30, skyStun: 1 } },
     { name: 'Starhost', blurb: "Five lights, each casting volleys of stars that leap to a second target.", cost: 18000, desc: '5 lights. x2.2 damage, x1.2 rate. Stars leap on to a second enemy after they hit.', mul: { damage: 2.2, rate: 1.2 }, set: { lights: 5, starBounce: 1 } },
-    { name: 'Dawnbringer', blurb: "A great torch: nearby wards fight much harder, and marked deaths spread the mark.", cost: 18000, desc: 'Wards within 180 of its post attack 45% faster and deal 30% more. Marked Gloom that die mark everything within 80 (up to 10 a second). x2 damage.', mul: { damage: 2 }, set: { torchRate: 0.45, torchDmg: 0.3, torchRange: 180, markBurst: 80, markBurstRate: 10 } },
+    { name: 'Dawnbringer', blurb: "A great torch: nearby wards fight much harder, and marked deaths spread the mark.", cost: 18000, desc: 'Wards within 180 of its post attack 45% faster and deal 30% more. Every 3s the torch flares, hitting every enemy within 240 of its post (flyers too) for x3 damage. Marked Gloom that die mark everything within 80 (up to 10 a second). x2 damage.', mul: { damage: 2 }, set: { torchRate: 0.45, torchDmg: 0.3, torchRange: 180, markBurst: 80, markBurstRate: 10, dawnEvery: 3, dawnMul: 3, dawnRadius: 240 } },
   ],
   vault: [
     { name: "Dragon's Hoard", blurb: "A dragon's hoard: a vast cap, high interest, and big cash-outs pay extra.", cost: 18000, desc: 'Cap 20,000. Interest 30% a wave. Cashing out 5,000 or more pays 20% extra.', set: { cap: 20000, growth: 0.3, hoardBonus: 0.2, hoardMin: 5000 } },
@@ -464,4 +468,6 @@ const TIER5 = {
     { name: 'Second Heartfire', blurb: "Always warm, and it guards the Heartfire with its embers.", cost: 19000, desc: 'Always warm: wards in range attack 50% faster and deal 35% more. When an enemy gets through, it pays 40 embers for each life instead of you.', set: { warmRate: 0.5, warmDmg: 0.35, warmAt: 0, guard: 40 } },
   ],
 };
+Object.assign(TOWERS, NEW_TOWERS);
+Object.assign(TIER5, NEW_TIER5);
 for (const type in TIER5) TIER5[type].forEach((t5, pi) => TOWERS[type].paths[pi].tiers.push(t5));

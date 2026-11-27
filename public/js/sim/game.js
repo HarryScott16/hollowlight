@@ -10,6 +10,7 @@ import { SHIELD_MULT } from '../data/damage.js';
 import { FLARE, LAST_LIGHT, ABILITIES } from '../data/abilities.js';
 import { buildMap, mulberry32 } from './path.js';
 import { Grid } from './grid.js';
+import { updateNew, newKill, useNewAbility, eclipseGlobals, placeWhirl, mainPathOf, lendStar, moveTaper } from './newwards.js';
 import { createEnemy, updateEnemy, inherit, applySlow, regrow, strongScore } from './enemies.js';
 import { createTower, computeStats, upgradeInfo, updateTower, snipeHit, ignite, startLure, castStar, updateOrbs } from './towers.js';
 import { updateProjectiles, updateZones, launchShell, updateMines, isLow } from './projectiles.js';
@@ -18,6 +19,9 @@ import { endlessWave, endlessToughAfter } from './endless.js';
 const scratch = [];
 const buf = [];
 const gridBuf = [];
+// A ward's ability: one per type, or (round-2 wards) one per path, from its main path (tier 4+).
+export function abilityPath(t) { const pi = mainPathOf(t); return pi < 0 ? 0 : pi; }
+export function abilityFor(t) { const A = ABILITIES[t.type]; return A && A.paths ? A.paths[abilityPath(t)] : A; }
 
 export class Game {
   constructor(opts = {}) {
@@ -55,6 +59,8 @@ export class Game {
     this.projectiles = [];
     this.zones = [];
     this.mines = [];          // Flashmines on the path
+    this.wisps = [];          // Requiem wisps flying back up the road (Astral Choir)
+    this.candles = [];        // Lampwright candles on the road (RULES.candleCap)
     this.spawned = 0;         // groups started so far (they take turns between a map's Rifts)
     this.orbs = [];           // Ball Lightning orbs rolling up the path
     this.vaults = [];
@@ -126,6 +132,7 @@ export class Game {
     if (this.wave > this.waves.length) tough *= endlessToughAfter(this.waves.length);   // (after Hard's 60)
     for (const g of wave.groups) {
       const mods = { hpMul: (g.hpMul || 1) * tough, speedMul: g.speedMul || 1, veiled: !!g.veiled, mending: !!g.mending };
+      if (g.summonEvery) { mods.summonEvery = g.summonEvery; mods.summonCount = g.summonCount; }   // a calmer summoner on an early wave
       // A boss's own health multiplier doesn't pass to what it sheds or summons.
       if (g.kidHpMul) mods.kids = { ...mods, hpMul: g.kidHpMul * tough };
       // Difficulty: more or fewer of each group, over the same stretch of time.
@@ -148,7 +155,7 @@ export class Game {
   canPlace(type, x, y) {
     const def = TOWERS[type];
     if (def && def.onPath) return !!this.snapToPath(x, y);
-    if (!this.map.buildable(x, y)) return false;
+    if (def && def.water ? !this.map.inWater(x, y, RULES.waterMargin) : !this.map.buildable(x, y)) return false;
     for (const t of this.towers) {
       if (t.def.onPath) continue;   // a Snare lies on the road, out of the way
       if ((t.hx - x) ** 2 + (t.hy - y) ** 2 < RULES.towerSpacing ** 2) return false;
@@ -181,6 +188,7 @@ export class Game {
     this.gold -= def.cost;
     const t = createTower(this, type, x, y);
     t.pathDist = pd; t.route = route;
+    if (def.kind === 'undertow') placeWhirl(this, t);
     this.spend(t, def.cost);
     this.towers.push(t);
     this.refreshGlobals();
@@ -197,7 +205,7 @@ export class Game {
     tower.tiers[pi]++;
     tower.stats = computeStats(tower.def, tower.tiers);
     // Reaching tier 4 unlocks the ward type's ability, one-third charged.
-    const ab = ABILITIES[tower.type];
+    const ab = abilityFor(tower);
     if (ab && tower.tiers[pi] === 4 && tower.abilityCd === null) tower.abilityCd = ab.cd * (2 / 3);
     this.refreshGlobals();
     this.emit('upgrade', { id: tower.id, x: tower.x, y: tower.y, path: pi, tier: tower.tiers[pi], name: info.up.name });
@@ -231,6 +239,25 @@ export class Game {
   }
 
   // Wandering Light: moves its post (it floats there). Anywhere on the map that isn't water.
+  // R on a round-2 ward: what it can be pointed at. The Undertow moves its whirlpool (a road point
+  // in reach), a Grand Orrery lends a star (a ward), an Undying Taper moves its giant candle.
+  wardAimKind(t) {
+    if (!t) return null;
+    if (t.def.kind === 'undertow') return 'whirl';
+    if (t.def.kind === 'avatar' && t.stats.lend) return 'lend';
+    if (t.def.kind === 'lamp' && t.stats.taper) return 'taper';
+    return null;
+  }
+  aimWard(t, x, y) {
+    const k = this.wardAimKind(t);
+    let ok = false;
+    if (k === 'whirl') ok = placeWhirl(this, t, x, y);
+    else if (k === 'lend') { const w = this.towerAt(x, y); ok = !!w && lendStar(this, t, w); }
+    else if (k === 'taper') ok = moveTaper(this, t, x, y);
+    if (ok) this.emit('post', { x, y, id: t.id });
+    return ok;
+  }
+
   canMovePost(t, x, y) {
     if (!t || t.def.kind !== 'wander') return false;
     const D = this.map.data;
@@ -267,6 +294,7 @@ export class Game {
     // Wandering Light torches (around their post) and warm Ember Vaults boost like Beacons.
     for (const t of this.towers) if ((t.def.kind === 'wander' && t.stats.torchRate) || (t.def.kind === 'vault' && t.warm && t.stats.warmRate)) torches.push(t);
     this.vaults = this.towers.filter((t) => t.def.kind === 'vault');
+    this.choirs = this.towers.filter((t) => t.def.kind === 'choir' && t.stats.hush);
     const rally = this.rally && this.towers.includes(this.rally.src) ? this.rally.src : null;
     for (const t of this.towers) {
       if (t.def.kind === 'aura') continue;
@@ -308,6 +336,7 @@ export class Game {
     }
     this.globalSlow = slow;
     for (const t of this.towers) t.disc = disc;
+    eclipseGlobals(this);
   }
 
   towerAt(x, y) {
@@ -387,6 +416,11 @@ export class Game {
     if (seared) amp += e.searAmp;
     if (e.freezeT > 0) amp += e.frozenAmp || 0;
     if (e.lureT > 0) amp += e.lureAmp;
+    if (e.sunT > 0) amp += e.sunPct;          // Noonfire: sun-marked
+    amp += e.zenithPct;                       // Zenith: a boss burned by flares
+    if (e.dazzleT > 0) amp += e.dazzleAmp;    // Lighthouse: Dazzled
+    if (e.whirlT > 0) amp += e.whirlAmp;      // Whirlpool
+    if (e.vigilT > 0) amp += e.vigilAmp;      // Vigil candles
     const k = mult * amp;
     let dmg = amount * k;
     let dealt = 0;
@@ -431,6 +465,7 @@ export class Game {
     const ph = e.def.phases;
     while (e.phase < ph.length && e.hp / e.maxHp <= ph[e.phase].at) {
       const p = ph[e.phase++];
+      if (e.noPhaseT > this.time) continue;   // Great Bell: this phase's adds are cancelled
       this.spawnShed(e, p.type, p.count, 0, null, null);
       this.emit('phase', { x: e.x, y: e.y, n: e.phase, r: e.r });
     }
@@ -456,12 +491,13 @@ export class Game {
     }
   }
 
-  kill(e, src, carry = 0, dtype = 'true', opts = null) {
+  kill(e, src, carry = 0, dtype = 'true', opts = null, goldShare = 1) {
     e.alive = false;
     this.kills++;
     this.pops += e.def.gold;
     if (src) src.kills++;
-    const gold = e.unpaid > 0 ? 0 : e.def.gold * this.goldMul;
+    newKill(this, e, src);
+    const gold = e.unpaid > 0 ? 0 : e.def.gold * this.goldMul * goldShare;
     this.addGold(gold);
     if (this.vaults && this.vaults.length && gold > 0) this.glean(e);
     this.emit('death', { x: e.x, y: e.y, r: e.r, etype: e.type, gold, boss: !!e.def.boss, heavy: !!e.def.heavy, src: src ? src.id : 0 });
@@ -550,6 +586,9 @@ export class Game {
   leakLives(e) {
     const n = this.leakCost(e);
     if (this.endless && this.wave > this.waves.length) return Math.min(e.def.boss ? RULES.endlessBossLeak : RULES.endlessMaxLeak, n);
+    // Early campaign: Veiled and flying Gloom cost a life each (RULES.earlyLeak), so missing sight or
+    // anti-air bleeds a few lives instead of ending the run before wave 21.
+    if (e.wave <= RULES.earlyLeakWave && (e.veiled || e.def.flying)) return Math.min(e.def.boss ? RULES.earlyBossLeak : RULES.earlyLeak, n);
     if (e.def.boss) return this.diff.bossLeak ? Math.min(this.diff.bossLeak, n) : n;   // (Easy caps a boss's leak)
     return Math.min(this.diff.maxLeak || RULES.maxLeak, n);
   }
@@ -607,10 +646,12 @@ export class Game {
   useAbility(type) {
     const t = this.abilityTower(type);
     if (!t || t.abilityCd > 0 || this.over) return false;
-    const ab = ABILITIES[type];
+    const ab = abilityFor(t);
     t.abilityCd = ab.cd;
     const s = t.stats;
-    if (type === 'bolt') {
+    if (ABILITIES[type].paths) {
+      useNewAbility(this, t, type, ab, abilityPath(t));
+    } else if (type === 'bolt') {
       t.buffT = ab.dur;
       t.buffRate = ab.rateMul;
     } else if (type === 'mortar') {
@@ -744,7 +785,8 @@ export class Game {
     const H = this._heralds || (this._heralds = { cells: new Map(), list: [], r: 0 });
     H.list.length = 0;
     let r = 0;
-    for (let i = 0; i < es.length; i++) { const e = es[i]; if (e.alive && e.def.haste) { H.list.push(e); if (e.def.haste.radius > r) r = e.def.haste.radius; } }
+    for (let i = 0; i < es.length; i++) { const e = es[i]; if (e.alive && e.def.haste && !(e.hushT > 0)) { H.list.push(e); if (e.def.haste.radius > r) r = e.def.haste.radius; } }
+    const C = this.choirs || [];
     if (!H.list.length) return;
     const cells = H.cells;
     for (const c of cells.values()) c.length = 0;
@@ -758,6 +800,9 @@ export class Game {
     for (let i = 0; i < es.length; i++) {
       const o = es[i];
       if (!o.alive) continue;
+      let hushed = false;
+      for (let k = 0; k < C.length; k++) if ((o.x - C[k].x) ** 2 + (o.y - C[k].y) ** 2 <= C[k].stats.range ** 2) { hushed = true; break; }
+      if (hushed) continue;
       const cx = Math.floor(o.x / r), cy = Math.floor(o.y / r);
       let pct = -1;
       for (let dx = -1; dx <= 1 && pct < 0; dx++) {
@@ -793,8 +838,8 @@ export class Game {
       if (n) this.emit('healpulse', { x: e.x, y: e.y, r: d.heal.radius });
     }
     if (d.summon && (e.summonCd -= dt) <= 0) {
-      e.summonCd = d.summon.every;
-      this.spawnShed(e, d.summon.type, d.summon.count, 0);
+      e.summonCd = e.mods.summonEvery || d.summon.every;
+      this.spawnShed(e, d.summon.type, e.mods.summonCount || d.summon.count, 0);
     }
   }
 
@@ -839,6 +884,7 @@ export class Game {
     this.hasteAuras(es);
     for (let i = 0, n = es.length; i < n; i++) if (es[i].def.special && es[i].alive) this.updateSpecial(es[i], dt);
     for (let i = 0; i < this.towers.length; i++) updateTower(this, this.towers[i], dt);
+    updateNew(this, dt);
     if (this.orbs.length) updateOrbs(this, dt);
     this.updateAbilities(dt);
     updateProjectiles(this, dt);
