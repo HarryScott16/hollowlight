@@ -25,6 +25,7 @@ const MAP = arg('map', 'hollowmere'), SEEDS = Number(arg('seeds', 3));
 const CONDS = arg('conds', 'alone,reveal,full').split(',');
 const TIERS = arg('tiers', '5,4').split(',').map(Number);
 const STARTS = [1, 41];
+const FIXED = arg('fixed') === '1' ? JSON.parse(readFileSync(new URL('./t5spots.json', import.meta.url), 'utf8')) : null;
 const types = arg('types') ? arg('types').split(',') : TOWER_ORDER;
 const pathList = arg('paths') ? arg('paths').split(',').map((s) => { const [t, p] = s.split(':'); return [t, Number(p)]; })
   : types.flatMap((t) => [0, 1, 2].map((p) => [t, p]));
@@ -51,9 +52,17 @@ const noAttack = (type) => TOWERS[type].kind === 'aura' || TOWERS[type].kind ===
 for (const [type, path] of pathList) {
   const def = TOWERS[type];
   for (const cond of CONDS) {
-    // Pick placement and secondary path.
+    // Pick placement and secondary path (fixed=1: reuse tools/t5spots.json, chosen by t5fit.js).
     const minors = noAttack(type) ? [(path + 1) % 3] : [0, 1, 2].filter((p) => p !== path);
     let best = null;
+    const fx = FIXED && FIXED[`${type}:${path}`] && (FIXED[`${type}:${path}`][cond] || FIXED[`${type}:${path}`].full || FIXED[`${type}:${path}`].alone);
+    if (fx) {
+      const tiers = [0, 0, 0]; tiers[path] = 5; tiers[fx[1]] = 2;
+      const g = new Game({ fx: false, map: MAP });
+      const spots = candidateSpots(g, type, tiers, cond === 'full' || computeStats(def, tiers).hitsAir);
+      best = { minor: fx[1], spot: Math.min(fx[0], spots.length - 1), spots };
+    }
+    if (!best) {
     for (const minor of minors) {
       const tiers = [0, 0, 0]; tiers[path] = 5; tiers[minor] = 2;
       const g = new Game({ fx: false, map: MAP });
@@ -65,6 +74,7 @@ for (const [type, path] of pathList) {
         const s = score(a, b) * 1e12 + a.dmg + b.dmg;
         if (!best || s > best.s) best = { s, minor, spot, spots };
       }
+    }
     }
     console.log(`${type} ${def.paths[path].tiers[4].name} [${cond}]: minor ${best.minor}, spot ${best.spot} at ${best.spots[best.spot].join(',')}`);
     for (const tier of TIERS) for (const start of STARTS) for (let seed = 1; seed <= SEEDS; seed++) {

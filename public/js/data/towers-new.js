@@ -84,12 +84,12 @@ export const NEW_TOWERS = {
   },
 
   ferry: {
-    name: 'Ferrylight', role: 'Water: raft gunner', cost: 400, kind: 'ferry', target: 'first', water: true,
+    name: 'Ferrylight', role: 'Water: raft gunner', cost: 325, kind: 'ferry', target: 'first', water: true,
     desc: 'A lantern-lit raft that floats on water (lava on Ashfork, broken ice on Rimecoil). Its keeper throws boathook bolts at the Gloom on the road, flyers included. Place it on a pond.',
-    base: { damage: 12, rate: 1, range: 165, type: 'kinetic', projSpeed: 700, pierce: 1, hitsAir: true },
+    base: { damage: 18, rate: 1.2, range: 165, type: 'kinetic', projSpeed: 700, pierce: 2, hitsAir: true },
     paths: [
       { name: 'Harpooner', blurb: 'Piercing harpoons that drag the Gloom back up the road.', tiers: [
-        { name: 'Barbed Hook', blurb: 'Hooks hit harder and pierce.', cost: 100, desc: 'x1.5 damage, pierce 2.', mul: { damage: 1.5 }, set: { pierce: 2 } },
+        { name: 'Barbed Hook', blurb: 'Hooks hit harder and pierce.', cost: 100, desc: 'x1.5 damage, pierce 3.', mul: { damage: 1.5 }, set: { pierce: 3 } },
         { name: 'Harpoon', blurb: 'Harpoons drag their first victim back.', cost: 240, desc: 'Pierce 4. The first enemy hit is dragged 30 back up the road (not Heavies).', set: { pierce: 4, drag: 30 } },
         { name: 'Harpoon Gun', blurb: 'A deck gun on a winch: through armour, dragging further.', cost: 800, desc: 'x2.5 damage, ignores armour, drags 60. Heavies are slowed 40% for 1.5s instead.', mul: { damage: 2.5 }, set: { armorPierce: 1, drag: 60, heavySlow: 0.4 } },
         { name: 'Whaler', blurb: 'Drags whole chains of Gloom back.', cost: 4000, desc: 'Drags 90, and up to 3 enemies per harpoon.', set: { drag: 90, dragChain: 3 } },
@@ -110,9 +110,9 @@ export const NEW_TOWERS = {
   },
 
   undertow: {
-    name: 'The Undertow', role: 'Water: whirlpool on the road', cost: 450, kind: 'undertow', water: true,
+    name: 'The Undertow', role: 'Water: whirlpool on the road', cost: 400, kind: 'undertow', water: true,
     desc: 'A lake spirit that twists the nearest stretch of road into a whirlpool: Gloom in it are slowed, pulled back and chilled. Never touches flyers. Place it on a pond; select it and press R to move its whirlpool.',
-    base: { damage: 4, range: 150, type: 'frost', whirlRadius: 40, slow: 0.35, pull: 12, hitsAir: false },
+    base: { damage: 8, range: 150, type: 'frost', whirlRadius: 40, slow: 0.35, pull: 12, hitsAir: false },
     paths: [
       { name: 'Maelstrom', blurb: 'Bigger, crueller whirlpools.', tiers: [
         { name: 'Strong Current', blurb: 'A stronger pull and a deeper slow.', cost: 100, desc: 'Slow 45%, pulls back 18/s.', set: { slow: 0.45, pull: 18 } },
@@ -138,7 +138,7 @@ export const NEW_TOWERS = {
   lamp: {
     name: 'Lampwright', role: 'Road-maker: candles', cost: 225, kind: 'lamp', target: 'first',
     desc: 'A lamplighter who keeps tossing lit candles onto the road ahead of the Gloom. Anything that walks over one burns and is Scorched (no healing). Candles find Veiled too, but never touch flyers.',
-    base: { damage: 6, rate: 0.714, range: 140, type: 'fire', tossN: 1, candleMax: 6, candleLife: 8, candleR: 12, burnDur: 2, searDur: 2, hitsAir: false },
+    base: { damage: 9, rate: 0.714, range: 140, type: 'fire', tossN: 1, candleMax: 6, candleLife: 8, candleR: 12, burnDur: 2, searDur: 2, hitsAir: false },
     paths: [
       { name: 'Tallow', blurb: 'Bigger candles that burn longer.', tiers: [
         { name: 'Thick Wax', blurb: 'Candles last longer and burn hotter.', cost: 90, desc: 'Candles last 12s; x1.5 burn.', set: { candleLife: 12 }, mul: { damage: 1.5 } },
