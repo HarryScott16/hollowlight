@@ -16,7 +16,7 @@ const out = [];
 const P = (s = '') => out.push(s);
 P(`### Ranking (${MAIN}, Medium)`);
 P();
-P('Ranked by the plain game (alone): W1 + E41. "Power" ranks the same 36 by the full condition (Veiled revealed and flyers targetable), i.e. raw damage with the blind spots removed. Late DPS and kills are from the full condition from wave 41 and the alone condition from wave 1. Cost is the ward plus tiers 1-5 and the secondary tier 2.');
+P('Ranked by the plain game (alone): W1 + E41. "Power" ranks the same tier 5s by the full condition (blind spots removed: Veiled revealed, flyers targetable, immunities lifted; for ground-only wards flyers pass free), i.e. raw damage with the blind spots removed. Late DPS and kills are from the full condition from wave 41 and the alone condition from wave 1. Cost is the ward plus tiers 1-5 and the secondary tier 2.');
 P();
 P('| # | Tier 5 | Ward (path) | Cost | Alone W1 | Alone E41 | Reveal W1 | Reveal E41 | Full W1 | Full E41 | Power # | Late DPS | Kills (alone W1) | 2nd path |');
 P('|--:|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|---|');
@@ -26,7 +26,7 @@ ranked.forEach((p, i) => {
   P(`| ${i + 1} | **${p.name}** | ${wardName[p.type]} (${p.pname}) | ${k(a1 ? a1.cost : 0)} | ${W(c['5alone1'])} | ${W(c['5alone41'])} | ${W(c['5reveal1'])} | ${W(c['5reveal41'])} | ${W(c['5full1'])} | ${W(c['5full41'])} | ${powerRank.get(p)} | ${noAttack(p.type) ? '-' : k(p.late)} | ${a1 ? k(a1.kills) : '-'} | ${minor} |`);
 });
 P();
-P('`+`: some seed reached the 150-wave cap. `*`: some seed stalled (a wave still running after 900 s counts as a loss).');
+P('`+`: some seed reached the 150-wave cap. `*`: some seed stalled (tools/stall.js: a wave not cleared after max(600 s, 5x its spawn time) ends the run; counted as the waves before it).');
 P();
 
 P('### Tier 5 against its tier 4 (same placement and secondary path)');

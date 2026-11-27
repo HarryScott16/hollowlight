@@ -86,7 +86,7 @@ each tier 5 may stand on the map (`RULES.uniqueTier5`, checked in `upgradeInfo`)
 ## Endless
 
 `sim/endless.js`: a health budget per wave that picks up from wave 40 and grows 5.5% a wave to 60,
-7% to 80, 8% to 100 and 11.5% after (speed capped at x1.7; the tier 5 targets are measured on the
+7% to 80, 8% to 100 and 18% after (speed capped at x1.7; the tier 5 targets are measured on the
 curve to 100, the steep part stops strong defences running away). The mix rotates through five stretches every 5 waves,
 and a modifier switches on every 5 waves from 45 to 90. Above the spawn cap, groups are thinned
 evenly and tough enemies carry the lost health. Leaks cost at most 5 lives per enemy in endless (40 per

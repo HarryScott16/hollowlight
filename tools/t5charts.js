@@ -127,32 +127,32 @@ function waveAxis(X, top, bottom, max) {
     body += line(X(2) + 22, y0 + 2, X(2) + 22, y1 - 2, 'muted', 1) + text(X(2) + 30, (y0 + y1) / 2 + 4, `${empties.length} that stop nothing on their own: wave 2, the same as an empty map`, { size: 11, c: 'ink2' });
   }
   writeFileSync(new URL('ranking.svg', DIR), svg(1100, H, { id: 'rank', text: 'Tier 5 ranking: waves cleared alone' },
-    'All 36 tier 5s sorted by waves cleared alone from wave 1, with the waves they clear when Veiled are revealed and when flyers can be hit too.', body));
+    'All 51 tier 5s sorted by waves cleared alone from wave 1, with the waves they clear when Veiled are revealed and when flyers can be hit too.', body));
 }
 
 // ---- 2. tier 5 against tier 4 ----------------------------------------------------------------
 {
   const rows = paths.filter((p) => p.x4).sort((a, b) => b.x4 - a.x4);
-  const L = 300, RW = 600, lo = 0.5, hi = 20, X = (v) => L + (RW * Math.log(v / lo)) / Math.log(hi / lo);
+  const L = 300, RW = 600, lo = 0.5, hi = 200, X = (v) => L + (RW * Math.log(Math.min(hi, v) / lo)) / Math.log(hi / lo);
   const top = 70, row = 21, bottom = top + rows.length * row + 4, H = bottom + 50;
   let body = text(10, 22, 'How many times its tier 4\'s damage each tier 5 deals (late DPS, every blind spot removed)', { weight: 600, c: 'ink', size: 14 });
-  body += `<rect x="${R(X(3))}" y="${top}" width="${R(X(5) - X(3))}" height="${bottom - top}" ${fill('band')}/>`;
-  body += text((X(3) + X(5)) / 2, top - 8, 'intended: 3-5x', { anchor: 'middle', size: 11, c: 'ink', weight: 600 });
-  for (const v of [0.5, 1, 2, 3, 5, 10, 20]) body += line(X(v), top, X(v), bottom, v === 1 ? 'base' : 'grid', v === 1 ? 1.5 : 1) + text(X(v), bottom + 16, `${v}x`, { anchor: 'middle', size: 11, c: 'muted' });
+  body += `<rect x="${R(X(3))}" y="${top}" width="${R(X(hi) - X(3))}" height="${bottom - top}" ${fill('band')}/>`;
+  body += text((X(3) + X(hi)) / 2, top - 8, 'target: 3x or more', { anchor: 'middle', size: 11, c: 'ink', weight: 600 });
+  for (const v of [0.5, 1, 3, 10, 30, 100, 200]) body += line(X(v), top, X(v), bottom, v === 1 ? 'base' : 'grid', v === 1 ? 1.5 : 1) + text(X(v), bottom + 16, `${v}x`, { anchor: 'middle', size: 11, c: 'muted' });
   body += text(X(1), top - 8, 'same as tier 4', { anchor: 'middle', size: 11, c: 'muted' });
   rows.forEach((p, i) => {
     const y = top + i * row + row / 2 + 2, x = X(p.x4), x1 = X(1);
     const tip = `${p.name} (${p.ward}, ${p.pname}) against ${p.t4}\nLate DPS: ${k(p.late4)} -> ${k(p.late)} (${p.x4.toFixed(1)}x)\nWaves alone: ${f1(p.w4A)} -> ${f1(p.wA)}; blind spots removed: ${f1(p.w4F)} -> ${f1(p.wF)}`;
-    const off = p.x4 < 3 || p.x4 > 5;
+    const off = p.x4 < 3;
     body += label(L - 10, y + 4, p);
     body += `<g class="t5tip"><title>${esc(tip)}</title><rect x="${R(Math.min(x, x1) - 6)}" y="${R(y - 9)}" width="${R(Math.abs(x - x1) + 70)}" height="18" fill="#000" fill-opacity="0"/>`;
     body += line(x1, y, x, y, 's1', 2) + `<circle cx="${R(x)}" cy="${R(y)}" r="5" ${ringed('s1')} stroke-width="2"/>`;
     body += text(x + (p.x4 >= 1 ? 10 : -10), y + 4, `${p.x4.toFixed(1)}x${p.late4 < 500 ? `  (its tier 4 dealt only ${Math.round(p.late4)} DPS)` : ''}`, { size: 11.5, anchor: p.x4 >= 1 ? 'start' : 'end', c: off ? 'ink' : 'ink2', weight: p.x4 < 1.6 ? 600 : 400 });
     body += '</g>';
   });
-  body += text(10, H - 12, 'Late DPS: damage per second over the last 3 waves it played, from wave 41 in endless, Veiled revealed and flyers hittable. The 3 Beacons and 3 Ember Vaults deal no damage, so have no ratio.', { size: 11, c: 'muted' });
+  body += text(10, H - 12, 'Late DPS: damage per second over the last 3 waves it played, from wave 41 in endless, Veiled revealed and flyers hittable. The Beacons and Ember Vaults deal no damage, so have no ratio.', { size: 11, c: 'muted' });
   writeFileSync(new URL('vs-tier4.svg', DIR), svg(1100, H, { id: 'x4', text: 'Tier 5 against tier 4: late damage ratio' },
-    'For the 30 tier 5s that deal damage, late DPS as a multiple of their tier 4 on a log scale, with the intended 3 to 5 times shaded.', body));
+    'For the tier 5s that deal damage, late DPS as a multiple of their tier 4 on a log scale, with the target (3 times or more) shaded.', body));
 }
 
 // ---- 3. what killed them ----------------------------------------------------------------------
