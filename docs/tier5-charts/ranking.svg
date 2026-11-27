@@ -1,297 +1,417 @@
-<svg xmlns="http://www.w3.org/2000/svg" class="t5c" viewBox="0 0 1100 792" width="1100" height="792" role="img" aria-labelledby="t5t-rank t5d-rank">
-<title id="t5t-rank">Tier 5 ranking: waves cleared alone</title><desc id="t5d-rank">All 36 tier 5s sorted by waves cleared alone from wave 1, with the waves they clear when Veiled are revealed and when flyers can be hit too.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" class="t5c" viewBox="0 0 1100 1077" width="1100" height="1077" role="img" aria-labelledby="t5t-rank t5d-rank">
+<title id="t5t-rank">Tier 5 ranking: waves cleared alone</title><desc id="t5d-rank">All 51 tier 5s sorted by waves cleared alone from wave 1, with the waves they clear when Veiled are revealed and when flyers can be hit too.</desc>
 <style>
 .t5c text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
 @media (prefers-color-scheme:dark){.t5f-surf{fill:#15131d}.t5s-surf{stroke:#15131d}.t5f-ink{fill:#ebe7f5}.t5s-ink{stroke:#ebe7f5}.t5f-ink2{fill:#c4bfd6}.t5s-ink2{stroke:#c4bfd6}.t5f-muted{fill:#8f89a6}.t5s-muted{stroke:#8f89a6}.t5f-grid{fill:#2a2638}.t5s-grid{stroke:#2a2638}.t5f-base{fill:#4a4460}.t5s-base{stroke:#4a4460}.t5f-band{fill:#183a2e}.t5s-band{stroke:#183a2e}.t5f-boss{fill:#201c2c}.t5s-boss{stroke:#201c2c}.t5f-s1{fill:#3987e5}.t5s-s1{stroke:#3987e5}.t5f-s2{fill:#d95926}.t5s-s2{stroke:#d95926}.t5f-s3{fill:#199e70}.t5s-s3{stroke:#199e70}.t5f-s4{fill:#c98500}.t5s-s4{stroke:#c98500}.t5f-s5{fill:#d55181}.t5s-s5{stroke:#d55181}.t5f-s6{fill:#008300}.t5s-s6{stroke:#008300}.t5f-s7{fill:#9085e9}.t5s-s7{stroke:#9085e9}.t5f-gray{fill:#5d5872}.t5s-gray{stroke:#5d5872}.t5f-onfill{fill:#ffffff}.t5s-onfill{stroke:#ffffff}.t5f-ondark{fill:#0b0b0b}.t5s-ondark{stroke:#0b0b0b}.t5f-ongray{fill:#ffffff}.t5s-ongray{stroke:#ffffff}}
 </style>
-<rect width="1100" height="792" class="t5f-surf" fill="#f6f4fb"/>
-<text x="10" y="22" font-size="14" font-weight="600" class="t5f-ink" fill="#1f1b2b">Waves cleared from wave 1, each tier 5 alone on Hollowmere (Medium)</text><path d="M10,41h14a4,4 0 0 1 4,4v2a4,4 0 0 1 -4,4h-14z" class="t5f-s1" fill="#2a78d6"/><text x="34" y="50" font-size="12" class="t5f-ink" fill="#1f1b2b">Alone (the ward as it is)</text><line x1="229" y1="38" x2="229" y2="54" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/><text x="244" y="50" font-size="12" class="t5f-ink" fill="#1f1b2b">Veiled revealed</text><circle cx="375" cy="46" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/><text x="390" y="50" font-size="12" class="t5f-ink" fill="#1f1b2b">Veiled revealed and flyers hittable</text><rect x="401.3" y="74" width="10.7" height="688" class="t5f-boss" fill="#ece8f6"/><text x="406.7" y="68" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">Gravemaw</text><rect x="508" y="74" width="10.7" height="688" class="t5f-boss" fill="#ece8f6"/><text x="513.3" y="68" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">Veilmother</text><rect x="614.7" y="74" width="10.7" height="688" class="t5f-boss" fill="#ece8f6"/><text x="620" y="68" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">Bastion</text><rect x="721.3" y="74" width="10.7" height="688" class="t5f-boss" fill="#ece8f6"/><text x="726.7" y="68" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">Hollow King</text><line x1="300" y1="74" x2="300" y2="762" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="300" y="778" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">0</text><line x1="406.7" y1="74" x2="406.7" y2="762" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="406.7" y="778" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 10</text><line x1="513.3" y1="74" x2="513.3" y2="762" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="513.3" y="778" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 20</text><line x1="620" y1="74" x2="620" y2="762" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="620" y="778" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 30</text><line x1="726.7" y1="74" x2="726.7" y2="762" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="726.7" y="778" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 40</text><line x1="833.3" y1="74" x2="833.3" y2="762" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="833.3" y="778" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 50</text><line x1="940" y1="74" x2="940" y2="762" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="940" y="778" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 60</text><line x1="300" y1="74" x2="300" y2="762" class="t5s-base" stroke="#bdb6cf" stroke-width="1"/><text x="290" y="89.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Wild Hunt</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Bolt Ward, Hunter's Mark</tspan></text><g class="t5tip"><title>Wild Hunt (Bolt Ward, Hunter's Mark)
-Alone: wave 50.7 (from wave 41: +10.3)
-Veiled revealed: wave 50.7
-Veiled revealed + flyers: wave 50.7 (from wave 41: +10.3)</title>
-<rect x="300" y="76.5" width="552.4" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,80h536.4a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-536.4z" class="t5f-s1" fill="#2a78d6"/>
+<rect width="1100" height="1077" class="t5f-surf" fill="#f6f4fb"/>
+<text x="10" y="22" font-size="14" font-weight="600" class="t5f-ink" fill="#1f1b2b">Waves cleared from wave 1, each tier 5 alone on Hollowmere (Medium)</text><path d="M10,41h14a4,4 0 0 1 4,4v2a4,4 0 0 1 -4,4h-14z" class="t5f-s1" fill="#2a78d6"/><text x="34" y="50" font-size="12" class="t5f-ink" fill="#1f1b2b">Alone (the ward as it is)</text><line x1="229" y1="38" x2="229" y2="54" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/><text x="244" y="50" font-size="12" class="t5f-ink" fill="#1f1b2b">Veiled revealed</text><circle cx="375" cy="46" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/><text x="390" y="50" font-size="12" class="t5f-ink" fill="#1f1b2b">Veiled revealed and flyers hittable</text><rect x="401.3" y="74" width="10.7" height="973" class="t5f-boss" fill="#ece8f6"/><text x="406.7" y="68" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">Gravemaw</text><rect x="508" y="74" width="10.7" height="973" class="t5f-boss" fill="#ece8f6"/><text x="513.3" y="68" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">Veilmother</text><rect x="614.7" y="74" width="10.7" height="973" class="t5f-boss" fill="#ece8f6"/><text x="620" y="68" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">Bastion</text><rect x="721.3" y="74" width="10.7" height="973" class="t5f-boss" fill="#ece8f6"/><text x="726.7" y="68" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">Hollow King</text><line x1="300" y1="74" x2="300" y2="1047" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="300" y="1063" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">0</text><line x1="406.7" y1="74" x2="406.7" y2="1047" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="406.7" y="1063" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 10</text><line x1="513.3" y1="74" x2="513.3" y2="1047" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="513.3" y="1063" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 20</text><line x1="620" y1="74" x2="620" y2="1047" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="620" y="1063" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 30</text><line x1="726.7" y1="74" x2="726.7" y2="1047" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="726.7" y="1063" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 40</text><line x1="833.3" y1="74" x2="833.3" y2="1047" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="833.3" y="1063" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 50</text><line x1="940" y1="74" x2="940" y2="1047" class="t5s-grid" stroke="#e2ddef" stroke-width="1"/><text x="940" y="1063" font-size="11" text-anchor="middle" class="t5f-muted" fill="#77718c">wave 60</text><line x1="300" y1="74" x2="300" y2="1047" class="t5s-base" stroke="#bdb6cf" stroke-width="1"/><text x="290" y="89.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Shrapnel Storm</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Longeye, Flak</tspan></text><g class="t5tip"><title>Shrapnel Storm (Longeye, Flak)
+Alone: wave 98.3 (from wave 41: +55.3)
+Veiled revealed: wave 98.3
+Veiled revealed + flyers: wave 98.3 (from wave 41: +55.3)</title>
+<rect x="300" y="76.5" width="1060.9" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,80h1044.9a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-1044.9z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="840.4" y1="77.5" x2="840.4" y2="93.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="840.4" cy="85.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="108.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Shrapnel Storm</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Longeye, Flak</tspan></text><g class="t5tip"><title>Shrapnel Storm (Longeye, Flak)
-Alone: wave 49.7 (from wave 41: +14)
-Veiled revealed: wave 49.7
-Veiled revealed + flyers: wave 49.7 (from wave 41: +14)</title>
-<rect x="300" y="95.5" width="541.8" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,99h525.8a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-525.8z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="1348.9" y1="77.5" x2="1348.9" y2="93.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1348.9" cy="85.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="108.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Wild Hunt</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Bolt Ward, Hunter's Mark</tspan></text><g class="t5tip"><title>Wild Hunt (Bolt Ward, Hunter's Mark)
+Alone: wave 93.7 (from wave 41: +50.7)
+Veiled revealed: wave 93.7
+Veiled revealed + flyers: wave 93.7 (from wave 41: +50.7)</title>
+<rect x="300" y="95.5" width="1011.1" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,99h995.1a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-995.1z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="829.8" y1="96.5" x2="829.8" y2="112.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="829.8" cy="104.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="127.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Thousand Bolts</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Bolt Ward, Twin-shot</tspan></text><g class="t5tip"><title>Thousand Bolts (Bolt Ward, Twin-shot)
-Alone: wave 49.7 (from wave 41: +8.3)
-Veiled revealed: wave 49.7
-Veiled revealed + flyers: wave 49.7 (from wave 41: +8.3)</title>
-<rect x="300" y="114.5" width="541.8" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,118h525.8a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-525.8z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="1299.1" y1="96.5" x2="1299.1" y2="112.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1299.1" cy="104.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="127.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Thousand Bolts</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Bolt Ward, Twin-shot</tspan></text><g class="t5tip"><title>Thousand Bolts (Bolt Ward, Twin-shot)
+Alone: wave 92 (from wave 41: +52)
+Veiled revealed: wave 92
+Veiled revealed + flyers: wave 92 (from wave 41: +52)</title>
+<rect x="300" y="114.5" width="993.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,118h977.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-977.3z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="829.8" y1="115.5" x2="829.8" y2="131.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="829.8" cy="123.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="146.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Avalanche</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Rime Spire, Shatter</tspan></text><g class="t5tip"><title>Avalanche (Rime Spire, Shatter)
-Alone: wave 39 (from wave 41: +7.7)
+<line x1="1281.3" y1="115.5" x2="1281.3" y2="131.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1281.3" cy="123.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="146.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Heavenly Host</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Astral Choir, Chorus</tspan></text><g class="t5tip"><title>Heavenly Host (Astral Choir, Chorus)
+Alone: wave 81.3 (from wave 41: +41)
+Veiled revealed: wave 81.3
+Veiled revealed + flyers: wave 81.3 (from wave 41: +41)</title>
+<rect x="300" y="133.5" width="879.6" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,137h863.6a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-863.6z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="1167.6" y1="134.5" x2="1167.6" y2="150.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1167.6" cy="142.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="165.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Zenith</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Heartfire Avatar, Solar</tspan></text><g class="t5tip"><title>Zenith (Heartfire Avatar, Solar)
+Alone: wave 79 (from wave 41: +39)
+Veiled revealed: wave 79
+Veiled revealed + flyers: wave 79 (from wave 41: +39)</title>
+<rect x="300" y="152.5" width="854.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,156h838.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-838.7z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="1142.7" y1="153.5" x2="1142.7" y2="169.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1142.7" cy="161.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="184.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Great Bell</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Astral Choir, Hymn</tspan></text><g class="t5tip"><title>Great Bell (Astral Choir, Hymn)
+Alone: wave 74 (from wave 41: +34)
+Veiled revealed: wave 74
+Veiled revealed + flyers: wave 74 (from wave 41: +34)</title>
+<rect x="300" y="171.5" width="801.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,175h785.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-785.3z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="1089.3" y1="172.5" x2="1089.3" y2="188.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1089.3" cy="180.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="203.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Eye of the Storm</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Storm Coil, Static</tspan></text><g class="t5tip"><title>Eye of the Storm (Storm Coil, Static)
+Alone: wave 72 (from wave 41: +28)
+Veiled revealed: wave 86
+Veiled revealed + flyers: wave 86 (from wave 41: +45)</title>
+<rect x="300" y="190.5" width="929.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,194h764a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-764z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="1068" y1="199.5" x2="1217.3" y2="199.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1217.3" y1="191.5" x2="1217.3" y2="207.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1217.3" cy="199.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1227.3" y="203.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +14</text><text x="290" y="222.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Grand Orrery</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Heartfire Avatar, Orrery</tspan></text><g class="t5tip"><title>Grand Orrery (Heartfire Avatar, Orrery)
+Alone: wave 69 (from wave 41: +29)
+Veiled revealed: wave 78
+Veiled revealed + flyers: wave 78 (from wave 41: +38)</title>
+<rect x="300" y="209.5" width="844" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,213h732a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-732z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="1036" y1="218.5" x2="1132" y2="218.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1132" y1="210.5" x2="1132" y2="226.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1132" cy="218.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="241.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Elder Wyrm</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Censer, Dragon's Breath</tspan></text><g class="t5tip"><title>Elder Wyrm (Censer, Dragon's Breath)
+Alone: wave 69 (from wave 41: +29)
+Veiled revealed: wave 69
+Veiled revealed + flyers: wave 69 (from wave 41: +29)</title>
+<rect x="300" y="228.5" width="748" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,232h732a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-732z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="1036" y1="229.5" x2="1036" y2="245.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1036" cy="237.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="260.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Last Requiem</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Astral Choir, Requiem</tspan></text><g class="t5tip"><title>Last Requiem (Astral Choir, Requiem)
+Alone: wave 68 (from wave 41: +26)
+Veiled revealed: wave 68
+Veiled revealed + flyers: wave 68 (from wave 41: +26)</title>
+<rect x="300" y="247.5" width="737.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,251h721.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-721.3z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="1025.3" y1="248.5" x2="1025.3" y2="264.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1025.3" cy="256.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="279.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Harbour Star</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Ferrylight, Lighthouse Barge</tspan></text><g class="t5tip"><title>Harbour Star (Ferrylight, Lighthouse Barge)
+Alone: wave 66 (from wave 41: +27)
+Veiled revealed: wave 67
+Veiled revealed + flyers: wave 67 (from wave 41: +27)</title>
+<rect x="300" y="266.5" width="726.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,270h700a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-700z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="1004" y1="275.5" x2="1014.7" y2="275.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1014.7" y1="267.5" x2="1014.7" y2="283.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1014.7" cy="275.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="298.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Phoenix</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Censer, Pyre</tspan></text><g class="t5tip"><title>Phoenix (Censer, Pyre)
+Alone: wave 66 (from wave 41: +25)
+Veiled revealed: wave 66
+Veiled revealed + flyers: wave 66 (from wave 41: +25)</title>
+<rect x="300" y="285.5" width="716" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,289h700a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-700z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="1004" y1="286.5" x2="1004" y2="302.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1004" cy="294.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="317.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Eye of Fate</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Longeye, Spotter</tspan></text><g class="t5tip"><title>Eye of Fate (Longeye, Spotter)
+Alone: wave 63 (from wave 41: +23)
+Veiled revealed: wave 63
+Veiled revealed + flyers: wave 63 (from wave 41: +23)</title>
+<rect x="300" y="304.5" width="684" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,308h668a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-668z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="972" y1="305.5" x2="972" y2="321.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="972" cy="313.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="336.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Pall of Ash</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Censer, Ash</tspan></text><g class="t5tip"><title>Pall of Ash (Censer, Ash)
+Alone: wave 62 (from wave 41: +24)
+Veiled revealed: wave 62
+Veiled revealed + flyers: wave 62 (from wave 41: +24)</title>
+<rect x="300" y="323.5" width="673.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,327h657.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-657.3z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="961.3" y1="324.5" x2="961.3" y2="340.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="961.3" cy="332.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="355.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Moth Queen</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Moth Lantern, Moth-trap</tspan></text><g class="t5tip"><title>Moth Queen (Moth Lantern, Moth-trap)
+Alone: wave 61 (from wave 41: +21)
+Veiled revealed: wave 61
+Veiled revealed + flyers: wave 61 (from wave 41: +21)</title>
+<rect x="300" y="342.5" width="662.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,346h646.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-646.7z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="950.7" y1="343.5" x2="950.7" y2="359.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="950.7" cy="351.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="374.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Kingslayer</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Longeye, Deadeye</tspan></text><g class="t5tip"><title>Kingslayer (Longeye, Deadeye)
+Alone: wave 59 (from wave 41: +20.3)
+Veiled revealed: wave 59
+Veiled revealed + flyers: wave 59 (from wave 41: +20.3)</title>
+<rect x="300" y="361.5" width="641.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,365h625.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-625.3z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="929.3" y1="362.5" x2="929.3" y2="378.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="929.3" cy="370.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="393.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Dawnbringer</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Wandering Light, Torchbearer</tspan></text><g class="t5tip"><title>Dawnbringer (Wandering Light, Torchbearer)
+Alone: wave 58.7 (from wave 41: +18)
+Veiled revealed: wave 58.7
+Veiled revealed + flyers: wave 58.7 (from wave 41: +18)</title>
+<rect x="300" y="380.5" width="637.8" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,384h621.8a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-621.8z" class="t5f-s1" fill="#2a78d6"/>
+
+<line x1="925.8" y1="381.5" x2="925.8" y2="397.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="925.8" cy="389.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="412.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Whiteout</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Rime Spire, Blizzard</tspan></text><g class="t5tip"><title>Whiteout (Rime Spire, Blizzard)
+Alone: wave 39 (from wave 41: +26)
 Veiled revealed: wave 39
-Veiled revealed + flyers: wave 39 (from wave 41: +9)</title>
-<rect x="300" y="133.5" width="428" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,137h412a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-412z" class="t5f-s1" fill="#2a78d6"/>
+Veiled revealed + flyers: wave 69 (from wave 41: +26)</title>
+<rect x="300" y="399.5" width="748" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,403h412a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-412z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="716" y1="408.5" x2="1036" y2="408.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="716" y1="400.5" x2="716" y2="416.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1036" cy="408.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1046" y="412.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +30</text><text x="290" y="431.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Avalanche</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Rime Spire, Shatter</tspan></text><g class="t5tip"><title>Avalanche (Rime Spire, Shatter)
+Alone: wave 39 (from wave 41: +7)
+Veiled revealed: wave 39
+Veiled revealed + flyers: wave 80 (from wave 41: +41)</title>
+<rect x="300" y="418.5" width="865.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,422h412a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-412z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="716" y1="427.5" x2="1153.3" y2="427.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="716" y1="419.5" x2="716" y2="435.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1153.3" cy="427.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1163.3" y="431.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +41</text><text x="290" y="450.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Stormlord</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Storm Coil, Overcharge</tspan></text><g class="t5tip"><title>Stormlord (Storm Coil, Overcharge)
+Alone: wave 33 (from wave 41: +27)
+Veiled revealed: wave 70
+Veiled revealed + flyers: wave 70 (from wave 41: +31)</title>
+<rect x="300" y="437.5" width="758.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,441h348a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-348z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="652" y1="446.5" x2="1046.7" y2="446.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1046.7" y1="438.5" x2="1046.7" y2="454.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1046.7" cy="446.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1056.7" y="450.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +37</text><text x="290" y="469.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Falling Sky</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Wandering Light, Hunter</tspan></text><g class="t5tip"><title>Falling Sky (Wandering Light, Hunter)
+Alone: wave 33 (from wave 41: +9)
+Veiled revealed: wave 74
+Veiled revealed + flyers: wave 74 (from wave 41: +33)</title>
+<rect x="300" y="456.5" width="801.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,460h348a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-348z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="652" y1="465.5" x2="1089.3" y2="465.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1089.3" y1="457.5" x2="1089.3" y2="473.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1089.3" cy="465.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1099.3" y="469.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +41</text><text x="290" y="488.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Syzygy</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Heartfire Avatar, Eclipse</tspan></text><g class="t5tip"><title>Syzygy (Heartfire Avatar, Eclipse)
+Alone: wave 32 (from wave 41: +22)
+Veiled revealed: wave 64
+Veiled revealed + flyers: wave 64 (from wave 41: +21)</title>
+<rect x="300" y="475.5" width="694.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,479h337.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-337.3z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="641.3" y1="484.5" x2="982.7" y2="484.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="982.7" y1="476.5" x2="982.7" y2="492.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="982.7" cy="484.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="992.7" y="488.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +32</text><text x="290" y="507.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Second Sun</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Prism, Afterglow</tspan></text><g class="t5tip"><title>Second Sun (Prism, Afterglow)
+Alone: wave 26 (from wave 41: +9)
+Veiled revealed: wave 70
+Veiled revealed + flyers: wave 70 (from wave 41: +30)</title>
+<rect x="300" y="494.5" width="758.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,498h273.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-273.3z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="577.3" y1="503.5" x2="1046.7" y2="503.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1046.7" y1="495.5" x2="1046.7" y2="511.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1046.7" cy="503.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1056.7" y="507.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +44</text><text x="290" y="526.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Worldpiercer</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Bolt Ward, Ballista</tspan></text><g class="t5tip"><title>Worldpiercer (Bolt Ward, Ballista)
+Alone: wave 25.7 (from wave 41: +8)
+Veiled revealed: wave 71.7
+Veiled revealed + flyers: wave 71.7 (from wave 41: +36.7)</title>
+<rect x="300" y="513.5" width="776.4" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,517h269.8a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-269.8z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="573.8" y1="522.5" x2="1064.4" y2="522.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1064.4" y1="514.5" x2="1064.4" y2="530.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1064.4" cy="522.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1074.4" y="526.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +46</text><text x="290" y="545.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Magma Heart</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Mortar, Cinder</tspan></text><g class="t5tip"><title>Magma Heart (Mortar, Cinder)
+Alone: wave 24 (from wave 41: +3)
+Veiled revealed: wave 25
+Veiled revealed + flyers: wave 64 (from wave 41: +23)</title>
+<rect x="300" y="532.5" width="694.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,536h252a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-252z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="556" y1="541.5" x2="982.7" y2="541.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="566.7" y1="533.5" x2="566.7" y2="549.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="982.7" cy="541.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="992.7" y="545.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +39</text><text x="290" y="564.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Heartline</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Ferrylight, Harpooner</tspan></text><g class="t5tip"><title>Heartline (Ferrylight, Harpooner)
+Alone: wave 23.7 (from wave 41: +1.7)
+Veiled revealed: wave 23.3
+Veiled revealed + flyers: wave 23.3 (from wave 41: +2)</title>
+<rect x="300" y="551.5" width="260.9" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,555h248.4a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-248.4z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="716" y1="134.5" x2="716" y2="150.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="716" cy="142.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="165.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Eye of the Storm</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Storm Coil, Static</tspan></text><g class="t5tip"><title>Eye of the Storm (Storm Coil, Static)
-Alone: wave 39 (from wave 41: +5)
-Veiled revealed: wave 45.3
-Veiled revealed + flyers: wave 45.3 (from wave 41: +6.7)</title>
-<rect x="300" y="152.5" width="495.6" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,156h412a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-412z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="716" y1="161.5" x2="783.6" y2="161.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="783.6" y1="153.5" x2="783.6" y2="169.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="783.6" cy="161.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="184.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Phoenix</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Censer, Pyre</tspan></text><g class="t5tip"><title>Phoenix (Censer, Pyre)
-Alone: wave 30.7 (from wave 41: +0)
-Veiled revealed: wave 30.7
-Veiled revealed + flyers: wave 30.7 (from wave 41: +0)</title>
-<rect x="300" y="171.5" width="339.1" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,175h323.1a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-323.1z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="627.1" y1="172.5" x2="627.1" y2="188.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="627.1" cy="180.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="203.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Whiteout</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Rime Spire, Blizzard</tspan></text><g class="t5tip"><title>Whiteout (Rime Spire, Blizzard)
-Alone: wave 29 (from wave 41: +7)
-Veiled revealed: wave 29
-Veiled revealed + flyers: wave 29 (from wave 41: +8.7)</title>
-<rect x="300" y="190.5" width="321.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,194h305.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-305.3z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="609.3" y1="191.5" x2="609.3" y2="207.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="609.3" cy="199.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="222.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Eye of Fate</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Longeye, Spotter</tspan></text><g class="t5tip"><title>Eye of Fate (Longeye, Spotter)
-Alone: wave 20 (from wave 41: +0)
-Veiled revealed: wave 20
-Veiled revealed + flyers: wave 20 (from wave 41: +0)</title>
-<rect x="300" y="209.5" width="225.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,213h209.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-209.3z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="513.3" y1="210.5" x2="513.3" y2="226.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="513.3" cy="218.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="241.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Elder Wyrm</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Censer, Dragon's Breath</tspan></text><g class="t5tip"><title>Elder Wyrm (Censer, Dragon's Breath)
-Alone: wave 19 (from wave 41: +1)
-Veiled revealed: wave 19
-Veiled revealed + flyers: wave 19 (from wave 41: +1)</title>
-<rect x="300" y="228.5" width="214.7" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,232h198.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-198.7z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="502.7" y1="229.5" x2="502.7" y2="245.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="502.7" cy="237.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="260.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Kingslayer</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Longeye, Deadeye</tspan></text><g class="t5tip"><title>Kingslayer (Longeye, Deadeye)
-Alone: wave 18 (from wave 41: +0)
-Veiled revealed: wave 18
-Veiled revealed + flyers: wave 18 (from wave 41: +0)</title>
-<rect x="300" y="247.5" width="204" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,251h188a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-188z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="492" y1="248.5" x2="492" y2="264.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="492" cy="256.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="279.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Falling Sky</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Wandering Light, Hunter</tspan></text><g class="t5tip"><title>Falling Sky (Wandering Light, Hunter)
-Alone: wave 17 (from wave 41: +7.7)
-Veiled revealed: wave 51.7
-Veiled revealed + flyers: wave 51.7 (from wave 41: +10.7)</title>
-<rect x="300" y="266.5" width="563.1" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,270h177.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-177.3z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="481.3" y1="275.5" x2="851.1" y2="275.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="851.1" y1="267.5" x2="851.1" y2="283.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="851.1" cy="275.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="861.1" y="279.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +35</text><text x="290" y="298.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Second Sun</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Prism, Afterglow</tspan></text><g class="t5tip"><title>Second Sun (Prism, Afterglow)
-Alone: wave 17 (from wave 41: +6.7)
-Veiled revealed: wave 47
-Veiled revealed + flyers: wave 47 (from wave 41: +6)</title>
-<rect x="300" y="285.5" width="513.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,289h177.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-177.3z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="481.3" y1="294.5" x2="801.3" y2="294.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="801.3" y1="286.5" x2="801.3" y2="302.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="801.3" cy="294.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="811.3" y="298.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +30</text><text x="290" y="317.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Stormlord</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Storm Coil, Overcharge</tspan></text><g class="t5tip"><title>Stormlord (Storm Coil, Overcharge)
-Alone: wave 17 (from wave 41: +3)
-Veiled revealed: wave 43.7
-Veiled revealed + flyers: wave 43.7 (from wave 41: +4)</title>
-<rect x="300" y="304.5" width="477.8" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,308h177.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-177.3z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="481.3" y1="313.5" x2="765.8" y2="313.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="765.8" y1="305.5" x2="765.8" y2="321.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="765.8" cy="313.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="775.8" y="317.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +27</text><text x="290" y="336.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Magma Heart</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Mortar, Cinder</tspan></text><g class="t5tip"><title>Magma Heart (Mortar, Cinder)
-Alone: wave 16 (from wave 41: +1.3)
-Veiled revealed: wave 24.7
-Veiled revealed + flyers: wave 41.3 (from wave 41: +2.3)</title>
-<rect x="300" y="323.5" width="452.9" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,327h166.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-166.7z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="470.7" y1="332.5" x2="740.9" y2="332.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="563.1" y1="324.5" x2="563.1" y2="340.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="740.9" cy="332.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="750.9" y="336.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +9, flyers +17</text><text x="290" y="355.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Permafrost</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Rime Spire, Deep Freeze</tspan></text><g class="t5tip"><title>Permafrost (Rime Spire, Deep Freeze)
-Alone: wave 16 (from wave 41: +0)
-Veiled revealed: wave 16
-Veiled revealed + flyers: wave 29 (from wave 41: +9)</title>
-<rect x="300" y="342.5" width="321.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,346h166.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-166.7z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="470.7" y1="351.5" x2="609.3" y2="351.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="470.7" y1="343.5" x2="470.7" y2="359.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="609.3" cy="351.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="619.3" y="355.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +13</text><text x="290" y="374.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Worldpiercer</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Bolt Ward, Ballista</tspan></text><g class="t5tip"><title>Worldpiercer (Bolt Ward, Ballista)
-Alone: wave 15 (from wave 41: +0)
-Veiled revealed: wave 31.3
-Veiled revealed + flyers: wave 31.3 (from wave 41: +3.7)</title>
-<rect x="300" y="361.5" width="346.2" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,365h156a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-156z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="460" y1="370.5" x2="634.2" y2="370.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="634.2" y1="362.5" x2="634.2" y2="378.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="634.2" cy="370.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="644.2" y="374.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +16</text><text x="290" y="393.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Starhost</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Wandering Light, Swarm</tspan></text><g class="t5tip"><title>Starhost (Wandering Light, Swarm)
-Alone: wave 13 (from wave 41: +4.7)
-Veiled revealed: wave 59.3
-Veiled revealed + flyers: wave 59.3 (from wave 41: +19.3)</title>
-<rect x="300" y="380.5" width="644.9" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,384h134.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-134.7z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="438.7" y1="389.5" x2="932.9" y2="389.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="932.9" y1="381.5" x2="932.9" y2="397.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="932.9" cy="389.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="942.9" y="393.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +46</text><text x="290" y="412.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Moth Queen</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Moth Lantern, Moth-trap</tspan></text><g class="t5tip"><title>Moth Queen (Moth Lantern, Moth-trap)
-Alone: wave 13 (from wave 41: +0)
-Veiled revealed: wave 13
-Veiled revealed + flyers: wave 13 (from wave 41: +0)</title>
-<rect x="300" y="399.5" width="150.7" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,403h134.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-134.7z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="438.7" y1="400.5" x2="438.7" y2="416.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="438.7" cy="408.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="431.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Dawnbringer</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Wandering Light, Torchbearer</tspan></text><g class="t5tip"><title>Dawnbringer (Wandering Light, Torchbearer)
-Alone: wave 12 (from wave 41: +0)
-Veiled revealed: wave 12
-Veiled revealed + flyers: wave 12 (from wave 41: +0)</title>
-<rect x="300" y="418.5" width="140" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,422h124a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-124z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="428" y1="419.5" x2="428" y2="435.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="428" cy="427.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="450.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Dawnbreaker</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Prism, Focus</tspan></text><g class="t5tip"><title>Dawnbreaker (Prism, Focus)
-Alone: wave 11.7 (from wave 41: +5)
-Veiled revealed: wave 55
-Veiled revealed + flyers: wave 55 (from wave 41: +15.7)</title>
-<rect x="300" y="437.5" width="598.7" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,441h120.4a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-120.4z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="424.4" y1="446.5" x2="886.7" y2="446.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="886.7" y1="438.5" x2="886.7" y2="454.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="886.7" cy="446.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="896.7" y="450.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +43</text><text x="290" y="469.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Grand Battery</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Mortar, Rapid Loader</tspan></text><g class="t5tip"><title>Grand Battery (Mortar, Rapid Loader)
-Alone: wave 11 (from wave 41: +0)
-Veiled revealed: wave 11
-Veiled revealed + flyers: wave 55 (from wave 41: +15)</title>
-<rect x="300" y="456.5" width="598.7" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,460h113.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-113.3z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="417.3" y1="465.5" x2="886.7" y2="465.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="417.3" y1="457.5" x2="417.3" y2="473.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="886.7" cy="465.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="896.7" y="469.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +44</text><text x="290" y="488.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Worldbreaker</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Mortar, Big Shells</tspan></text><g class="t5tip"><title>Worldbreaker (Mortar, Big Shells)
-Alone: wave 11 (from wave 41: +0)
-Veiled revealed: wave 11
-Veiled revealed + flyers: wave 39 (from wave 41: +9)</title>
-<rect x="300" y="475.5" width="428" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,479h113.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-113.3z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="417.3" y1="484.5" x2="716" y2="484.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="417.3" y1="476.5" x2="417.3" y2="492.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="716" cy="484.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="726" y="488.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +28</text><text x="290" y="507.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Ball Lightning</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Storm Coil, Forking</tspan></text><g class="t5tip"><title>Ball Lightning (Storm Coil, Forking)
-Alone: wave 10 (from wave 41: +4.7)
-Veiled revealed: wave 29
-Veiled revealed + flyers: wave 29 (from wave 41: +9)</title>
-<rect x="300" y="494.5" width="321.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,498h102.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-102.7z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="406.7" y1="503.5" x2="609.3" y2="503.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="609.3" y1="495.5" x2="609.3" y2="511.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="609.3" cy="503.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="619.3" y="507.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +19</text><text x="290" y="526.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Lightweb</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Prism, Refraction</tspan></text><g class="t5tip"><title>Lightweb (Prism, Refraction)
-Alone: wave 10 (from wave 41: +1.7)
-Veiled revealed: wave 55.3
-Veiled revealed + flyers: wave 55.3 (from wave 41: +15)</title>
-<rect x="300" y="513.5" width="602.2" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,517h102.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-102.7z" class="t5f-s1" fill="#2a78d6"/>
-<line x1="406.7" y1="522.5" x2="890.2" y2="522.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
-<line x1="890.2" y1="514.5" x2="890.2" y2="530.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="890.2" cy="522.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="900.2" y="526.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +45</text><text x="290" y="545.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Constellation</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Thornlight Snare, Flashmines</tspan></text><g class="t5tip"><title>Constellation (Thornlight Snare, Flashmines)
-Alone: wave 9.7 (from wave 41: +0)
-Veiled revealed: wave 9.7
-Veiled revealed + flyers: wave 9.7 (from wave 41: +0)</title>
-<rect x="300" y="532.5" width="115.1" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,536h99.1a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-99.1z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="403.1" y1="533.5" x2="403.1" y2="549.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="403.1" cy="541.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="564.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Pall of Ash</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Censer, Ash</tspan></text><g class="t5tip"><title>Pall of Ash (Censer, Ash)
-Alone: wave 9 (from wave 41: +0)
-Veiled revealed: wave 9
-Veiled revealed + flyers: wave 9 (from wave 41: +0)</title>
-<rect x="300" y="551.5" width="108" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,555h92a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-92z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="396" y1="552.5" x2="396" y2="568.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="396" cy="560.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="583.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Seal of Dawn</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Thornlight Snare, Binding Light</tspan></text><g class="t5tip"><title>Seal of Dawn (Thornlight Snare, Binding Light)
-Alone: wave 9 (from wave 41: +0)
-Veiled revealed: wave 9
-Veiled revealed + flyers: wave 9 (from wave 41: +0)</title>
-<rect x="300" y="570.5" width="108" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,574h92a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-92z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="396" y1="571.5" x2="396" y2="587.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="396" cy="579.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="602.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Thornwall</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Thornlight Snare, Caltrops</tspan></text><g class="t5tip"><title>Thornwall (Thornlight Snare, Caltrops)
-Alone: wave 9 (from wave 41: +0)
-Veiled revealed: wave 9
-Veiled revealed + flyers: wave 9 (from wave 41: +0)</title>
-<rect x="300" y="589.5" width="108" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,593h92a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-92z" class="t5f-s1" fill="#2a78d6"/>
-
-<line x1="396" y1="590.5" x2="396" y2="606.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="396" cy="598.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="621.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Amber Trap</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Moth Lantern, Flypaper</tspan></text><g class="t5tip"><title>Amber Trap (Moth Lantern, Flypaper)
+<line x1="548.9" y1="552.5" x2="548.9" y2="568.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="548.9" cy="560.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="583.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Dawnbreaker</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Prism, Focus</tspan></text><g class="t5tip"><title>Dawnbreaker (Prism, Focus)
+Alone: wave 23 (from wave 41: +5)
+Veiled revealed: wave 80
+Veiled revealed + flyers: wave 80 (from wave 41: +40)</title>
+<rect x="300" y="570.5" width="865.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,574h241.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-241.3z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="545.3" y1="579.5" x2="1153.3" y2="579.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1153.3" y1="571.5" x2="1153.3" y2="587.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1153.3" cy="579.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1163.3" y="583.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +57</text><text x="290" y="602.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Starhost</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Wandering Light, Swarm</tspan></text><g class="t5tip"><title>Starhost (Wandering Light, Swarm)
+Alone: wave 23 (from wave 41: +5)
+Veiled revealed: wave 78
+Veiled revealed + flyers: wave 78 (from wave 41: +38)</title>
+<rect x="300" y="589.5" width="844" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,593h241.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-241.3z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="545.3" y1="598.5" x2="1132" y2="598.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1132" y1="590.5" x2="1132" y2="606.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1132" cy="598.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1142" y="602.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +55</text><text x="290" y="621.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Permafrost</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Rime Spire, Deep Freeze</tspan></text><g class="t5tip"><title>Permafrost (Rime Spire, Deep Freeze)
+Alone: wave 22 (from wave 41: +1)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 66 (from wave 41: +27)</title>
+<rect x="300" y="608.5" width="716" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,612h230.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-230.7z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="534.7" y1="617.5" x2="1004" y2="617.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="609.5" x2="534.7" y2="625.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1004" cy="617.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1014" y="621.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +44</text><text x="290" y="640.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Great Maelstrom</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> The Undertow, Maelstrom</tspan></text><g class="t5tip"><title>Great Maelstrom (The Undertow, Maelstrom)
+Alone: wave 22 (from wave 41: +0)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 75 (from wave 41: +34)</title>
+<rect x="300" y="627.5" width="812" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,631h230.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-230.7z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="534.7" y1="636.5" x2="1100" y2="636.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="628.5" x2="534.7" y2="644.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1100" cy="636.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1110" y="640.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +53</text><text x="290" y="659.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Undying Taper</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Lampwright, Tallow</tspan></text><g class="t5tip"><title>Undying Taper (Lampwright, Tallow)
+Alone: wave 22 (from wave 41: +0)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 69 (from wave 41: +28)</title>
+<rect x="300" y="646.5" width="748" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,650h230.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-230.7z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="534.7" y1="655.5" x2="1036" y2="655.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="647.5" x2="534.7" y2="663.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1036" cy="655.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1046" y="659.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +47</text><text x="290" y="678.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Thousand Wicks</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Lampwright, Wickstorm</tspan></text><g class="t5tip"><title>Thousand Wicks (Lampwright, Wickstorm)
+Alone: wave 22 (from wave 41: +0)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 65 (from wave 41: +28)</title>
+<rect x="300" y="665.5" width="705.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,669h230.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-230.7z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="534.7" y1="674.5" x2="993.3" y2="674.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="666.5" x2="534.7" y2="682.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="993.3" cy="674.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1003.3" y="678.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +43</text><text x="290" y="697.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Constellation</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Thornlight Snare, Flashmines</tspan></text><g class="t5tip"><title>Constellation (Thornlight Snare, Flashmines)
+Alone: wave 22 (from wave 41: +0)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 64 (from wave 41: +25)</title>
+<rect x="300" y="684.5" width="694.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,688h230.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-230.7z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="534.7" y1="693.5" x2="982.7" y2="693.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="685.5" x2="534.7" y2="701.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="982.7" cy="693.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="992.7" y="697.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +42</text><text x="290" y="716.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Drowned Deep</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> The Undertow, Abyss</tspan></text><g class="t5tip"><title>Drowned Deep (The Undertow, Abyss)
+Alone: wave 22 (from wave 41: +0)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 62 (from wave 41: +22)</title>
+<rect x="300" y="703.5" width="673.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,707h230.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-230.7z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="534.7" y1="712.5" x2="961.3" y2="712.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="704.5" x2="534.7" y2="720.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="961.3" cy="712.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="971.3" y="716.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +40</text><text x="290" y="735.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Eternal Vigil</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Lampwright, Beaconwax</tspan></text><g class="t5tip"><title>Eternal Vigil (Lampwright, Beaconwax)
+Alone: wave 22 (from wave 41: +0)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 61 (from wave 41: +22)</title>
+<rect x="300" y="722.5" width="662.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,726h230.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-230.7z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="534.7" y1="731.5" x2="950.7" y2="731.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="723.5" x2="534.7" y2="739.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="950.7" cy="731.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="960.7" y="735.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +39</text><text x="290" y="754.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Tidal Throne</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> The Undertow, Tidecaller</tspan></text><g class="t5tip"><title>Tidal Throne (The Undertow, Tidecaller)
+Alone: wave 22 (from wave 41: +0)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 61 (from wave 41: +22)</title>
+<rect x="300" y="741.5" width="662.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,745h230.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-230.7z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="534.7" y1="750.5" x2="950.7" y2="750.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="742.5" x2="534.7" y2="758.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="950.7" cy="750.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="960.7" y="754.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +39</text><text x="290" y="773.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Seal of Dawn</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Thornlight Snare, Binding Light</tspan></text><g class="t5tip"><title>Seal of Dawn (Thornlight Snare, Binding Light)
+Alone: wave 22 (from wave 41: +0)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 59 (from wave 41: +19)</title>
+<rect x="300" y="760.5" width="641.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,764h230.7a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-230.7z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="534.7" y1="769.5" x2="929.3" y2="769.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="761.5" x2="534.7" y2="777.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="929.3" cy="769.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="939.3" y="773.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +37</text><text x="290" y="792.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Lightweb</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Prism, Refraction</tspan></text><g class="t5tip"><title>Lightweb (Prism, Refraction)
+Alone: wave 21 (from wave 41: +1)
+Veiled revealed: wave 73
+Veiled revealed + flyers: wave 73 (from wave 41: +38)</title>
+<rect x="300" y="779.5" width="790.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,783h220a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-220z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="524" y1="788.5" x2="1078.7" y2="788.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1078.7" y1="780.5" x2="1078.7" y2="796.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1078.7" cy="788.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1088.7" y="792.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +52</text><text x="290" y="811.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Lantern Armada</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Ferrylight, Flotilla</tspan></text><g class="t5tip"><title>Lantern Armada (Ferrylight, Flotilla)
+Alone: wave 21 (from wave 41: +1)
+Veiled revealed: wave 69
+Veiled revealed + flyers: wave 69 (from wave 41: +22)</title>
+<rect x="300" y="798.5" width="748" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,802h220a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-220z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="524" y1="807.5" x2="1036" y2="807.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="1036" y1="799.5" x2="1036" y2="815.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1036" cy="807.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1046" y="811.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +48</text><text x="290" y="830.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Ball Lightning</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Storm Coil, Forking</tspan></text><g class="t5tip"><title>Ball Lightning (Storm Coil, Forking)
+Alone: wave 21 (from wave 41: +1)
+Veiled revealed: wave 44.3
+Veiled revealed + flyers: wave 44.3 (from wave 41: +19.7)</title>
+<rect x="300" y="817.5" width="484.9" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,821h220a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-220z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="524" y1="826.5" x2="772.9" y2="826.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="772.9" y1="818.5" x2="772.9" y2="834.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="772.9" cy="826.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="782.9" y="830.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: Veiled +23</text><text x="290" y="849.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Grand Battery</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Mortar, Rapid Loader</tspan></text><g class="t5tip"><title>Grand Battery (Mortar, Rapid Loader)
+Alone: wave 21 (from wave 41: +0)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 76 (from wave 41: +36)</title>
+<rect x="300" y="836.5" width="822.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,840h220a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-220z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="524" y1="845.5" x2="1110.7" y2="845.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="837.5" x2="534.7" y2="853.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1110.7" cy="845.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1120.7" y="849.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +54</text><text x="290" y="868.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Thornwall</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Thornlight Snare, Caltrops</tspan></text><g class="t5tip"><title>Thornwall (Thornlight Snare, Caltrops)
+Alone: wave 21 (from wave 41: +0)
+Veiled revealed: wave 21
+Veiled revealed + flyers: wave 68 (from wave 41: +29)</title>
+<rect x="300" y="855.5" width="737.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,859h220a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-220z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="524" y1="864.5" x2="1025.3" y2="864.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="524" y1="856.5" x2="524" y2="872.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1025.3" cy="864.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1035.3" y="868.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +47</text><text x="290" y="887.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Worldbreaker</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Mortar, Big Shells</tspan></text><g class="t5tip"><title>Worldbreaker (Mortar, Big Shells)
+Alone: wave 21 (from wave 41: +0)
+Veiled revealed: wave 22
+Veiled revealed + flyers: wave 67 (from wave 41: +31)</title>
+<rect x="300" y="874.5" width="726.7" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,878h220a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-220z" class="t5f-s1" fill="#2a78d6"/>
+<line x1="524" y1="883.5" x2="1014.7" y2="883.5" class="t5s-muted" stroke="#77718c" stroke-width="1"/>
+<line x1="534.7" y1="875.5" x2="534.7" y2="891.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="1014.7" cy="883.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="1024.7" y="887.5" font-size="11" class="t5f-ink2" fill="#4a4560">blind: flyers +45</text><text x="290" y="906.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Amber Trap</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Moth Lantern, Flypaper</tspan></text><g class="t5tip"><title>Amber Trap (Moth Lantern, Flypaper)
 Alone: wave 2 (from wave 41: +0)
 Veiled revealed: wave 2
 Veiled revealed + flyers: wave 2 (from wave 41: +0)</title>
-<rect x="300" y="608.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,612h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
+<rect x="300" y="893.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,897h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="321.3" y1="609.5" x2="321.3" y2="625.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="321.3" cy="617.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="640.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Anthem of War</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Beacon, War Drum</tspan></text><g class="t5tip"><title>Anthem of War (Beacon, War Drum)
+<line x1="321.3" y1="894.5" x2="321.3" y2="910.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="321.3" cy="902.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="925.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Anthem of War</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Beacon, War Drum</tspan></text><g class="t5tip"><title>Anthem of War (Beacon, War Drum)
 Alone: wave 2 (from wave 41: +0)
 Veiled revealed: wave 2
 Veiled revealed + flyers: wave 2 (from wave 41: +0)</title>
-<rect x="300" y="627.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,631h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
+<rect x="300" y="912.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,916h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="321.3" y1="628.5" x2="321.3" y2="644.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="321.3" cy="636.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="659.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Dragon's Hoard</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Ember Vault, Great Brazier</tspan></text><g class="t5tip"><title>Dragon's Hoard (Ember Vault, Great Brazier)
+<line x1="321.3" y1="913.5" x2="321.3" y2="929.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="321.3" cy="921.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="944.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Dragon's Hoard</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Ember Vault, Great Brazier</tspan></text><g class="t5tip"><title>Dragon's Hoard (Ember Vault, Great Brazier)
 Alone: wave 2 (from wave 41: +0)
 Veiled revealed: wave 2
 Veiled revealed + flyers: wave 2 (from wave 41: +0)</title>
-<rect x="300" y="646.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,650h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
+<rect x="300" y="931.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,935h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="321.3" y1="647.5" x2="321.3" y2="663.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="321.3" cy="655.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="678.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Ember Tide</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Ember Vault, Gleaners</tspan></text><g class="t5tip"><title>Ember Tide (Ember Vault, Gleaners)
+<line x1="321.3" y1="932.5" x2="321.3" y2="948.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="321.3" cy="940.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="963.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Ember Tide</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Ember Vault, Gleaners</tspan></text><g class="t5tip"><title>Ember Tide (Ember Vault, Gleaners)
 Alone: wave 2 (from wave 41: +0)
 Veiled revealed: wave 2
 Veiled revealed + flyers: wave 2 (from wave 41: +0)</title>
-<rect x="300" y="665.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,669h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
+<rect x="300" y="950.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,954h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="321.3" y1="666.5" x2="321.3" y2="682.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="321.3" cy="674.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="697.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">False Moon</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Moth Lantern, Bright Lure</tspan></text><g class="t5tip"><title>False Moon (Moth Lantern, Bright Lure)
+<line x1="321.3" y1="951.5" x2="321.3" y2="967.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="321.3" cy="959.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="982.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">False Moon</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Moth Lantern, Bright Lure</tspan></text><g class="t5tip"><title>False Moon (Moth Lantern, Bright Lure)
 Alone: wave 2 (from wave 41: +0)
 Veiled revealed: wave 2
 Veiled revealed + flyers: wave 2 (from wave 41: +0)</title>
-<rect x="300" y="684.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,688h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
+<rect x="300" y="969.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,973h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="321.3" y1="685.5" x2="321.3" y2="701.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="321.3" cy="693.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="716.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Golden Age</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Beacon, Tithe</tspan></text><g class="t5tip"><title>Golden Age (Beacon, Tithe)
+<line x1="321.3" y1="970.5" x2="321.3" y2="986.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="321.3" cy="978.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="1001.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Golden Age</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Beacon, Tithe</tspan></text><g class="t5tip"><title>Golden Age (Beacon, Tithe)
 Alone: wave 2 (from wave 41: +0)
 Veiled revealed: wave 2
 Veiled revealed + flyers: wave 2 (from wave 41: +0)</title>
-<rect x="300" y="703.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,707h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
+<rect x="300" y="988.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,992h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="321.3" y1="704.5" x2="321.3" y2="720.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="321.3" cy="712.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="735.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Second Heartfire</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Ember Vault, Hearthwarm</tspan></text><g class="t5tip"><title>Second Heartfire (Ember Vault, Hearthwarm)
+<line x1="321.3" y1="989.5" x2="321.3" y2="1005.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="321.3" cy="997.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="1020.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Second Heartfire</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Ember Vault, Hearthwarm</tspan></text><g class="t5tip"><title>Second Heartfire (Ember Vault, Hearthwarm)
 Alone: wave 2 (from wave 41: +0)
 Veiled revealed: wave 2
 Veiled revealed + flyers: wave 2 (from wave 41: +0)</title>
-<rect x="300" y="722.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,726h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
+<rect x="300" y="1007.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,1011h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="321.3" y1="723.5" x2="321.3" y2="739.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="321.3" cy="731.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="754.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Worldlight</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Beacon, Lighthouse</tspan></text><g class="t5tip"><title>Worldlight (Beacon, Lighthouse)
+<line x1="321.3" y1="1008.5" x2="321.3" y2="1024.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="321.3" cy="1016.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><text x="290" y="1039.5" font-size="12" text-anchor="end" class="t5f-ink2" fill="#4a4560"><tspan font-weight="600" class="t5f-ink" fill="#1f1b2b">Worldlight</tspan><tspan font-size="11" class="t5f-muted" fill="#77718c"> Beacon, Lighthouse</tspan></text><g class="t5tip"><title>Worldlight (Beacon, Lighthouse)
 Alone: wave 2 (from wave 41: +0)
 Veiled revealed: wave 2
 Veiled revealed + flyers: wave 2 (from wave 41: +0)</title>
-<rect x="300" y="741.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
-<path d="M300,745h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
+<rect x="300" y="1026.5" width="33.3" height="18" fill="#000" fill-opacity="0"/>
+<path d="M300,1030h17.3a4,4 0 0 1 4,4v3a4,4 0 0 1 -4,4h-17.3z" class="t5f-s1" fill="#2a78d6"/>
 
-<line x1="321.3" y1="742.5" x2="321.3" y2="758.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
-<circle cx="321.3" cy="750.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><line x1="343.3" y1="612" x2="343.3" y2="756" class="t5s-muted" stroke="#77718c" stroke-width="1"/><text x="351.3" y="688" font-size="11" class="t5f-ink2" fill="#4a4560">8 that stop nothing on their own: wave 2, the same as an empty map</text>
+<line x1="321.3" y1="1027.5" x2="321.3" y2="1043.5" class="t5s-s2" stroke="#eb6834" stroke-width="2.5"/>
+<circle cx="321.3" cy="1035.5" r="4.5" class="t5f-s3 t5s-surf" fill="#1baf7a" stroke="#f6f4fb" stroke-width="2"/></g><line x1="343.3" y1="897" x2="343.3" y2="1041" class="t5s-muted" stroke="#77718c" stroke-width="1"/><text x="351.3" y="973" font-size="11" class="t5f-ink2" fill="#4a4560">8 that stop nothing on their own: wave 2, the same as an empty map</text>
 </svg>

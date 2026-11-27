@@ -216,8 +216,8 @@ function waveAxis(X, top, bottom, max) {
 
 // ---- summary table (HTML in the markdown; sortable and coloured on the :3002 page) --------------
 {
-  const wq = (w) => (w <= 2 ? 'q0' : w < 15 ? 'q1' : w < 30 ? 'q2' : w < 45 ? 'q3' : 'q4');
-  const xq = (x) => (x == null ? 'qna' : x < 1.5 ? 'q0' : x < 3 ? 'q1' : x <= 5 ? 'q4' : 'qhi');
+  const wq = (w) => (w <= 2 ? 'q0' : w < 25 ? 'q1' : w < 45 ? 'q2' : w < 60 ? 'q3' : 'q4');
+  const xq = (x) => (x == null ? 'qna' : x < 1.5 ? 'q0' : x < 3 ? 'q1' : 'q4');
   const td = (v, shown, cls = '') => `<td data-v="${esc(typeof v === 'number' ? Math.round(v * 1000) / 1000 : v)}"${cls ? ` class="${cls}"` : ''}>${shown}</td>`;
   const killer = (p) => {
     if (p.empty) return td('zzz', '<span class="t5sw t5sw-none"></span>stops nothing alone', 'kill');
