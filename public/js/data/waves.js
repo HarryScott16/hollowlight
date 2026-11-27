@@ -203,7 +203,7 @@ WAVES.forEach((w, i) => {
 // ---- Hard: waves 41-60 -------------------------------------------------------------------------
 // Hard's campaign is 60 waves (Easy and Medium end at 40). The climb carries on with the same
 // themed-stretch recipe: the pop budget keeps its 4.5% a wave, the small Gloom stop growing (as in
-// endless, for the frame rate), toughness grows 7.5% a wave (HARD_TOUGH: tuned with the bots, so a
+// endless, for the frame rate), toughness grows 6.8% a wave (HARD_TOUGH: tuned with the bots, so a
 // strong defence with its tier 5s is pushed to the edge by 56-60 and about one in four falls; at 7%
 // none is touched, at 8% most fall) and pace only +0.5% a wave. Hard's difficulty multipliers
 // still apply on top, and a map's own ramp holds at its wave-40 value (Game.startWave).
@@ -213,7 +213,7 @@ WAVES.forEach((w, i) => {
 //   51-54 siege      colossi behind shield walls; Veiled giants at 53
 //   55-59 lastHours  everything; a black sky at 57, Veiled giants at 58
 //   60    The Last Dark
-export const HARD_TOUGH = (wave) => TOUGH(40) * 1.075 ** Math.max(0, wave - 40);
+export const HARD_TOUGH = (wave) => TOUGH(40) * 1.068 ** Math.max(0, wave - 40);
 // A boss wave: its stretch's full themed wave with the bosses at its head (and a last rush), so it
 // is the peak of its stretch rather than a lull.
 function bossWave(wave, stretch, bosses, banner, rush = []) {

@@ -1,3 +1,214 @@
+# Morning summary 2026-11-28: tier 5 boost, five new wards, rebalance
+
+All on `master`, committed in steps and pushed; nothing shipped to the live site.
+
+## What you decided (while you were around)
+
+- Endless keeps its curve to wave 100 (the solo targets are measured on it) and is steeper after it.
+- Waves 6-20 softened on every difficulty, Medium included: Veiled and flyers come in small groups and
+  cost 1 life each when they get through (the Veilmother 10); waves 21-24 ease them back in.
+- Tier 5 prices follow strength: about the old price for one that reaches wave 60 alone, up to 1.6x
+  for one that reaches 100.
+- The Hollow King keeps his Frost immunity. Only the test's "blind spots removed" condition lets a Frost
+  ward hurt him (test code, not the game).
+
+## Small choices I made (tell me if any should change)
+
+- **Second shop row on Tab.** Tab switches rows when no ward is selected; with a ward selected it still
+  cycles through your wards. The number row picks within the row that's showing.
+- **Ability keys Y I O P N** for the Avatar, Choir, Ferrylight, Undertow and Lampwright; one ability per
+  path (the button shows the ability it would fire).
+- **Stall guard minimum 600 s** (not 300): a slowed boss can legitimately take 300+ s.
+- **Tier 5 power.** Each tier 5 has a `power` that multiplies everything it deals (shown first in its
+  numbers: "Capstone power x47 (all its damage)"). Fitted per tier 5 to its target with
+  `tools/t5fit.js`. Eye of Fate's fit came out below 1, so its own multiplier went from x2.5 to x1.7.
+- **Crowd mechanics where power alone couldn't help** (each tier 5 died to crowds whatever its damage):
+  - Kingslayer: a killing shot carries on to the nearest enemy (up to 8 times).
+  - Eye of Fate: 40 Doomed (was 10), and every volley also strikes every Doomed enemy it can see.
+  - Thornwall: bites cost no charges and the briars spread x2.5 wider.
+  - Seal of Dawn: every second a ring of dawn bites every ground enemy within 150, through armour.
+  - Moth Queen: stings every flyer in its light (x1.3 range), lures up to 60.
+  - Dawnbringer: every 3 s the torch flares on everything within 240 of its post.
+  - Permafrost: pulses reach up to 80 enemies (was 30).
+- **Support tier 5s** made strong enough to matter next to boosted tier 5s: Anthem of War +150% speed and
+  damage (was +70%/+50%), Worldlight adds +50% damage map-wide, Golden Age 4,000 a wave, Dragon's Hoard
+  cap 60k and 35% interest, Ember Tide 600% of bounties, Second Heartfire +100%/+100%, False Moon lured
+  flyers take +250%, Amber Trap lures 60 and they take +150%.
+- **The support test now spends its gold** (more Bolt Wards and upgrades, cashing out full vaults), so
+  economy tier 5s can be measured at all (before, they scored 0 by construction).
+- **New wards' bases raised** after the bots lost with them (the Ferrylight dealt 12 dmg/s for 400 gold):
+  details in `docs/new-wards-2.md` ("Built").
+
+## Part 1: the tier 5 boost
+
+Full report with tables and charts: `docs/tier5-report.md` (port 3002, `/tier5-report`).
+
+| Target | Result |
+|---|---|
+| Most tier 5s reach 60-80 alone, the best ~100 | **Met** for those that can see and hit everything: 58-98 (Shrapnel Storm 98, Wild Hunt 94, Thousand Bolts 92, Heavenly Host 81, Zenith 79). Before: best ~50. |
+| Blind ones no earlier than ~25 | **Nearly:** 21-24 (they all reach the 20s now, instead of 9-17). Easing Veiled and flyers in over 21-26 instead of 21-24 would push them to ~25: say if you want it. |
+| Every tier 5 >= 55 with blind spots removed | **Met except two:** Heartline (Ferrylight) 23, Ball Lightning (Storm Coil) 44. Neither responds to power; both need a design look. |
+| Every tier 5 >= 3x its tier 4 | **Met:** 3.7x (Kingslayer) to 84x. |
+| Support tier 5s pull their weight (partner test) | **Met, economy ones modest:** beside a Bolt Ward partner (65 with Veiled revealed) Anthem of War and Worldlight -> 85, Second Heartfire 81, Golden Age 73, Dragon's Hoard / Ember Tide 72. Beside a Mortar, False Moon 21 -> 49, Amber Trap 21 -> 48. |
+| Raise prices where very powerful | Done: Shrapnel Storm's ward 42k in all, Wild Hunt 32k, Thousand Bolts 34k, most 24-34k. |
+| Second Heartfire warmAt bug | Fixed (always warm). |
+| Stall guard in bot.js and solo.js | Done (`tools/stall.js`), plus pushback counting. |
+
+Also found and fixed: a second path could lower pierce or armour-piercing (Hunter's Mark undid Worldpiercer's lance): Worldpiercer alone 13 -> 26.
+
+## Part 2: the five new wards
+
+Built as decided in `docs/new-wards-2.md` (a "Built" section there lists where the build differs):
+- All three paths to tier 5, tier 4 abilities per path (Y I O P N), both skins (ported from the mock-ups;
+  `tools/wards.mjs`: height and body checks pass), qualitative blurbs plus numbers on hover/Shift, the
+  upgrade tree (data-driven), test mode (clears their candles and wisps too).
+- Water placement on every map; the lava variants on Ashfork; ice holes on Rimecoil.
+- Stacking rules (one Eclipse per ward, one lent star per ward, Hush doesn't stack, notes hit at most 80),
+  the overlap fixes (Solar is Heat and flares, the Lighthouse Barge Dazzles the Gloom, the Choir never
+  slows, Wax Seal), and the look-alike fixes.
+- The Lampwright's caps (24 per ward, 160 on the map) and cheap candles (one drawImage each).
+- No pushback limit in the game.
+
+Their tier 5s alone (from wave 1; "full" = blind spots removed):
+
+| Tier 5 | Ward (path) | Alone | Full | x tier 4 | Ward cost |
+|---|---|--:|--:|--:|--:|
+| Heavenly Host | Astral Choir (Chorus) | 81 | 81 | 25x | 39k |
+| Zenith | Heartfire Avatar (Solar) | 79 | 79 | 55x | 39k |
+| Great Bell | Astral Choir (Hymn) | 74 | 74 | 10x | 36k |
+| Grand Orrery | Heartfire Avatar (Orrery) | 69 | 78 | 28x | 40k |
+| Last Requiem | Astral Choir (Requiem) | 68 | 68 | 4.6x | 34k |
+| Harbour Star | Ferrylight (Lighthouse Barge) | 66 | 67 | 48x | 24k |
+| Syzygy | Heartfire Avatar (Eclipse) | 32 | 64 | 16x | 32k |
+| Great Maelstrom | The Undertow (Maelstrom) | 22 | 75 | 14x | 30k |
+| Undying Taper | Lampwright (Tallow) | 22 | 69 | 84x | 24k |
+| Lantern Armada | Ferrylight (Flotilla) | 21 | 69 | 14x | 27k |
+| Thousand Wicks | Lampwright (Wickstorm) | 22 | 65 | 55x | 24k |
+| Drowned Deep | The Undertow (Abyss) | 22 | 62 | 20x | 27k |
+| Tidal Throne | The Undertow (Tidecaller) | 22 | 61 | 16x | 26k |
+| Eternal Vigil | Lampwright (Beaconwax) | 22 | 61 | 9x | 23k |
+| Heartline | Ferrylight (Harpooner) | 24 | 23 | 33x | 24k |
+
+(Zenith, Grand Orrery and Great Bell were measured before a late trim of their tier 3/4 steps; their
+powers were raised to match, so expect them within a few waves of these.)
+
+## Part 3: balance and checks
+
+The campaign targets hold (seed 1). Hard's late toughness growth went from 7.5% to 6.8% a wave: with the
+dearer tier 5s, only about half the strong builds that reached wave 40 were winning; now 13 of the 16
+runs of the original strong builds win, and the two new-ward strong builds mostly fall at 58-60.
+New builds with the five new wards: `strong17`, `strong17B` (strong) and `mixed17` (reasonable).
+`mixed17` sits at the top of the reasonable group (on Hard it falls at 38-40, the others at 31-37).
+
+**Easy** (won: lives left of 250)
+
+| Build | Group | Hollowmere | Ashfork | Rimecoil | Mirefen |
+|---|---|---|---|---|---|
+| lazy | lazy | lost on 11 | lost on 11 | lost on 11 | lost on 11 |
+| minimal | lazy | lost on 12 | lost on 12 | lost on 15 | lost on 11 |
+| lazyTier1 | lazy | lost on 13 | lost on 13 | lost on 15 | lost on 11 |
+| mixed | reasonable | won 250 | won 250 | won 250 | won 250 |
+| mixedAlt | reasonable | won 250 | won 250 | won 250 | won 250 |
+| focused | reasonable | won 250 | won 250 | won 250 | won 250 |
+| mixed12 | reasonable | won 250 | won 250 | won 250 | won 250 |
+| mixed17 | reasonable | won 250 | won 242 | won 250 | won 250 |
+| strongAlt | strong | won 250 | won 250 | won 250 | won 250 |
+| strongThird | strong | won 250 | won 250 | won 250 | won 250 |
+| newA | strong | won 250 | won 250 | won 250 | won 250 |
+| strong12 | strong | won 250 | won 250 | won 250 | won 250 |
+| strong12B | strong | won 250 | won 250 | won 250 | won 250 |
+| strong17 | strong | won 250 | won 243 | won 250 | won 250 |
+| strong17B | strong | won 250 | won 250 | won 250 | won 250 |
+
+**Medium** (won: lives left of 150)
+
+| Build | Group | Hollowmere | Ashfork | Rimecoil | Mirefen |
+|---|---|---|---|---|---|
+| lazy | lazy | lost on 9 | lost on 9 | lost on 9 | lost on 7 |
+| minimal | lazy | lost on 10 | lost on 10 | lost on 10 | lost on 8 |
+| lazyTier1 | lazy | lost on 10 | lost on 10 | lost on 10 | lost on 9 |
+| mixed | reasonable | won 150 | won 150 | won 150 | won 71 |
+| mixedAlt | reasonable | lost on 39 | lost on 40 | won 150 | lost on 39 |
+| focused | reasonable | lost on 40 | won 106 | won 150 | won 127 |
+| mixed12 | reasonable | won 150 | won 125 | lost on 40 | won 94 |
+| mixed17 | reasonable | won 150 | won 135 | won 150 | won 150 |
+| strongAlt | strong | won 150 | won 150 | won 150 | won 150 |
+| strongThird | strong | won 150 | won 150 | won 150 | won 147 |
+| newA | strong | won 150 | won 150 | won 146 | won 150 |
+| strong12 | strong | won 150 | won 115 | won 150 | won 53 |
+| strong12B | strong | won 150 | won 150 | won 150 | won 128 |
+| strong17 | strong | won 148 | won 63 | won 134 | won 150 |
+| strong17B | strong | won 150 | won 150 | won 150 | won 150 |
+
+**Hard** (60 waves; won: lives left of 100)
+
+| Build | Group | Hollowmere | Ashfork | Rimecoil | Mirefen |
+|---|---|---|---|---|---|
+| lazy | lazy | lost on 8 | lost on 8 | lost on 8 | lost on 6 |
+| minimal | lazy | lost on 9 | lost on 10 | lost on 10 | lost on 8 |
+| lazyTier1 | lazy | lost on 10 | lost on 10 | lost on 10 | lost on 9 |
+| mixed | reasonable | lost on 35 | lost on 38 | lost on 37 | lost on 33 |
+| mixedAlt | reasonable | lost on 31 | lost on 32 | lost on 33 | lost on 31 |
+| focused | reasonable | lost on 32 | lost on 34 | lost on 33 | lost on 31 |
+| mixed12 | reasonable | lost on 33 | lost on 37 | lost on 36 | lost on 33 |
+| mixed17 | reasonable | lost on 39 | lost on 40 | lost on 39 | lost on 39 |
+| strongAlt | strong | won 100 | lost on 59 | won 100 | lost on 60 |
+| strongThird | strong | won 100 | won 38 | won 100 | won 100 |
+| newA | strong | lost on 30 | lost on 30 | lost on 30 | lost on 30 |
+| strong12 | strong | won 81 | lost on 40 | won 90 | won 3 |
+| strong12B | strong | won 100 | won 100 | won 100 | won 100 |
+| strong17 | strong | lost on 60 | lost on 40 | won 35 | lost on 60 |
+| strong17B | strong | lost on 58 | lost on 59 | lost on 60 | lost on 60 |
+
+**Endless** (Hollowmere Medium, seed 1, `--endless --cap=170`; growth now 18% a wave after wave 100, was 8%):
+
+| Build | Result |
+|---|---|
+| endless12 | **stalled** on wave 135 with 150 lives (see below) |
+| endless12B | lost on wave 127 |
+| endless17 (with the new wards) | lost on wave 124 |
+
+At 11.5% after wave 100 they reached 137-146, so I went to 18%; the target was strong defences ending
+around 115-130.
+
+**The stall:** `endless12` wasn't beaten, it stalled: on wave 135, 164 enemies were held for 600 s,
+pushed back 520,338 px in that one wave. Its Worldpiercer (Ballista tier 5, x92 now) fires map-wide
+lances that knock back everything they pass through, often enough to freeze a wave. The stall guard did
+its job in the test; in the game the wave would never end. This is the evidence for the pushback limit
+you wanted to wait on (an earlier run stalled the same way on 144). A cap of a few hundred px of
+pushback per enemy per wave would end it.
+
+**Checks:**
+- `node tools/smoke.js`: ok (every one of the 17 wards placed by click, drag and key, every path to
+  tier 5, R actions, abilities, the second shop row on Tab).
+- `tools/wards.mjs`: all 17 wards in both skins within the height caps, gear clear of the body.
+- `tools/canvascheck.mjs` on all four maps, every one of the 51 tier 5 paths on the map at once:
+  0 frame errors, canvas state clean.
+- `tools/perf.mjs` at wave 80 with that whole tier 5 defence: about 6,600-7,000 canvas calls a frame on
+  each map (wards ~3,700 of them, 51 tier 5s); six Lampwrights at the candle cap: 229 calls in the
+  ground pass.
+
+## Please look at
+
+1. **Pushback**: the Worldpiercer stall above.
+2. **Heartline and Ball Lightning** fall short of the 55 target with blind spots removed; neither
+   responds to power (Heartline covers too little road from its pond; Ball Lightning gets worse above
+   x24). Each needs a design change rather than numbers.
+3. **Blind tier 5s alone stop at 21-24**, a little short of ~25 (one more wave of easing would fix it).
+4. **The economy support tier 5s** (Golden Age, Dragon's Hoard, Ember Tide) add about 7-8 waves beside a
+   spending partner: they pull weight, but the least.
+5. **Play the five new wards**: numbers are first-pass. The Avatar and Choir are deliberately strong; the
+   Undertow and Lampwright tier 5s can't touch flyers (by design), so alone they stop at ~22.
+
+## Commits
+
+`195d8e0` warmAt fix, stall guard; `8376d07` new wards, early waves; `1121d8e` power baked, prices,
+support tier 5s; `3b6ee95`, `ba20a4f`, `baa0eff` new-ward balance; `82b4b75` pierce fix; `5acddd3` Amber
+Trap; `d388d25` the report; then endless, Hard and this summary.
+
+---
+
+
 # Update 2026-11-23: upgrade tree, Vault interest, Wandering Light anchor, Strong targeting, Hard to 60
 
 On `master` (dev, :3001); not shipped to the live site.
