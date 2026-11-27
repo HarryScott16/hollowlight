@@ -8,6 +8,7 @@
 // canvas (@napi-rs/canvas, no GPU), so they are slower than a browser: compare sections and runs,
 // not milliseconds against a browser.
 import { startGame } from './harness.mjs';
+import { TOWERS } from '../public/js/data/towers.js';
 
 const arg = (k, d) => { const a = process.argv.find((x) => x.startsWith(k + '=')); return a ? a.slice(k.length + 1) : d; };
 const WAVE = Number(arg('wave', 80)), SPEED = Number(arg('speed', 1)), MODE = arg('mode', 'normal'), DEF = arg('defence', 'few');
@@ -43,22 +44,27 @@ r.drawWardAt = ((orig) => function (c, t, dt) { const c0 = calls; orig.call(r, c
 r.drawGhosts = ((orig) => function (c, l) { const c0 = calls; orig.call(r, c, l); callSum.ghostCalls = (callSum.ghostCalls || 0) + (calls - c0); })(r.drawGhosts);
 g.gold = 1e9;
 // The defence: a few mid-tier wards (far too few for the wave), or a full tier 4 defence.
-const types = process.env.WARDS === '8' ? ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon']
-  : ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon', 'snare', 'moth', 'wander', 'vault'];
+// (defence=candles: six Lampwrights on Wickstorm tier 4, the candle cap's stress test)
+const types = DEF === 'candles' ? ['lamp'] : process.env.WARDS === '8' ? ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon']
+  : process.env.WARDS === '12' ? ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon', 'snare', 'moth', 'wander', 'vault']
+    : ['bolt', 'mortar', 'rime', 'coil', 'longeye', 'censer', 'prism', 'beacon', 'snare', 'moth', 'wander', 'vault', 'avatar', 'choir', 'ferry', 'undertow', 'lamp'];
+const wet = [];
+for (let y = 20; y < 710; y += 10) for (let x = 20; x < 1110; x += 10) if (g.map.inWater(x, y, 12)) wet.push([x, y]);
 const spots = [];
 for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map.buildable(x, y) && g.map.distTo(x, y) < 70) spots.push([x, y]);
 if (!spots.length) for (let y = 50; y < 700; y += 26) for (let x = 40; x < 1100; x += 26) if (g.map.buildable(x, y)) spots.push([x, y]);
 // t5: the full defence with every ward pushed to tier 5 where the one-of-each limit allows.
-const FULL = DEF === 'full' || DEF === 't5';
-const want = FULL ? Number(arg('wards', 22)) : 5;
+const FULL = DEF === 'full' || DEF === 't5' || DEF === 'candles';
+const want = DEF === 'candles' ? 6 : FULL ? Number(arg('wards', 22)) : 5;
 for (let i = 0, k = 0; i < spots.length && k < want; i += 5) {
   const type = types[k % types.length];
   let t;
   if (type === 'snare') { const p = g.map.path, j = Math.round((250 + k * 40) / p.step); t = g.place(type, p.xs[j], p.ys[j]); }
+  else if (TOWERS[type].water) { for (let j = 0; j < wet.length && !t; j += 13) t = g.place(type, wet[(j + k * 31) % wet.length][0], wet[(j + k * 31) % wet.length][1]); }
   else t = g.place(type, spots[i][0], spots[i][1]);
   if (!t) continue;
   ui.select(t);
-  const main = (k + Math.floor(k / 12)) % 3;   // each copy of a type takes another path (one of each tier 5)
+  const main = DEF === 'candles' ? 1 : (k + Math.floor(k / types.length)) % 3;   // each copy of a type takes another path (one of each tier 5)
   for (let u = 0; u < (DEF === 't5' ? 5 : FULL ? 4 : 2); u++) ui.buyUpgrade(main);
   if (FULL) for (let u = 0; u < 2; u++) ui.buyUpgrade((main + 1) % 3);
   k++;

@@ -28,9 +28,12 @@ separately: an error is logged as `[Hollowlight] error in the ...` and counted i
 `window.hollowlight.frameErrors`, and the loop keeps running (smoke.js fails on any).
 Test mode for checking art: `?test=1` or Shift+T (unlimited gold and lives, wave jumping; `ui/testmode.js`).
 It is off on the public site (`js/site.js` says `PUBLIC`; the live server serves its own copy).
-Keys: wards 1-9, 0, -, = (shop order); Q W E upgrade; U the upgrade tree (`ui/tree.js`: of the selected
-ward, or the one placed/hovered in the shop; right-click a shop ward too); R the selected ward's action (cash out an Ember
-Vault, move a Wandering Light's post); abilities A S D F G H J K, then Z C V B; X the Flare.
+Keys: wards 1-9, 0, -, = pick a ward in the shop row that's showing; Tab (nothing selected) switches
+between the two rows (the twelve, then the five round-2 wards; `SHOP_ROWS`); Q W E upgrade; U the upgrade
+tree (`ui/tree.js`: of the selected ward, or the one placed/hovered in the shop; right-click a shop ward
+too); R the selected ward's action (cash out an Ember Vault, move a Wandering Light's post or an Undertow's
+whirlpool, lend a Grand Orrery's star, move an Undying Taper: `Game.aimWard`); abilities A S D F G H J K,
+then Z C V B, then Y I O P N (the round-2 wards: one ability per path, `ABILITIES[type].paths`); X the Flare.
 It lives only in the UI layer and must never touch the simulation, the bots or balance.
 
 ## Maps, difficulties and menus
@@ -41,8 +44,10 @@ It lives only in the UI layer and must never touch the simulation, the bots or b
   Flashmines, Ball Lightning, Phoenix, Elder Wyrm) uses the nearest road (`map.nearestRoute`). A map
   may add `tough(wave)` to even out its late game. Looks: `theme` in `render/background.js`.
   `tools/maps.mjs` renders every map and prints its road and flight lengths and build space.
-- Difficulties live in `data/difficulty.js`. **Medium must stay exactly as it is**: every Medium lever
-  is the identity, and bot results on Hollowmere Medium must not change. Easy and Hard use start gold,
+- Difficulties live in `data/difficulty.js`. Every Medium lever is the identity (Medium is the reference
+  the balance targets are set on). Harry changed the campaign itself on 2026-11-27 (all difficulties):
+  up to wave 20, Veiled and flyers come in small groups and a leak of one costs 1 life
+  (`RULES.earlyLeak*`), and waves 21-24 ease the Veiled and flyers in. Don't change Medium's levers. Easy and Hard use start gold,
   lives, enemy toughness, wave size and the clear reward. Hard's campaign is **60 waves** (`campaign`):
   waves 41-60 are `HARD_WAVES` in `data/waves.js` (themed stretches, the Bastion and Veilmother at 50,
   The Last Dark at 60); endless starts after a difficulty's last wave (`game.waves`, `totalWaves`).
@@ -65,8 +70,13 @@ It lives only in the UI layer and must never touch the simulation, the bots or b
 
 ## Tier 5
 
-Every path has a fifth tier, a capstone: about 4.5x its tier 4's cost, 3-5x its power, and one
-signature mechanic each (`docs/tier5-design.md`; research in `docs/tier5-research.md`). Only one of
+Every path has a fifth tier, a capstone with one signature mechanic each (`docs/tier5-design.md`;
+research in `docs/tier5-research.md`). Since 2026-11-27 they're far stronger (a BTD6-like benchmark):
+alone on Hollowmere Medium from wave 1 most reach waves 60-80 and the best about 100, blind ones no
+earlier than ~25 and at least 55 with the blind spot removed. A tier 5's `power` multiplies everything
+it deals (`computeStats`, `POWER_KEYS`), fitted with `tools/t5fit.js` and written into the data with
+`tools/t5bake.js` (which also sets the price: a tier 5 reaching 60 keeps its old total, one reaching 100
+costs 1.6x). `tools/t5tune.js` and `tools/t5diag.js` are quick single runs; `tools/t5study.js` is the full study. Only one of
 each tier 5 may stand on the map (`RULES.uniqueTier5`, checked in `upgradeInfo`). The data is the
 `TIER5` block at the end of `data/towers.js`. Art: a tier 5 is drawn as its skin's tier 4 form
 (`artPath`: `P.mt` 4, `P.t5` set), grown x1.5, plus the shared second form in `render/wards/ascend.js`
@@ -76,11 +86,15 @@ each tier 5 may stand on the map (`RULES.uniqueTier5`, checked in `upgradeInfo`)
 ## Endless
 
 `sim/endless.js`: a health budget per wave that picks up from wave 40 and grows 5.5% a wave to 60,
-7% to 80 and 8% after (speed capped at x1.7). The mix rotates through five stretches every 5 waves,
+7% to 80, 8% to 100 and 11.5% after (speed capped at x1.7; the tier 5 targets are measured on the
+curve to 100, the steep part stops strong defences running away). The mix rotates through five stretches every 5 waves,
 and a modifier switches on every 5 waves from 45 to 90. Above the spawn cap, groups are thinned
 evenly and tough enemies carry the lost health. Leaks cost at most 5 lives per enemy in endless (40 per
 boss; the campaign keeps 25 and uncapped bosses: `RULES.endlessMaxLeak`), so a breaking defence bleeds
 lives over several waves. `node tools/endless.js` prints the curve.
+The game has no pushback limit and never times a wave out. The test tools do (`tools/stall.js`, used
+by bot.js and solo.js): a wave not cleared after max(600 s, 5x its spawning time) ends the run as
+"stalled", and they report how far the Gloom were pushed back (`game.pushback`, `Game.pushBack`).
 
 ## Layout
 
@@ -113,7 +127,10 @@ lives over several waves. `node tools/endless.js` prints the curve.
 
 The ward design system is in `docs/visual-design-system.md`; the code is in
 `public/js/render/wardArt.js` and `public/js/render/wards/` (`kindlings.js` and `lanterns.js` hold
-every ward for each skin; `bolt-parts.js` and `parts.js` hold props both skins share).
+the first twelve wards for each skin, `newwards.js` the five round-2 wards in both skins (plus the water
+wards' lava variants, used on Ashfork: `setWaterKind`); `bolt-parts.js` and `parts.js` hold props both
+skins share). The round-2 wards' world effects (candles, whirlpools, beams, motes, wisps) are in
+`render/newfx.js`, their simulation in `sim/newwards.js`, their data in `data/towers-new.js`.
 
 - **Two complete skins, always.** Kindlings (`wards/kindlings.js`) is the active skin, and
   Lanterns (`wards/lanterns.js`) is a fully maintained second skin. Every ward, tier, path,
@@ -123,7 +140,9 @@ every ward for each skin; `bolt-parts.js` and `parts.js` hold props both skins s
 - The Longeye in the Kindlings skin is the Lantern body with a Kindling eye (`longeyeArt` in
   `lanterns.js`, reused by `kindlings.js`). The Thornlight Snare's grate is shared too (`snareArt`
   in `parts.js`): each skin supplies only what looks up out of it.
-- Twelve wards. The Snare is `flat` (drawn with the ground, before enemies, no ghosts); the
+- Seventeen wards. Water wards (the Ferrylight and the Undertow) go on ponds (`map.inWater`) and float.
+  The Lampwright's candles are capped (24 per ward, `RULES.candleCap` 160 on the map) and drawn from
+  cached sprites. The Snare is `flat` (drawn with the ground, before enemies, no ghosts); the
   Wandering Light `float`s (no plinth: a hovering rune-disc carries its notches). A Swarm is one
   ward drawn as its lights: equal full-size copies of the ward wheeling round an empty centre (2 / 3
   / 3 / 6 for the Starhost; `Renderer.swarmLights`), evenly spaced at all times so they never merge,

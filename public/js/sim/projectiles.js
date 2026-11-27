@@ -12,7 +12,7 @@ export function newBolt(f) {
     kind: 'bolt', x: f.x, y: f.y, vx: f.vx, vy: f.vy, speed: f.speed, target: f.target, homing: f.homing,
     dmg: f.dmg, pierce: f.pierce, hit: f.hit, bounces: f.bounces || 0, life: f.life, src: f.src, s: f.s, dead: false,
     rend: f.rend || 0, star: !!f.star, comet: !!f.comet, ox: f.ox || 0, oy: f.oy || 0, big: !!f.big, sky: !!f.sky,
-    gen: f.gen || 0, split: !!f.split, sx: 0, sy: 0, tx: 0, ty: 0, t: 0, flight: 0, sub: false, quake: false,
+    gen: f.gen || 0, split: !!f.split, sx: 0, sy: 0, tx: 0, ty: 0, t: 0, flight: 0, sub: false, quake: false, hook: !!f.hook, drag: f.drag || 0,
     _ox: undefined, _oy: undefined, _sx: undefined, _sy: undefined, _D: undefined,
   };
 }
@@ -21,7 +21,7 @@ export function newShell(f) {
     kind: 'shell', x: f.x, y: f.y, vx: 0, vy: 0, speed: 0, target: null, homing: false,
     dmg: 0, pierce: 0, hit: null, bounces: 0, life: 0, src: f.src, s: f.s, dead: false,
     rend: 0, star: false, comet: false, ox: 0, oy: 0, big: false, sky: false,
-    gen: 0, split: false, sx: f.sx, sy: f.sy, tx: f.tx, ty: f.ty, t: 0, flight: f.flight, sub: !!f.sub, quake: !!f.quake,
+    gen: 0, split: false, sx: f.sx, sy: f.sy, tx: f.tx, ty: f.ty, t: 0, flight: f.flight, sub: !!f.sub, quake: !!f.quake, hook: false, drag: 0,
     _ox: undefined, _oy: undefined, _sx: undefined, _sy: undefined, _D: undefined,
   };
 }

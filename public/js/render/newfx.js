@@ -55,7 +55,7 @@ export class NewFx {
   drawGround(ctx, dt) {
     const g = this.r.game, T = this.r.time, q = this.r.quality;
     for (const t of g.towers) {
-      if (t.type === 'undertow' && t.whirl) this.drawWhirl(ctx, t, T, q);
+      if (t.type === 'undertow' && t.whirl) { this.drawWhirl(ctx, t, t.whirl, T, q); if (t.whirl2) this.drawWhirl(ctx, t, t.whirl2, T, q); }
       if (t.type === 'ferry' && t.stats.dazzle && t.sweep) this.drawBeam(ctx, t, q);
     }
     this.drawTides(ctx, dt);
@@ -76,14 +76,14 @@ export class NewFx {
     x.fillStyle = '#081a2a'; x.beginPath(); x.arc(0, 0, N * 0.12, 0, TAU); x.fill();
     return (this.whirl = c);
   }
-  drawWhirl(ctx, t, T, q) {
-    const W = t.whirl, R = t.stats.whirlRadius, img = this.whirlSprite();
+  drawWhirl(ctx, t, W, T, q) {
+    const R = t.stats.whirlRadius, img = this.whirlSprite();
     ctx.save();
     ctx.translate(W.x, W.y); ctx.scale(1, 0.55); ctx.rotate(-T * (1.2 + R / 60));
     ctx.globalAlpha = 0.7;
     ctx.drawImage(img, -R, -R, R * 2, R * 2);
     ctx.restore();
-    if (t.ripT > 0 || t.floodT > 0 || t.mawT > 0) {
+    if (W === t.whirl && (t.ripT > 0 || t.floodT > 0 || t.mawT > 0)) {
       const rr = t.ripT > 0 ? 140 : t.floodT > 0 ? 220 : 80;
       ctx.strokeStyle = t.mawT > 0 ? 'rgba(20,40,70,0.8)' : 'rgba(180,235,255,0.6)'; ctx.lineWidth = 3; ctx.setLineDash([10, 8]); ctx.lineDashOffset = T * 40;
       ctx.beginPath(); ctx.ellipse(W.x, W.y, rr, rr * 0.55, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);

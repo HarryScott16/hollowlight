@@ -21,6 +21,10 @@ const builds = [
   [160, 624, 'rime', [0, 0, 4]], [215, 624, 'censer', [0, 4, 2]], [270, 624, 'mortar', [0, 4, 0]], [325, 624, 'coil', [4, 2, 0]], [380, 624, 'prism', [4, 0, 2]], [435, 624, 'bolt', [4, 2, 0]],
   [436, 330, 'mortar', [0, 0, 0]], [526, 330, 'coil', [0, 0, 0]], [436, 400, 'prism', [0, 0, 0]], [526, 400, 'beacon', [0, 0, 0]],
 ];
+// NEW=1: the five round-2 wards instead (the water wards on the pond above the straight).
+if (process.env.NEW) builds.splice(0, builds.length,
+  [190, 538, 'avatar', [4, 2, 0]], [420, 538, 'lamp', [4, 2, 0]], [330, 624, 'choir', [0, 4, 2]], [160, 624, 'lamp', [0, 4, 2]],
+  [262, 476, 'undertow', [4, 0, 2]], [334, 470, 'ferry', [0, 2, 4]], [400, 624, 'avatar', [0, 4, 2]]);
 // T5=1: the same defence with every tier 4 taken to tier 5 (all different, so the limit allows it).
 if (process.env.T5) for (const b of builds) b[3] = b[3].map((n) => (n === 4 ? 5 : n));
 for (const [x, y, type, tiers] of builds) {

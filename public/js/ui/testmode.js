@@ -49,7 +49,7 @@ export class TestMode {
     const g = this.ui.game;
     n = Math.max(1, Math.min(999, Math.floor(Number(n)) || 1));
     g.enemies.length = 0; g.spawners.length = 0; g.projectiles.length = 0;
-    g.zones.length = 0; g.pending.length = 0; g.barrages.length = 0; g.strikes.length = 0;
+    g.zones.length = 0; g.pending.length = 0; g.barrages.length = 0; g.strikes.length = 0; g.wisps.length = 0; g.candles.length = 0;
     if (n > g.totalWaves) g.endless = true;
     g.over = null;
     g.wave = g.rewarded = n - 1;

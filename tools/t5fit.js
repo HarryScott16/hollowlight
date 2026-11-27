@@ -37,6 +37,7 @@ for (const key of keys) {
   // No spot chosen yet (a new tier 5): try each candidate spot with both secondary paths, seed 1.
   if (!SPOTS[key] || !(SPOTS[key][cond] || SPOTS[key].alone)) {
     let best = null;
+    t5.power = Number(arg('selp', 30));   // judged at a middling power: at x1 most of them fall on wave 9-10 alike
     for (const minor of [0, 1, 2].filter((q) => q !== path)) for (let spot = 0; spot < 4; spot++) {
       try {
         const r = runSolo({ type, path, tier: 5, cond, start: 1, seed: 1, spot, minor, cap: 150 });

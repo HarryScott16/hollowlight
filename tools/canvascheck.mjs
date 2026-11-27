@@ -64,6 +64,7 @@ let si = 0, placed = [];
 for (const [type, pi] of want) {
   let t = null;
   if (TOWERS[type].onPath) { const p = g.map.path; for (let k = 0; k < 60 && !t; k++) { const i = Math.round((200 + (placed.length * 37 + k * 23) % (p.length - 400)) / p.step); t = g.place(type, p.xs[i], p.ys[i]); } }
+  else if (TOWERS[type].water) { const wet = []; for (let y = 20; y < 710; y += 10) for (let x = 20; x < 1110; x += 10) if (g.map.inWater(x, y, 12)) wet.push([x, y]); for (let j = (placed.length * 17) % Math.max(1, wet.length); j < wet.length * 2 && !t; j += 11) t = g.place(type, wet[j % wet.length][0], wet[j % wet.length][1]); }
   else for (; si < spots.length && !t; si += 7) t = g.place(type, spots[si][0], spots[si][1]);
   if (!t) { console.log(`no room for ${type}:${pi}`); continue; }
   for (let k = 0; k < 5; k++) g.upgrade(t, pi);

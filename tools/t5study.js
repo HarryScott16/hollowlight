@@ -79,10 +79,10 @@ if (arg('support') === '1') {
   console.log('support runs');
   const partner = { type: 'bolt', path: 1, tier: 4, minor: 0 };
   for (const cond of ['alone', 'reveal']) {
-    for (const [type, path] of [['none', -1], ['beacon', 0], ['beacon', 1], ['beacon', 2], ['vault', 0], ['vault', 1], ['vault', 2]]) {
+    for (const [type, path] of [['none', -1], ['beacon', 0], ['beacon', 1], ['beacon', 2], ['vault', 0], ['vault', 1], ['vault', 2], ['moth', 0], ['moth', 1]]) {
       for (const minor of path < 0 ? [0] : [0, 1, 2].filter((p) => p !== path)) {
         for (const start of STARTS) for (let seed = 1; seed <= SEEDS; seed++) {
-          run({ kind: 'support', map: MAP, type, path, tier: 5, cond, start, seed, minor, spot: 0, partner, role: 'support' });
+          run({ kind: 'support', map: MAP, type, path, tier: 5, cond, start, seed, minor, spot: 0, partner, spend: true, role: 'support' });
         }
       }
     }

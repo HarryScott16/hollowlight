@@ -15,6 +15,7 @@
 // wave 41 with fresh lives. The Heartfire Flare is never used (it isn't the ward's power); the
 // ward's own ability is, the way tools/bot.js uses it. Lives, leaks and Last Light are as in a game.
 import { stallGuard } from './stall.js';
+import { upgradeInfo } from '../public/js/sim/towers.js';
 import { Game } from '../public/js/sim/game.js';
 import { TOWERS, TOWER_ORDER } from '../public/js/data/towers.js';
 import { ENEMIES } from '../public/js/data/enemies.js';
@@ -121,7 +122,31 @@ export function runSolo(o) {
   } else t = build(type, path, tier, minor, o.spots);
   const def = TOWERS[type] || TOWERS[t.type];
   const { x, y } = helper || t;
-  game.gold = 0;   // nothing else to spend on: income is irrelevant here
+  game.gold = 0;   // nothing else to spend on: income is irrelevant here (except with o.spend, below)
+  // o.spend (the support test): the defence spends what it earns, as a player would: on the partner's
+  // upgrades and on more Bolt Wards beside it (Twin-shot to tier 3). Economy tier 5s show up here.
+  const spendGold = () => {
+    if (!o.spend || !o.partner) return;
+    for (const v of game.towers) if (v.def.kind === 'vault' && v.bank >= v.stats.cap * 0.95) game.cashOut(v);   // as the bot does
+    for (let guard = 0; guard < 40; guard++) {
+      const bolts = game.towers.filter((w) => w.type === o.partner.type);
+      let best = null, bc = Infinity;
+      for (const w of bolts) for (const pi of [o.partner.path, o.partner.minor]) {
+        const cap = pi === o.partner.path ? (w === t ? o.partner.tier : 3) : 2;
+        if (w.tiers[pi] >= cap) continue;
+        const u = upgradeInfo(w, pi);
+        if (u.ok && u.cost < bc) { bc = u.cost; best = [w, pi]; }
+      }
+      if (best && game.gold >= bc) { game.upgrade(best[0], best[1]); continue; }
+      if (game.gold < TOWERS[o.partner.type].cost * 2) return;
+      let at = null, bd = Infinity;
+      for (let yy = 20; yy < game.map.height; yy += 12) for (let xx = 20; xx < game.map.width; xx += 12) {
+        const d = (xx - t.x) ** 2 + (yy - t.y) ** 2;
+        if (d < bd && game.canPlace(o.partner.type, xx, yy)) { bd = d; at = [xx, yy]; }
+      }
+      if (!at || !game.place(o.partner.type, at[0], at[1])) return;
+    }
+  };
   // The test-only switches.
   if (cond !== 'alone') {
     const targetable = game.targetable.bind(game);
@@ -172,6 +197,7 @@ export function runSolo(o) {
     if (game.over === 'win') game.continueEndless();
     if (game.over || timedOut || game.wave >= cap) break;
     marks.push([game.time, t.dmg]);
+    spendGold();
     game.startWave();
     guard.wave();
     let w = 0, steps = 0;

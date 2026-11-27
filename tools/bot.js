@@ -117,12 +117,33 @@ Object.assign(STRATEGIES, {
     group: 'probe', order: ['bolt', 'bolt', 'snare'], paths: {}, maxTowers: () => 3, noAbilities: true },
 });
 
+// Builds with the five round-2 wards (data/towers-new.js) in the mix: a Lampwright early (cheap),
+// the water wards where the map has ponds in reach, the premium Avatar and Choir after the first
+// boss, as a player saving up would.
+const ALL17 = ['bolt', 'rime', 'lamp', 'mortar', 'coil', 'ferry', 'censer', 'prism', 'undertow', 'longeye', 'choir', 'snare', 'wander', 'avatar', 'beacon', 'mortar', 'lamp', 'coil'];
+const NEWR_A = { avatar: [0, 1], choir: [1, 0], ferry: [0, 2], undertow: [0, 2], lamp: [0, 2] };
+const NEWR_B = { avatar: [1, 0], choir: [0, 1], ferry: [1, 0], undertow: [1, 0], lamp: [1, 0] };
+const NEWR_C = { avatar: [2, 0], choir: [2, 1], ferry: [2, 0], undertow: [2, 1], lamp: [2, 1] };
+Object.assign(STRATEGIES, {
+  strong17: { ...STRONG, order: ALL17, paths: { ...PATHS_A, ...NEWP_A, ...NEWR_A }, strict: true },
+  strong17B: { ...STRONG, order: ALL17, paths: { ...PATHS_B, ...NEWP_B, ...NEWR_B }, strict: true },
+  strong17C: { ...STRONG, order: ALL17, paths: { ...PATHS_C, ...NEWP_C, ...NEWR_C }, strict: true },
+  mixed17: { reveal: true, group: 'reasonable', order: ALL17, paths: { ...PATHS_A, ...NEWP_B, ...NEWR_B }, maxTowers: (w) => Math.min(16, 3 + Math.floor(w * 0.45)), tierCap: 3 },
+  // Leans on the five new wards (probe: how strong are their tier 4s next to the rest?)
+  newFive: { ...STRONG, group: 'probe', order: ['bolt', 'lamp', 'ferry', 'rime', 'undertow', 'lamp', 'choir', 'mortar', 'ferry', 'avatar', 'undertow', 'coil', 'choir', 'lamp', 'avatar', 'longeye'],
+    paths: { ...PATHS_A, ...NEWR_A }, favour: 4, favourSet: ['avatar', 'choir', 'ferry', 'undertow', 'lamp'], strict: true },
+});
+
 // Endless: the strong 12-ward build kept going, with room for more wards, and a second ward of a
 // type taking another path, so it can own more of the tier 5s (one of each is allowed).
 const ALL12E = [...ALL12, 'censer', 'longeye', 'rime', 'beacon', 'moth', 'mortar', 'coil', 'wander'];
 const PATHS2 = { bolt: [1, 0], mortar: [2, 0], rime: [0, 1], coil: [0, 1], longeye: [0, 1], censer: [0, 1], prism: [1, 0], beacon: [2, 0], snare: [1, 0], moth: [0, 2], wander: [1, 0], vault: [2, 0] };
 STRATEGIES.endless12 = { ...STRONG, group: 'endless', order: ALL12E, paths: { ...PATHS_A, ...NEWP_A }, paths2: PATHS2, strict: true, maxTowers: (w) => Math.min(w > 40 ? 26 : 18, 3 + Math.floor(w * 0.5)) };
 STRATEGIES.endless12B = { ...STRATEGIES.endless12, paths: { ...PATHS_B, ...NEWP_B } };
+// ...and with the round-2 wards: a second Avatar, Choir and Lampwright on other paths for more tier 5s.
+const ALL17E = [...ALL17, 'avatar', 'choir', 'lamp', 'ferry', 'undertow', 'censer', 'longeye', 'rime'];
+const PATHS2N = { ...PATHS2, avatar: [1, 0], choir: [0, 1], ferry: [2, 0], undertow: [1, 0], lamp: [1, 0] };
+STRATEGIES.endless17 = { ...STRONG, group: 'endless', order: ALL17E, paths: { ...PATHS_A, ...NEWP_A, ...NEWR_A }, paths2: PATHS2N, strict: true, maxTowers: (w) => Math.min(w > 40 ? 26 : 18, 3 + Math.floor(w * 0.5)) };
 
 // Without Mortars, crowd damage has to come from elsewhere: the no-Mortar build a player would make.
 STRATEGIES.noMortarCrowd = { ...STRONG, group: 'ban', order: ALL8.filter((t) => t !== 'mortar'), strict: true,
@@ -141,6 +162,8 @@ function candidateSpots(game) {
       if (game.map.buildable(x, y)) spots.push({ x, y });
     }
   }
+  // water spots for the Ferrylight and the Undertow (ponds are small: a finer grid)
+  for (let y = 20; y < game.map.height; y += 10) for (let x = 20; x < game.map.width; x += 10) if (game.map.inWater(x, y, 12)) spots.push({ x, y, wet: true });
   return spots;
 }
 

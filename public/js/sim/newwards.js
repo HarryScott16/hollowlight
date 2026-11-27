@@ -24,12 +24,10 @@ function hold(e, dur) { e.stunT = Math.max(e.stunT, dur); e.rootT = Math.max(e.r
 // ---- shared targeting --------------------------------------------------------------------------
 // Can the ward hit this enemy (it sees Veiled within `sight` of itself)?
 function sees(game, t, s, e, x = t.x, y = t.y) {
-  if (!e.alive) return false;
+  if (game.targetable(e, s)) return true;
+  if (!e.alive || !e.veiled || !s.sight) return false;
   if (e.def.flying && !s.hitsAir && !isLow(e)) return false;
-  if (e.veiled && !s.detect && e.revealT <= 0) {
-    if (!s.sight || (e.x - x) ** 2 + (e.y - y) ** 2 > s.sight * s.sight) return false;
-  }
-  return true;
+  return (e.x - x) ** 2 + (e.y - y) ** 2 <= s.sight * s.sight;
 }
 function pick(game, t, s, x, y, range, mode, prefer = null) {
   game.grid.query(x, y, range, buf);
@@ -304,6 +302,15 @@ function ferry(game, t, dt) {
       game.emit('fire', { x: t.x, y: t.y, ang: t.ang, kind: 'ferry' });
     }
   }
+  // Heartline: every few seconds the glowing chain sweeps everything in reach.
+  if (s.chainSweep && (t.t5T -= dt) <= 0) {
+    t.t5T = s.chainSweep;
+    game.grid.query(t.x, t.y, s.range, buf);
+    list.length = 0;
+    for (const e of buf) if (game.targetable(e, s, true) && (e.x - t.x) ** 2 + (e.y - t.y) ** 2 <= s.range * s.range) list.push(e);
+    for (const e of list) if (e.alive) game.damage(e, s.damage * 3, s.type, t, QUIET);
+    game.emit('dawnpulse', { x: t.x, y: t.y, r: s.range });
+  }
   if (s.rafts) rafts(game, t, s, dt, boost);
   if (s.dazzle) beams(game, t, s, dt);
   if (t.broadsideT > 0) t.broadsideT -= dt;
@@ -312,7 +319,7 @@ function throwBolt(game, t, s, x, y, e, dmg, drag) {
   const a = Math.atan2(e.y - y, e.x - x);
   game.projectiles.push(newBolt({
     kind: 'bolt', hook: true, x: x + Math.cos(a) * 12, y: y + Math.sin(a) * 12, vx: Math.cos(a) * s.projSpeed, vy: Math.sin(a) * s.projSpeed, speed: s.projSpeed,
-    target: e, homing: true, dmg, pierce: s.pierce, hit: [], bounces: 0, life: s.range * 1.6 + 60, src: t, s, dead: false, drag: drag ? s.dragChain || 1 : 0,
+    target: e, homing: !s.lance, dmg, pierce: s.pierce, hit: [], bounces: 0, life: s.lance ? 900 : s.range * 1.6 + 60, src: t, s, dead: false, drag: drag ? s.dragChain || 1 : 0,
   }));
 }
 // Called by projectiles.js hitBolt for a hook bolt: drags its first victims back up the road.
@@ -408,7 +415,24 @@ export function placeWhirl(game, t, x = t.x, y = t.y) {
   const r = nearestRoad(game, x, y);
   if ((r.x - t.x) ** 2 + (r.y - t.y) ** 2 > (t.stats.range + 4) ** 2) return false;
   t.whirl = { x: r.x, y: r.y, route: r.route, dist: r.dist };
+  t.whirl2 = null;
   return true;
+}
+// A tier 5's second whirlpool: the stretch of road in reach furthest along the road from the first.
+function placeWhirl2(game, t) {
+  const W = t.whirl, s = t.stats;
+  let best = null, bs = 2 * s.whirlRadius;
+  for (const R of game.map.routes) {
+    const P = R.path;
+    for (let i = 0; i < P.count; i += 3) {
+      if ((P.xs[i] - t.x) ** 2 + (P.ys[i] - t.y) ** 2 > s.range * s.range) continue;
+      const gap = R.index === W.route ? Math.abs(i * P.step - W.dist) : 1e4;
+      const sep = Math.hypot(P.xs[i] - W.x, P.ys[i] - W.y);
+      const sc = Math.min(gap, sep * 3);
+      if (sep > s.whirlRadius * 1.6 && sc > bs) { bs = sc; best = { x: P.xs[i], y: P.ys[i], route: R.index, dist: i * P.step }; }
+    }
+  }
+  t.whirl2 = best || false;
 }
 function undertow(game, t, dt) {
   const s = t.stats;
@@ -437,13 +461,20 @@ function undertow(game, t, dt) {
   }
   if ((t.t5N -= dt) > 0) return;
   t.t5N = TICK;
-  const R = s.whirlRadius, ripR = t.ripT > 0 ? 140 : 0, floodR = t.floodT > 0 ? 220 : 0, mawR = t.mawT > 0 ? 80 : 0;
+  const abyssNow = s.abyssEvery && (t.abyssT -= TICK) <= 0;
+  if (abyssNow) t.abyssT = s.abyssEvery;
+  whirlTick(game, t, s, W, true, abyssNow);
+  if ((s.whirls || 1) > 1) {
+    if (t.whirl2 === null) placeWhirl2(game, t);
+    if (t.whirl2) whirlTick(game, t, s, t.whirl2, false, abyssNow);
+  }
+}
+function whirlTick(game, t, s, W, main, abyssNow) {
+  const R = s.whirlRadius, ripR = main && t.ripT > 0 ? 140 : 0, floodR = main && t.floodT > 0 ? 220 : 0, mawR = main && t.mawT > 0 ? 80 : 0;
   const reach = Math.max(R, ripR, floodR, mawR);
   game.grid.query(W.x, W.y, reach + 20, buf);
   list.length = 0;
   for (const e of buf) if (e.alive && !e.def.flying) list.push(e);
-  const abyssNow = s.abyssEvery && (t.abyssT -= TICK) <= 0;
-  if (abyssNow) t.abyssT = s.abyssEvery;
   for (const e of list) {
     if (!e.alive) continue;
     const d2 = (e.x - W.x) ** 2 + (e.y - W.y) ** 2;
@@ -451,7 +482,7 @@ function undertow(game, t, dt) {
     if (ripR && d2 <= ripR * ripR && !e.def.boss && e.route === W.route) { const k = Math.sign(W.dist - e.dist) * Math.min(Math.abs(W.dist - e.dist), 70 * TICK); if (k < 0) game.pushBack(e, -k, t); else e.dist += k; }
     if (floodR && d2 <= floodR * floodR) { applySlow(e, 0.5, 0.3); if (!e.def.heavy) game.pushBack(e, 20 * TICK, t); }
     const r = R + e.r * 0.5;
-    if (d2 > r * r) { e.whirlIn = false; continue; }
+    if (d2 > r * r) { if (main) e.whirlIn = false; continue; }
     // in the whirl
     if (!e.whirlIn) { e.whirlIn = true; if (s.spin && small(e)) hold(e, s.spin); }
     applySlow(e, s.slow, 0.3);
@@ -508,15 +539,17 @@ function lamp(game, t, dt) {
   let d = e.dist + e.speed * 1.2;
   for (let k = 0; k < s.tossN; k++) {
     const dd = d + (s.tossN >= 4 ? (k - 1.5) * 18 : s.tossN === 2 ? (k - 0.5) * 22 : 0);
-    tossCandle(game, t, s, P, e.route, dd);
+    tossCandle(game, t, s, P, e.route, dd, false, Math.max(0, dd - e.dist + 30));
   }
   game.emit('fire', { x: t.x, y: t.y, ang: t.ang, kind: 'lamp' });
 }
 const at = { x: 0, y: 0 };
-function tossCandle(game, t, s, P, route, d, instant = false) {
+function tossCandle(game, t, s, P, route, d, instant = false, back = 0) {
   d = Math.max(20, Math.min(P.length - 20, d));
   P.posAt(d, at, (game.rand() - 0.5) * 18);
-  // only on road in reach (else the nearest point back toward the ward)
+  // only on road in reach: if the spot ahead is out of reach, step back along the road toward the
+  // Gloom (up to `back`) to the furthest point the lamplighter can reach
+  for (let k = 0; k < back && (at.x - t.x) ** 2 + (at.y - t.y) ** 2 > (s.range + 20) ** 2; k += 15) { d -= 15; P.posAt(Math.max(20, d), at, (game.rand() - 0.5) * 18); }
   if ((at.x - t.x) ** 2 + (at.y - t.y) ** 2 > (s.range + 20) ** 2) return false;
   const C = game.candles;
   let mine = 0, oldest = null;
@@ -719,6 +752,6 @@ export function updateNew(game, dt) {
 export function newTowerFields(t) {
   t.heat = 0; t.moteAcc = 0; t.retarget = 0; t.streams = []; t.stars = []; t.tethered = []; t.coronaT = 0; t.pillarT = 0; t.pillar = null; t.pillarPct = 0; t.moteT = -1;
   t.chorale = 0; t.fortissimo = 0; t.echoes = []; t.rafts = []; t.broadsideT = 0; t.sweep = null; t.beamA = 0; t.beamB = null; t.lightfallT = 0;
-  t.whirl = null; t.waveT = 0; t.breakT = 0; t.abyssT = 0; t.ripT = 0; t.floodT = 0; t.mawT = 0;
+  t.whirl = null; t.whirl2 = null; t.waveT = 0; t.breakT = 0; t.abyssT = 0; t.ripT = 0; t.floodT = 0; t.mawT = 0;
   t.taper = false; t.watchT = 0; t.wickTokens = 0; t.links = null;
 }

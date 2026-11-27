@@ -2,8 +2,9 @@
 //
 // Endless picks up where the campaign leaves off and grows gradually (`node tools/endless.js`
 // prints the curve). Each wave has a health budget: the total health on the field grows 5.5% a
-// wave over waves 41-60, the stretch where a strong defence buys its tier 5s, then 7% to wave 80
-// and 8% after that, whatever the mix. It grows through more enemies more than through tougher
+// wave over waves 41-60, the stretch where a strong defence buys its tier 5s, then 7% to wave 80,
+// 8% to wave 100 and 11.5% after that (tier 5s are strong enough to carry a defence far past 100
+// otherwise), whatever the mix. It grows through more enemies more than through tougher
 // ones: toughness rises only 2% a wave, and basic layers stay at 10 HP forever (they always die in
 // one hit). Speed rises slowly and
 // is capped, so no modifier turns a wave into a wall.
@@ -24,7 +25,7 @@ import { mulberry32 } from './path.js';
 import { TOUGH, PACE, HARD_TOUGH } from '../data/waves.js';
 
 // Growth per wave of the total health on the field, in each band of endless waves.
-const BANDS = [[60, 1.055], [80, 1.07], [Infinity, 1.08]];
+const BANDS = [[60, 1.055], [80, 1.07], [100, 1.08], [Infinity, 1.115]];   // (2026-11-27: steeper after 100, as tier 5s got stronger)
 function growth(n) {
   let m = 1, w = 40;
   for (const [end, r] of BANDS) { const k = Math.min(n, end) - w; if (k <= 0) break; m *= r ** k; w = end; }
