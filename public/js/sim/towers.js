@@ -926,7 +926,7 @@ export function castStar(game, t, s, L, e, k, dmg, big = false, sky = false) {
 function vault(game, t) {
   const s = t.stats;
   if (!s.warmRate) return;
-  const warm = t.bank >= s.cap * (s.warmAt || 0.5);
+  const warm = t.bank >= s.cap * (s.warmAt ?? 0.5);   // ?? not ||: Second Heartfire has warmAt 0 (always warm)
   if (warm !== t.warm) { t.warm = warm; game.refreshGlobals(); }
 }
 

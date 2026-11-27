@@ -42,7 +42,7 @@ const EXECUTE = { big: true };
 function hitBolt(game, p, e) {
   const s = p.s;
   game.damage(e, p.dmg, s.type, p.src, s.armorPierce ? { armorPierce: s.armorPierce } : null);
-  if (e.alive && s.knockback && !e.def.heavy) e.dist = Math.max(0, e.dist - s.knockback);
+  if (e.alive && s.knockback && !e.def.heavy) game.pushBack(e, s.knockback, p.src);
   // Worldpiercer: the giant lance stuns everything it passes through.
   if (p.rend && e.alive && !e.def.boss) e.stunT = Math.max(e.stunT, e.def.heavy ? p.rend * 0.4 : p.rend);
   // Thousand Bolts: a bolt that kills splits into new bolts.

@@ -1,5 +1,6 @@
 // Headless balance bot. Plays the real simulation with a few scripted strategies and reports
 // how each one fares. Usage: node tools/bot.js [strategyName] [-v]
+import { stallGuard } from './stall.js';
 import { Game } from '../public/js/sim/game.js';
 import { TOWERS, TOWER_ORDER } from '../public/js/data/towers.js';
 import { upgradeInfo, computeStats, estimateDps } from '../public/js/sim/towers.js';
@@ -380,14 +381,16 @@ function run(name, strat, seed = SEED) {
   };
   game.kill = (e, src) => { if (e.def.boss) boss.result = `killed after ${game.time.toFixed(0) - boss.spawn}s`; kill(e, src); };
   let earlyCalls = 0;
+  const guard = stallGuard(game);
   for (;;) {
     if (game.over === 'win' && ENDLESS) game.continueEndless();
-    if (game.over || game.wave >= ENDLESS_CAP) break;
+    if (game.over || guard.stalled || game.wave >= ENDLESS_CAP) break;
     spend(game, strat, spots, state);
     const livesBefore = game.lives;
     state.calledEarly = false;
     if (!(strat.early && game.spawners.length)) game.startWave();
     state.waveT = game.time;
+    guard.wave();
     let t = 0, steps = 0, deepest = 0;
     const wall0 = Date.now();
     while (!game.over && !game.clear) {
@@ -404,7 +407,8 @@ function run(name, strat, seed = SEED) {
         earlyCalls++;
         state.calledEarly = true;
       }
-      if ((t += STEP) > 900) { log.push('  !! wave timed out'); game.over = 'lose'; break; }
+      t += STEP;
+      if (guard.check()) { log.push(`  !! wave ${game.wave} STALLED: ${guard.reason}`); break; }
     }
     state.safe = game.lives === livesBefore;
     game.botNeedAir = Object.keys(leaks).some((k) => k.endsWith('gloomwing'));
@@ -422,7 +426,9 @@ function run(name, strat, seed = SEED) {
     log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s ${cost.padStart(5)}ms/s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore}) deepest ${String(Math.round(deepest * 100)).padStart(3)}%  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}${Object.keys(leaks).length ? `  leaks: ${Object.entries(leaks).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
     leaks = {};
   }
-  console.log(`${name.padEnd(16)} ${(game.over || 'cap').toUpperCase().padEnd(5)} wave ${game.wave}/${game.endless ? 'endless' : game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}  abilities ${abilityUse.flare}F/${abilityUse.ward}W${game.lastLight ? '' : '  LAST LIGHT used'}`);
+  const over = guard.stalled ? 'stalled' : game.over || 'cap';
+  if (guard.stalled) console.log(`!! ${name}: wave ${game.wave} STALLED (${guard.reason})`);
+  console.log(`${name.padEnd(16)} ${over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.endless ? 'endless' : game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}  abilities ${abilityUse.flare}F/${abilityUse.ward}W${game.lastLight ? '' : '  LAST LIGHT used'}`);
   if (verbose) {
     console.log(log.join('\n'));
     const byType = {};
@@ -436,7 +442,7 @@ function run(name, strat, seed = SEED) {
     }
   }
   const t4 = game.towers.filter((t) => t.tiers.includes(4)).length, t3 = game.towers.filter((t) => t.tiers.includes(3)).length;
-  results.push({ name, group: strat.group, over: game.over || 'cap', wave: game.wave, lives: game.lives, firstLeak: state.firstLeak,
+  results.push({ name, group: strat.group, over, pushback: Math.round(game.pushback), wave: game.wave, lives: game.lives, firstLeak: state.firstLeak,
     livesAt: state.livesAt, towers: game.towers.length, t3, t4, lastLight: !game.lastLight, peak: maxEnemies,
     firstT4: state.firstT4, thirdT4: state.thirdT4, t4At: state.t4At, maxLives: game.startLives });
   return game;
@@ -450,7 +456,7 @@ function table() {
   console.log('\n| Build | Group | Result | First leak | Lives @25 | @30 | @35 | First / 3rd T4 | T4s @20 / @30 / end | Wards (T3/T4) | Peak enemies |');
   console.log('|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of results) {
-    const res = r.over === 'win' ? `**won**, ${r.lives}/${r.maxLives}${r.lastLight ? ' (Last Light used)' : ''}` : r.over === 'lose' ? `lost on wave ${r.wave}` : `reached wave ${r.wave}`;
+    const res = r.over === 'win' ? `**won**, ${r.lives}/${r.maxLives}${r.lastLight ? ' (Last Light used)' : ''}` : r.over === 'lose' ? `lost on wave ${r.wave}` : r.over === 'stalled' ? `**STALLED** on wave ${r.wave}` : `reached wave ${r.wave}`;
     console.log(`| ${r.name} | ${r.group} | ${res} | ${r.firstLeak || 'never'} | ${at(r, 25)} | ${at(r, 30)} | ${at(r, 35)} | ${r.firstT4 ? `${r.firstT4} / ${r.thirdT4 || '-'}` : '-'} | ${t4(r, 20)} / ${t4(r, 30)} / ${r.t4} | ${r.towers} (${r.t3}/${r.t4}) | ${r.peak} |`);
   }
 }

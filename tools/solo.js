@@ -14,6 +14,7 @@
 // start=1 plays the campaign from wave 1 (then endless after wave 40); start=41 starts endless at
 // wave 41 with fresh lives. The Heartfire Flare is never used (it isn't the ward's power); the
 // ward's own ability is, the way tools/bot.js uses it. Lives, leaks and Last Light are as in a game.
+import { stallGuard } from './stall.js';
 import { Game } from '../public/js/sim/game.js';
 import { TOWERS, TOWER_ORDER } from '../public/js/data/towers.js';
 import { ENEMIES } from '../public/js/data/enemies.js';
@@ -154,12 +155,14 @@ export function runSolo(o) {
   };
   const t0 = game.time;
   let timedOut = false;
+  const guard = stallGuard(game);
   const marks = [];   // [time, damage] at each wave's start, for the late damage rate
   for (;;) {
     if (game.over === 'win') game.continueEndless();
-    if (game.over || game.wave >= cap) break;
+    if (game.over || timedOut || game.wave >= cap) break;
     marks.push([game.time, t.dmg]);
     game.startWave();
+    guard.wave();
     let w = 0, steps = 0;
     while (!game.over && !game.clear) {
       game.step(STEP);
@@ -168,11 +171,12 @@ export function runSolo(o) {
         // its ability, as the bot uses abilities: when there's a crowd or a hulk
         if (t.abilityCd !== null && t.abilityCd <= 0 && (game.enemies.length >= 40 || game.enemies.some((e) => e.def.heavy))) game.useAbility(type);
       }
-      if ((w += STEP) > 900) { timedOut = true; game.over = 'lose'; break; }
+      w += STEP;
+      if (guard.check()) { timedOut = true; break; }
     }
   }
   const lost = game.over === 'lose';
-  const cleared = lost ? game.wave - 1 : game.wave;
+  const cleared = lost || timedOut ? game.wave - 1 : game.wave;
   const time = game.time - t0;
   // Late damage rate: over the last 3 waves played (the ones that broke it), when there's more to
   // hit than it can kill. Early waves are short of targets, so the whole-run rate understates it.
@@ -182,7 +186,7 @@ export function runSolo(o) {
     type, path, tier, cond, start, seed, map, diff, minor, spot: o.spot || 0, x, y,
     name: path >= 0 ? def.paths[path].tiers[tier - 1].name : 'partner alone', tiers: (helper || t).tiers.join(''), cost: wardCost((helper || t).type, (helper || t).tiers),
     partner: o.partner ? `${t.type} ${t.tiers.join('')}` : undefined,
-    cleared, capped: !lost, timedOut, lives: game.lives, dmg: Math.round(t.dmg), kills: t.kills,
+    cleared, capped: !lost && !timedOut, timedOut, stalled: timedOut ? guard.reason : undefined, pushback: Math.round(game.pushback), lives: game.lives, dmg: Math.round(t.dmg), kills: t.kills,
     time: Math.round(time), dps: Math.round(t.dmg / Math.max(1, time)), dpsLate,
     leaks, causes, lastCauses: lastCauses[game.wave] || {},
   };

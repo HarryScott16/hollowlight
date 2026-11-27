@@ -64,6 +64,7 @@ export class Game {
     this.globalSlow = 0;
     this.earned = 0;
     this.leaked = 0;
+    this.pushback = 0;        // px of road the Gloom were pushed back, in total (read by the test tools)
     this.kills = 0;
     this.pops = 0;            // layers broken (a Husk shell counts 6)
     this.goldMul = 1;         // gold per layer (drops in endless mode)
@@ -525,6 +526,17 @@ export class Game {
 
   // A leak costs one life per layer the enemy still holds: its own remaining health (in layers)
   // plus everything inside it. At least 1.
+  // Push an enemy back along its road (or its flight line) by up to px; returns how far it moved.
+  // Every knockback, drag and current goes through here, so the test tools can count it.
+  pushBack(e, px, src) {
+    const d = Math.min(e.dist, px);
+    if (d <= 0) return 0;
+    e.dist -= d;
+    this.pushback += d;
+    if (src) src.pushback = (src.pushback || 0) + d;
+    return d;
+  }
+
   leakCost(e) {
     const d = e.def;
     let n = Math.ceil(d.gold * Math.max(0, e.hp) / e.maxHp);

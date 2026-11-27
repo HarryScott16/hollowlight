@@ -37,7 +37,7 @@ function statRows(def, s) {
   const k = def.kind;
   if (k === 'vault') {
     const rows = [['Gathers from', s.gleanAll ? 'every kill (half outside)' : `range ${Math.round(s.range)}`], ['Share of bounty', pct(s.glean)], ['Cap', String(s.cap)], ['Interest per wave', `${pct(s.growth)} (+2%/wave held)`], ['Interest grows it to', String(s.cap * RULES.vaultCeiling)]];
-    if (s.warmRate) rows.push(['Warm boost', `+${pct(s.warmRate)} speed${s.warmDmg ? `, +${pct(s.warmDmg)} dmg` : ''}`], ['Warm from', `${pct(s.warmAt || 0.5)} full`]);
+    if (s.warmRate) rows.push(['Warm boost', `+${pct(s.warmRate)} speed${s.warmDmg ? `, +${pct(s.warmDmg)} dmg` : ''}`], ['Warm from', s.warmAt === 0 ? 'always' : `${pct(s.warmAt ?? 0.5)} full`]);
     return rows;
   }
   if (k === 'lure') {
