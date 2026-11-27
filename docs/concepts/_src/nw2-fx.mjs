@@ -67,13 +67,16 @@ export function drawFx(ctx, type, p, skin, W, H, wardAt) {
 const FX = {
   avatar(ctx, p, t, W, wardAt, tiers, angTo) {
     const wx = 70, wy = 78;
-    if (p === 0) { // Solar: the beam melting a boss
+    if (p === 0) { // Solar: the torrent of motes heats the boss until it flares (no beam: that's the Prism)
       const boss = foe('gravemaw', 236, ROADY - 4, { hp: 2400, maxHp: 4000 });
       wardAt(wx, wy, tiers, { ang: angTo(wx, wy, boss.x, boss.y) });
-      enemies(ctx, [boss, foe('shambler', 300, ROADY + 6)]);
-      const sx = wx + 12 * 1.16, sy = wy - 11 * 1.16 - 36 * 1.16 + 11 * 1.16;
-      lit(ctx, () => { for (const [w, a] of [[16, 0.25], [9, 0.55], [4, 0.9]]) { ctx.strokeStyle = rgba(w > 5 ? DMG.radiant.core : '#ffffff', a); ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(boss.x - 4, boss.y - 6); ctx.stroke(); } });
-      glow(ctx, boss.x - 4, boss.y - 6, 30, DMG.radiant.core, 0.8); burst(ctx, boss.x - 4, boss.y - 4, 12, DMG.radiant.core);
+      enemies(ctx, [boss, foe('shambler', 290, ROADY + 10), foe('skitter', 196, ROADY + 12)]);
+      const sx = wx + 14, sy = wy - 30, bx = boss.x - 4, by = boss.y - 8;
+      for (let i = 0; i < 9; i++) { const u = (i + 0.5) / 9, x = sx + (bx - sx) * u, y = sy + (by - sy) * u - Math.sin(u * Math.PI) * 18 + Math.sin(i * 2.3) * 3; mote(ctx, x, y, 1.5 + u * 0.6); }
+      // heat: 7 of 10 marks lit round the boss, then the flare
+      for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i / 10) * TAU; circle(ctx, bx + Math.cos(a) * 26, by + Math.sin(a) * 12, 2); flat(ctx, i < 7 ? DMG.radiant.core : '#4a4040', 0.8); }
+      lit(ctx, () => { ctx.strokeStyle = rgba(DMG.radiant.core, 0.6); ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(bx, by + 6, 46, 18, 0, 0, TAU); ctx.stroke(); });
+      glow(ctx, bx, by, 34, DMG.radiant.core, 0.7); burst(ctx, bx, by + 2, 13, DMG.radiant.core);
     } else if (p === 1) { // Orrery: stars, each firing at its own target
       const list = [foe('shambler', 150, ROADY - 8), foe('skitter', 200, ROADY + 8), foe('gloomwing', 250, ROADY - 40), foe('brood', 300, ROADY + 2)];
       wardAt(wx, wy, tiers, { ang: 0.3 });
@@ -131,16 +134,17 @@ const FX = {
       wardAt(wx, wy, tiers, {});
       enemies(ctx, list);
       for (const [x, y, e] of [[40, 82, list[0]], [128, 86, list[1]], [140, 48, list[2]]]) { trail(ctx, [[x, y - 8], [e.x, e.y - 4]], '#e9eef6', 1.2, 0.8); poly(ctx, [[e.x - 2, e.y - 4], [e.x - 9, e.y - 7], [e.x - 9, e.y - 1]]); flat(ctx, '#e9eef6', 1); }
-    } else { // Lighthouse Barge: the beam reveals Veiled, and boosts wards on the shore
-      const w = foe('wisp', 210, ROADY - 4, { revealT: 1 }), s = foe('shambler', 270, ROADY + 6);
+    } else { // Lighthouse Barge: a sweeping beam that dazzles (slows) the Gloom it lights and reveals the Veiled
+      const w = foe('wisp', 206, ROADY - 4, { revealT: 1 }), h = foe('dreadhulk', 252, ROADY + 2), s = foe('shambler', 300, ROADY + 8);
       wardAt(wx, wy, tiers, {});
-      const bx = wx + 11 * 1.16, by = wy - 42 * 1.16; beam(ctx, bx, by, Math.atan2(w.y - by, w.x - bx), 190, 22, 0.55);
-      enemies(ctx, [w, s]);
+      const bx = wx + 11 * 1.16, by = wy - 42 * 1.16; const ba = Math.atan2((h.y - 4 - by) / 0.45, h.x - bx); beam(ctx, bx, by, ba, (h.x + 20 - bx) / Math.cos(ba), 34, 0.5);   // the helper squashes y by 0.45 (ground plane)
+      enemies(ctx, [w, h, s]);
       lit(ctx, () => { ctx.strokeStyle = rgba('#fff3c0', 0.8); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(w.x, w.y + 6, 14, 5, 0, 0, TAU); ctx.stroke(); });
-      ctx.font = '10px Sans'; ctx.fillStyle = '#fff0c0'; ctx.fillText('revealed', w.x - 18, w.y - 22);
-      wardAt(300, 186, [2, 0, 0], { ang: -1.6, _type: 'bolt' });
-      lit(ctx, () => { ctx.strokeStyle = rgba(DMG.hearth.core, 0.8); ctx.lineWidth = 1.6; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.ellipse(300, 188, 18, 6, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]); });
-      ctx.fillText('shore ward boosted', 212, 184);
+      for (const e of [w, h]) for (let i = 0; i < 3; i++) { const a = t * 3 + i * 2.1; star(ctx, e.x + Math.cos(a) * (e.r + 4), e.y - e.r - 6 + Math.sin(a) * 3, 2.4, 1, 4); flat(ctx, '#fff6c0', 0.7); }
+      ctx.font = '10px Sans'; ctx.fillStyle = '#fff0c0'; ctx.fillText('revealed', w.x - 30, w.y - 22);
+      ctx.fillText('dazzled: slowed, Heavies too', 170, ROADY + 44);
+      arrow(ctx, 282, ROADY - 44, 318, ROADY - 44, '#fff0c0');
+      ctx.fillText('the beam sweeps', 200, ROADY - 40);
     }
   },
   undertow(ctx, p, t, W, wardAt, tiers) {

@@ -444,7 +444,7 @@ const lFerry = {
 // Tidecaller: a conch, then a breaking wave arched behind, then two wave-sprites. Abyss: a deep
 // dark eye-pool, then dark tendrils curling beside it. Tier 5: Great Maelstrom (a waterspout behind),
 // Tidal Throne (a towering wave about to break), Drowned Deep (a black ring of the deep, tendrils).
-const UT = { body: '#8fdcec', body2: '#3a9ac0', deep: '#1a3048', foam: '#eafaff', brass: '#b08a4a' };
+const UT = { body: '#4fa8dc', body2: '#3a9ac0', deep: '#1a3048', foam: '#eafaff', brass: '#b08a4a' };
 function swirl(ctx, x, y, rx, ry, t, col, turns = 1.5, w = 1.6) {
   ctx.beginPath();
   for (let i = 0; i <= 40; i++) { const u = i / 40, a = t * 2 + u * TAU * turns, r = 1 - u * 0.75; ctx.lineTo(x + Math.cos(a) * rx * r, y + Math.sin(a) * ry * r); }
@@ -480,11 +480,16 @@ const kUndertow = {
     notches(ctx, P.mt, 0, 13.2, 22, DMG[d].core, 2.4);
     pips(ctx, P.tiers, P.main, 12, 6);
     if (many && mt >= 3) for (const k of [-1, 1]) { ctx.save(); ctx.translate(k * 17, 6); ctx.scale(0.55, 0.55); ctx.beginPath(); ctx.moveTo(-6, 8); ctx.quadraticCurveTo(-7, -10, 0, -16); ctx.quadraticCurveTo(7, -10, 6, 8); ctx.closePath(); ink(ctx, UT.body, 1.6, -6, 6); ctx.restore(); }
-    // the spirit: a rising teardrop of water
+    // the spirit: a rising wave whose top curls over into a breaking crest (not a dome: that's the
+    // Rime Spire), sea-blue rather than frost-white, with a band of foam swirling round it
     const s = 1 + (might ? mt * 0.035 : 0);
-    ctx.beginPath(); ctx.moveTo(-9 * s, 9); ctx.quadraticCurveTo(-11 * s, -10, -2, -26 * s); ctx.quadraticCurveTo(4, -28 * s, 6 * s, -20 * s); ctx.quadraticCurveTo(11 * s, -6, 9 * s, 9); ctx.closePath();
-    ink(ctx, craft && mt >= 3 ? '#4a7a9a' : UT.body, 2, -10, 10);
-    ctx.beginPath(); ctx.moveTo(-5, 6); ctx.quadraticCurveTo(-7, -6, -2, -16); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.4; ctx.stroke();
+    ring(ctx, 0, 1, 12.5 * s, 3.6, UT.foam, 1.3, Math.PI, TAU);   // the foam band, back half
+    ctx.beginPath(); ctx.moveTo(-9 * s, 9); ctx.quadraticCurveTo(-12 * s, -8, -6 * s, -20 * s); ctx.quadraticCurveTo(-1, -31 * s, 8 * s, -27 * s);
+    ctx.quadraticCurveTo(13 * s, -24.5 * s, 11.5 * s, -18 * s); ctx.quadraticCurveTo(8 * s, -22 * s, 5 * s, -17 * s); ctx.quadraticCurveTo(11 * s, -6, 9 * s, 9); ctx.closePath();
+    ink(ctx, craft && mt >= 3 ? '#3a6a92' : UT.body, 2, -10, 10);
+    ctx.beginPath(); ctx.moveTo(-5, 6); ctx.quadraticCurveTo(-8, -6, -3, -19 * s); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.4; ctx.stroke();
+    for (const [x, y] of [[8, -27.5], [11.5, -24], [12, -19]]) { circle(ctx, x * s, y * s, 1.4); flat(ctx, UT.foam, 0.8); }   // foam on the crest's lip
+    ring(ctx, 0, 1, 12.5 * s, 3.6, UT.foam, 1.3, 0, Math.PI);   // the foam band, front half
     for (const k of [-1, 1]) line(ctx, [[k * 7, -6], [k * (many && mt >= 2 ? 15 : 13), many && mt >= 2 ? -16 : -2]], UT.body2, 2.2);   // arms (raised for the Tidecaller)
     if (many && mt >= 2) { ctx.save(); ctx.translate(15, -18); ctx.rotate(0.5); ctx.beginPath(); ctx.moveTo(-3, 3); ctx.quadraticCurveTo(0, -6, 5, -3); ctx.quadraticCurveTo(4, 3, -3, 3); flat(ctx, '#f0d8c0', 1.1); ctx.restore(); }   // the conch
     if (might && mt >= 2) for (const y of [-2, -10]) ring(ctx, 0, y, 9 * s, 2.4, UT.foam, 1, 0, Math.PI);
@@ -504,7 +509,7 @@ const kUndertow = {
     if (might && mt >= 3) ring(ctx, 0, -6, 19, 6, UT.foam, 1.6, 0, Math.PI);
     if (craft && mt >= 2) for (let i = 0; i < 3; i++) { const u = (t * 0.6 + i / 3) % 1; ctx.globalAlpha = 1 - u; circle(ctx, -4 + i * 4, 6 - u * 14, 1.3); flat(ctx, '#bfefff', 0.7); ctx.globalAlpha = 1; }
     eyes(ctx, 0, -14 * s, st, { sep: 3, r: 2.4, brow: craft && mt >= 3 ? 'stern' : 'soft', iris: craft && mt >= 2 ? '#0a7fa8' : INK });
-    if (mt < 4) tuft(ctx, 0, -24 * s, 0.6, d, t);
+    if (mt < 4) tuft(ctx, 1, -29 * s, 0.5, d, t);
   },
   muzzle(P, ang, out) { out[0] = 0; out[1] = -14; return out; },
 };
@@ -627,21 +632,25 @@ function candleWheel(ctx, x, y, P, t, half) {
   circle(ctx, x, y, 2); flat(ctx, BRONZE, 1);
 }
 const lLamp = {
-  self: () => [-6, -30, 6, -8],
+  self: () => [-8, -24, 8, -11],
   body(ctx, P, d) {
     const { might, many, craft, mt, t5 } = P;
     if (t5) lampForm(ctx, P, 'lantern', false);
     plinth(ctx, 26, P, d, LW.soot, 'embers');
-    line(ctx, [[0, 7], [0, -10]], IRON, 2.6);
+    // a crooked lamplighter's pole with a squat lamp hanging from its hook (the Beacon is an upright
+    // lamp on a straight post: this one hangs, and is wide and low)
+    line(ctx, [[-10, 8], [-11, -8], [-8, -22], [-9, -31]], IRON, 2.6);
+    ctx.beginPath(); ctx.moveTo(-9, -31); ctx.quadraticCurveTo(-6, -38, 0, -36); ctx.quadraticCurveTo(4, -35, 3, -31); ctx.strokeStyle = INK; ctx.lineWidth = 4.4; ctx.stroke(); ctx.strokeStyle = IRON; ctx.lineWidth = 2.4; ctx.stroke();
+    line(ctx, [[3, -31], [0, -27]], IRON2, 1.2);
     if (might && mt >= 3) { rrect(ctx, 6, -2, 16, 9, 3); ink(ctx, '#6a4a3a', 1.6, 6, 22); ctx.beginPath(); ctx.ellipse(14, -2, 7, 2, 0, 0, TAU); ctx.fillStyle = WAX2; ctx.fill(); }
     else { poly(ctx, [[7, -2], [19, -2], [17, 7], [9, 7]]); ink(ctx, IRON2, 1.4, 7, 19); for (let i = 0; i < 3; i++) candle(ctx, 10 + i * 3.4, -2, might && mt >= 2 ? 7 : 5, might && mt >= 2 ? 3 : 2, 0, false); }
-    rrect(ctx, -7, -27, 14, 18, 3); ink(ctx, LW.soot, 2, -7, 7);   // the lamp
-    roof(ctx, 0, -27, 18, 6, IRON);
-    if (mt < 4) line(ctx, [[0, -33], [0, -35]], IRON, 1.4);
-    if (many && mt >= 2) for (const s of [-1, 1]) { line(ctx, [[0, -8], [s * 10, -12]], IRON2, 1.2); candle(ctx, s * 10, -12, 4, 1.8, 0, false); }
-    if (craft && mt >= 2) for (const x of [-10, 10]) { line(ctx, [[x * 0.7, -20], [x, -22]], IRON2, 1); candle(ctx, x, -22, 3.4, 1.6, 0, false); }
-    if (mt >= 4) crown(ctx, 0, -34, d, 0.85);
-    return mt >= 4 ? -40 : -35;
+    ctx.beginPath(); ctx.ellipse(0, -23.5, 8, 3.6, 0, Math.PI, TAU); flat(ctx, IRON, 1.4);   // the squat lamp: a low dome cap...
+    rrect(ctx, -9, -24, 18, 12, 3); ink(ctx, LW.soot, 2, -9, 9);   // ...a wide, low body...
+    rrect(ctx, -10, -12.5, 20, 2.6, 1); flat(ctx, IRON2, 1);   // ...and a drip tray
+    if (many && mt >= 2) for (const s of [-1, 1]) { line(ctx, [[-10, -6], [-10 + s * 8, -10]], IRON2, 1.2); candle(ctx, -10 + s * 8, -10, 4, 1.8, 0, false); }
+    if (craft && mt >= 2) for (const x of [-12, 12]) { line(ctx, [[x * 0.75, -18], [x, -20]], IRON2, 1); candle(ctx, x, -20, 3.4, 1.6, 0, false); }
+    if (mt >= 4) crown(ctx, 0, -37, d, 0.8);
+    return mt >= 4 ? -42 : -38;
   },
   back(ctx, P, st, d) {
     const { might, many, craft, mt, t5 } = P, t = st.time;
@@ -655,12 +664,12 @@ const lLamp = {
     const { might, many, craft, mt } = P, t = st.time;
     if (many && mt >= 3) candleWheel(ctx, -16, -6, P, t, 1);
     if (gearInFront(st.ang, -1)) throwArm(ctx, P, st);
-    if (!FACE.skip) { pane(ctx, 0, -18, 9, 12, d); glow(ctx, 0, -18, 12, DMG.fire.core, 0.45 + Math.sin(t * 8) * 0.05); if (craft && mt >= 2) for (const x of [-10, 10]) { glow(ctx, x, -27, 4, '#ffe03a', 0.6); ctx.beginPath(); ctx.ellipse(x, -27, 0.9, 1.8, 0, 0, TAU); ctx.fillStyle = '#fff0a0'; ctx.fill(); } }
+    if (!FACE.skip) { pane(ctx, 0, -18, 13, 7.5, d); glow(ctx, 0, -18, 12, DMG.fire.core, 0.45 + Math.sin(t * 8) * 0.05); if (craft && mt >= 2) for (const x of [-12, 12]) { glow(ctx, x, -25, 4, '#ffe03a', 0.6); ctx.beginPath(); ctx.ellipse(x, -25, 0.9, 1.8, 0, 0, TAU); ctx.fillStyle = '#fff0a0'; ctx.fill(); } }
   },
   muzzle(P, ang, out) { out[0] = -12; out[1] = -22; return out; },
 };
 function throwArm(ctx, P, st) {
-  const sw = Math.sin(st.time * 3) * 0.4, x0 = -6, y0 = -8;
+  const sw = Math.sin(st.time * 3) * 0.4, x0 = -11, y0 = -8;
   const tx = x0 - 8 - Math.cos(sw) * 2, ty = y0 - 10 + sw * 4;
   line(ctx, [[x0, y0], [tx, ty]], IRON2, 1.6);
   ctx.beginPath(); ctx.ellipse(tx, ty, 3, 1.6, 0, 0, TAU); flat(ctx, IRON2, 1);
