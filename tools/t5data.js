@@ -9,7 +9,8 @@ import { ENEMIES } from '../public/js/data/enemies.js';
 
 export const CONDS = ['alone', 'reveal', 'full'];
 export const CAUSES = ['veiled', 'flyers', 'armour', 'shields', 'healers', 'hulks', 'numbers', 'bosses'];
-export const wardName = { bolt: 'Bolt Ward', mortar: 'Mortar', rime: 'Rime Spire', coil: 'Storm Coil', longeye: 'Longeye', censer: 'Censer', prism: 'Prism', beacon: 'Beacon', snare: 'Thornlight Snare', moth: 'Moth Lantern', wander: 'Wandering Light', vault: 'Ember Vault' };
+export const wardName = { bolt: 'Bolt Ward', mortar: 'Mortar', rime: 'Rime Spire', coil: 'Storm Coil', longeye: 'Longeye', censer: 'Censer', prism: 'Prism', beacon: 'Beacon', snare: 'Thornlight Snare', moth: 'Moth Lantern', wander: 'Wandering Light', vault: 'Ember Vault',
+  avatar: 'Heartfire Avatar', choir: 'Astral Choir', ferry: 'Ferrylight', undertow: 'The Undertow', lamp: 'Lampwright' };
 export const noAttack = (type) => TOWERS[type].kind === 'aura' || TOWERS[type].kind === 'vault';
 export const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
 
@@ -32,7 +33,7 @@ export function load(files) {
     }
     // Runs from before solo.js put a Snare's flyer leaks under "flyers" in every condition.
     if (TOWERS[type].kind === 'snare' && cond === 'full' && !causes.flyers) {
-      for (const [name, n] of Object.entries(leaks)) if (ENEMIES[name.replace('veiled ', '')].flying) { causes.flyers = (causes.flyers || 0) + n; causes.numbers -= n; }
+      for (const [name, n] of Object.entries(leaks)) if (ENEMIES[name.replace('veiled ', '')] && ENEMIES[name.replace('veiled ', '')].flying) { causes.flyers = (causes.flyers || 0) + n; causes.numbers -= n; }
     }
     const cl = rs.map((r) => (start > 1 ? r.cleared - (start - 1) : r.cleared));
     return {

@@ -8,6 +8,8 @@ import { NEW_BEHAVIOURS, newTowerFields } from './newwards.js';
 const TAU = Math.PI * 2;
 
 // A tier 5's `power` multiplies everything it deals (POWER_KEYS), after its own mul/set.
+// A second path never lowers these (Hunter's Mark's pierce 3 used to undo a Ballista's 999).
+const MAX_KEYS = new Set(['pierce', 'armorPierce']);
 export const POWER_KEYS = ['damage', 'burnDps', 'poolDps', 'wyrmDps', 'shatterDmg', 'eruptDmg', 'mineDmg', 'lureDps', 'flareDmg', 'wispDmg', 'deep'];
 export function computeStats(def, tiers) {
   const s = { ...def.base };
@@ -15,7 +17,7 @@ export function computeStats(def, tiers) {
   def.paths.forEach((path, pi) => {
     for (let t = 0; t < tiers[pi]; t++) {
       const up = path.tiers[t];
-      if (up.set) Object.assign(s, up.set);
+      if (up.set) for (const k in up.set) s[k] = MAX_KEYS.has(k) && s[k] !== undefined ? Math.max(s[k], up.set[k]) : up.set[k];
       if (up.add) for (const k in up.add) s[k] = (s[k] || 0) + up.add[k];
       if (up.mul) for (const k in up.mul) s[k] = (s[k] || 0) * up.mul[k];
       if (up.power) power *= up.power;

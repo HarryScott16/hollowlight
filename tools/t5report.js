@@ -62,13 +62,13 @@ P();
 // Support wards beside a partner.
 const sup = runs.filter((r) => r.kind === 'support' && r.map === MAIN);
 if (sup.length) {
-  P('### Beacon and Ember Vault beside a partner');
+  P('### Support tier 5s beside a partner');
   P();
-  P(`The partner is a Bolt Ward, Twin-shot tier 4 with Ballista 2 (hits flyers, can't see Veiled), on its best spot; the tier 5 stands right beside it. Best secondary path of the two shown. "Reveal" turns on the reveal switch for the partner.`);
+  P(`The partner is a Bolt Ward, Twin-shot tier 4 with Ballista 2 (hits flyers, can't see Veiled), on its best spot; the tier 5 stands right beside it. The defence spends what it earns (more Bolt Wards beside the partner, Twin-shot to tier 3, and their upgrades; full vaults cashed out), so the economy tier 5s show too. Best secondary path of the two shown. "Reveal" turns on the reveal switch for the partner and its helpers.`);
   P();
   P('| Tier 5 | 2nd path | Alone W1 | Alone E41 | Reveal W1 | Reveal E41 | Partner late DPS (reveal, E41) |');
   P('|---|---|--:|--:|--:|--:|--:|');
-  const rows = [['none', -1, 'partner alone'], ['beacon', 0], ['beacon', 1], ['beacon', 2], ['vault', 0], ['vault', 1], ['vault', 2]];
+  const rows = [['none', -1, 'partner alone'], ['beacon', 0], ['beacon', 1], ['beacon', 2], ['vault', 0], ['vault', 1], ['vault', 2], ['moth', 0], ['moth', 1]];
   for (const [type, path, label] of rows) {
     let best = null;
     for (const minor of path < 0 ? [0] : [0, 1, 2].filter((q) => q !== path)) {
