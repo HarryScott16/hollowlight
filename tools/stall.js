@@ -13,6 +13,7 @@ export function stallGuard(game) {
   let waveStart = 0, spawnEnd = null, push0 = 0;
   const g = {
     stalled: false, reason: '', pushWave: 0,
+    longest: { wave: 0, t: 0, push: 0 },   // the slowest wave so far: its number, seconds and pushback
     // Call when a wave starts.
     wave() { waveStart = game.time; spawnEnd = null; push0 = game.pushback; },
     // Call after each step; true means stop: the wave (or the run) stalled.
@@ -20,6 +21,7 @@ export function stallGuard(game) {
       const t = game.time - waveStart;
       if (spawnEnd === null && game.spawners.length === 0) spawnEnd = t;
       g.pushWave = game.pushback - push0;
+      if (t > g.longest.t) { g.longest.wave = game.wave; g.longest.t = t; g.longest.push = g.pushWave; }
       if (game.time > RUN_CAP) return g.stop(`run passed ${RUN_CAP} s of game time`);
       if (spawnEnd === null) return t > SPAWN_CAP ? g.stop(`still spawning after ${SPAWN_CAP} s`) : false;
       const limit = Math.max(WAVE_MIN, SPAWN_MULT * spawnEnd);

@@ -84,7 +84,7 @@ function statRows(def, s) {
     rows.push(['Bolts per shot', String(s.shots)], ['Pierce', s.pierce >= 999 ? 'all' : String(s.pierce)]);
     if (s.bounces) rows.push(['Ricochets', String(s.bounces)]);
     if (s.armorPierce) rows.push(['Armour ignored', pct(s.armorPierce)]);
-    if (s.knockback) rows.push(['Knockback', String(s.knockback)]);
+    if (s.knockback) rows.push(['Knockback', `${s.knockback} (then braced ${RULES.knockImmune}s)`]);
     if (s.markPct) rows.push(['Mark bonus', `+${pct(s.markPct)}`]);
     if (s.markRadius) rows.push(['Mark spread', String(s.markRadius)]);
     if (s.execute) rows.push(['Execute below', pct(s.execute)]);
@@ -159,7 +159,7 @@ function statRows(def, s) {
   } else if (k === 'ferry') {
     rows.push(['Pierce', String(s.pierce)]);
     if (s.armorPierce) rows.push(['Armour ignored', pct(s.armorPierce)]);
-    if (s.drag) rows.push(['Drags back', `${s.drag}${s.dragChain > 1 ? `, ${s.dragChain} per harpoon` : ''}`]);
+    if (s.drag) rows.push(['Drags back', `${s.drag}${s.dragChain > 1 ? `, ${s.dragChain} per harpoon` : ''} (then braced ${RULES.knockImmune}s)`]);
     if (s.anchor) rows.push(['Anchored', `${s.anchor}s (bosses ${s.anchorBoss}s)`]);
     if (s.rafts) rows.push(['Light-rafts', `${s.rafts}, range ${s.raftRange}${s.shoreParty ? `, ashore ${s.shoreParty}` : ''}`]);
     if (s.dazzle) rows.push(['Dazzle', `${pct(s.dazzle)} slower${s.dazzleAmp ? `, +${pct(s.dazzleAmp)} taken` : ''}`]);

@@ -272,7 +272,7 @@ function updateWisps(game, dt) {
       if (w.great) {
         // a lantern-wisp holds back small Gloom; Heavies push through and take damage
         if (e.def.heavy) game.damage(e, s.damage * 2, s.type, w.src, DOT);
-        else { hold(e, 0.25); game.pushBack(e, 6, w.src); }
+        else { hold(e, 0.25); game.pushBack(e, 6, w.src, 'drift'); }
         continue;
       }
       if (w.hit.includes(e.root)) continue;
@@ -479,14 +479,14 @@ function whirlTick(game, t, s, W, main, abyssNow) {
     if (!e.alive) continue;
     const d2 = (e.x - W.x) ** 2 + (e.y - W.y) ** 2;
     if (mawR && d2 <= mawR * mawR && !e.def.tough && !e.def.heavy && !e.def.boss) { game.kill(e, t, 0, s.type); continue; }
-    if (ripR && d2 <= ripR * ripR && !e.def.boss && e.route === W.route) { const k = Math.sign(W.dist - e.dist) * Math.min(Math.abs(W.dist - e.dist), 70 * TICK); if (k < 0) game.pushBack(e, -k, t); else e.dist += k; }
-    if (floodR && d2 <= floodR * floodR) { applySlow(e, 0.5, 0.3); if (!e.def.heavy) game.pushBack(e, 20 * TICK, t); }
+    if (ripR && d2 <= ripR * ripR && !e.def.boss && e.route === W.route) { const k = Math.sign(W.dist - e.dist) * Math.min(Math.abs(W.dist - e.dist), 70 * TICK); if (k < 0) game.pushBack(e, -k, t, 'drift'); else e.dist += k; }
+    if (floodR && d2 <= floodR * floodR) { applySlow(e, 0.5, 0.3); if (!e.def.heavy) game.pushBack(e, 20 * TICK, t, 'drift'); }
     const r = R + e.r * 0.5;
     if (d2 > r * r) { if (main) e.whirlIn = false; continue; }
     // in the whirl
     if (!e.whirlIn) { e.whirlIn = true; if (s.spin && small(e)) hold(e, s.spin); }
     applySlow(e, s.slow, 0.3);
-    if (!e.def.heavy) game.pushBack(e, s.pull * TICK, t);
+    if (!e.def.heavy) game.pushBack(e, s.pull * TICK, t, 'drift');
     if (s.whirlAmp) { e.whirlT = 0.3; e.whirlAmp = s.whirlAmp; }
     if (s.deepNoHeal) e.searT = Math.max(e.searT, 0.3);
     let dps = s.damage;
@@ -694,7 +694,7 @@ export function useNewAbility(game, t, type, ab, pi) {
       game.grid.query(t.x, t.y, s.range, buf);
       let best = null, bs = -1;
       for (const e of buf) if (e.alive && !e.def.boss && (!e.def.flying || s.hitsAir) && e.def.rank * 1e5 + e.dist > bs) { bs = e.def.rank * 1e5 + e.dist; best = e; }
-      if (best) { game.pushBack(best, ab.drag, t); hold(best, 0.5); game.emit('hook', { x: best.x, y: best.y, x0: t.x, y0: t.y }); }
+      if (best) { game.pushBack(best, ab.drag, t, 'force'); hold(best, 0.5); game.emit('hook', { x: best.x, y: best.y, x0: t.x, y0: t.y }); }
     } else if (pi === 1) t.broadsideT = ab.dur;
     else {
       t.lightfallT = ab.dur;

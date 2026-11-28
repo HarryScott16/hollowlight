@@ -2,6 +2,7 @@
 // how each one fares. Usage: node tools/bot.js [strategyName] [-v]
 import { stallGuard } from './stall.js';
 import { Game } from '../public/js/sim/game.js';
+import { RULES } from '../public/js/data/rules.js';
 import { TOWERS, TOWER_ORDER } from '../public/js/data/towers.js';
 import { upgradeInfo, computeStats, estimateDps } from '../public/js/sim/towers.js';
 
@@ -17,6 +18,9 @@ const only = process.argv.slice(2).find((a) => !a.startsWith('-'));
 const ENDLESS = process.argv.includes('--endless');
 // --no-t5: never buy a tier 5 (to measure what the tier 5s add).
 const NO_T5 = process.argv.includes('--no-t5');
+// --knock=s: try another knockback immunity (RULES.knockImmune) for this run only (0 = none, as before 2026-11-28)
+const KNOCK = process.argv.find((a) => a.startsWith('--knock='));
+if (KNOCK) RULES.knockImmune = Number(KNOCK.slice(8));
 const ENDLESS_CAP = Number((process.argv.find((a) => a.startsWith("--cap=")) || "--cap=60").slice(6));
 
 // order: towers bought in this rotation. paths: [main, minor] path index per tower type.
@@ -431,7 +435,20 @@ function run(name, strat, seed = SEED) {
         state.calledEarly = true;
       }
       t += STEP;
-      if (guard.check()) { log.push(`  !! wave ${game.wave} STALLED: ${guard.reason}`); break; }
+      if (guard.check()) {
+        log.push(`  !! wave ${game.wave} STALLED: ${guard.reason}`);
+        // what's left, and what holds it (stun, snare root, freeze, slow), and how far along the road
+        const left = {};
+        for (const e of game.enemies) {
+          if (!e.alive) continue;
+          const len = e.def.flying ? game.map.routes[e.route].flyPath.length : game.map.routes[e.route].path.length;
+          const k = `${e.type}${e.def.flying ? ' (flyer)' : ''}`;
+          const L = left[k] || (left[k] = { n: 0, hp: 0, at: 0, stun: 0, root: 0, freeze: 0, slow: 0, lure: 0, spawnT: 0 });
+          L.n++; L.hp += e.hp / e.maxHp; L.at += e.dist / len; if (e.stunT > 0) L.stun++; if (e.rootT > 0) L.root++; if (e.freezeT > 0) L.freeze++; if (e.slowT > 0) L.slow++; if (e.lureT > 0) L.lure++;
+        }
+        for (const [k, L] of Object.entries(left)) log.push(`     ${k}: ${L.n} left, hp ${Math.round(100 * L.hp / L.n)}%, ${Math.round(100 * L.at / L.n)}% along; stunned ${L.stun}, rooted ${L.root}, frozen ${L.freeze}, slowed ${L.slow}, lured ${L.lure}`);
+        break;
+      }
     }
     state.safe = game.lives === livesBefore;
     game.botNeedAir = Object.keys(leaks).some((k) => k.endsWith('gloomwing'));
@@ -446,12 +463,16 @@ function run(name, strat, seed = SEED) {
     // sim cost: wall-clock ms per simulated second on this machine. At 3x speed the browser runs
     // 3 sim-seconds per real second, so 3x this is the share of each second spent simulating.
     const cost = ((Date.now() - wall0) / Math.max(1, t)).toFixed(1);
-    log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s ${cost.padStart(5)}ms/s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore}) deepest ${String(Math.round(deepest * 100)).padStart(3)}%  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}${Object.keys(leaks).length ? `  leaks: ${Object.entries(leaks).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
+    log.push(`  wave ${String(game.wave).padStart(2)}: ${t.toFixed(0).padStart(3)}s ${cost.padStart(5)}ms/s  lives ${String(game.lives).padStart(3)} (${game.lives - livesBefore})${guard.pushWave ? ` pushed ${Math.round(guard.pushWave)}px` : ''} deepest ${String(Math.round(deepest * 100)).padStart(3)}%  income ${String(Math.round(game.income[game.wave - 1] || 0)).padStart(5)}  bank ${String(Math.floor(game.gold)).padStart(5)}  towers ${game.towers.length}  tiers ${game.towers.map((tw) => tw.tiers.join('')).join(' ')}${Object.keys(leaks).length ? `  leaks: ${Object.entries(leaks).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
     leaks = {};
   }
   const over = guard.stalled ? 'stalled' : game.over || 'cap';
   if (guard.stalled) console.log(`!! ${name}: wave ${game.wave} STALLED (${guard.reason})`);
-  console.log(`${name.padEnd(16)} ${over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.endless ? 'endless' : game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}  abilities ${abilityUse.flare}F/${abilityUse.ward}W${game.lastLight ? '' : '  LAST LIGHT used'}`);
+  if (game.pushback) {   // who pushed: the wards that pushed the Gloom back the most
+    const by = game.towers.filter((w) => w.pushback).sort((a, b) => b.pushback - a.pushback).slice(0, 4);
+    console.log(`   pushed by: ${by.map((w) => `${w.def.paths[w.tiers.indexOf(Math.max(...w.tiers))].tiers[Math.max(...w.tiers) - 1]?.name || w.type} (${w.type} ${w.tiers.join('')}) ${Math.round(w.pushback)} px`).join(', ')}`);
+  }
+  console.log(`${name.padEnd(16)} ${over.toUpperCase().padEnd(5)} wave ${game.wave}/${game.endless ? 'endless' : game.totalWaves}  lives ${String(game.lives).padStart(3)}  earned ${Math.floor(game.earned)}  peak enemies ${maxEnemies}  boss: ${boss.result}${boss.cost ? ` (-${boss.cost} lives)` : ''}${earlyCalls ? `  early calls ${earlyCalls}` : ''}  abilities ${abilityUse.flare}F/${abilityUse.ward}W${game.lastLight ? '' : '  LAST LIGHT used'}${game.pushback ? `  pushback ${Math.round(game.pushback)} px (last wave ${Math.round(guard.pushWave || 0)})` : ''}  slowest wave ${guard.longest.wave} (${Math.round(guard.longest.t)} s, pushed ${Math.round(guard.longest.push)} px)`);
   if (verbose) {
     console.log(log.join('\n'));
     const byType = {};

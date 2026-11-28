@@ -2,6 +2,168 @@
 
 All on `master`, committed in steps and pushed; nothing shipped to the live site.
 
+## Afternoon update: knockback immunity, and why Ball Lightning got worse with power
+
+### 1. Knockback immunity (built)
+
+After a knockback an enemy is **braced for 1.5 s** (`RULES.knockImmune`, one constant): further
+knockbacks skip the push, and their damage and other effects still land. A braced enemy shows a steel
+bracket with two planted spikes under its feet (cached, one drawImage; shared by both skins, since
+enemy art is). Its stat rows say "Knockback 24 (then braced 1.5s)".
+- **Counts as a knockback:** a bolt's knockback (Ballista, Siege Lance, Worldpiercer), a harpoon's
+  drag (Ferrylight), the Undertow's waves and waterspout.
+- **My choices:** steady currents (a whirlpool's pull, the flood, a lantern-wisp holding the road) are
+  "drift": a few px every tick, so immunity would switch them off; they neither check nor brace. A
+  player's ability (Reel In) always lands, and braces.
+
+**Endless** (Hollowmere Medium, seed 1, `--endless --cap=170`; 0 s is the game before this change):
+
+| Immunity | endless12 | endless12B | endless17 | endless12: total pushback | its wave 135 | slowest wave |
+|---|---|---|---|--:|--:|---|
+| none (before) | **stalled on 135** | lost on 126 | lost on 124 | 1,817,529 px | 520,338 px | 135: stalled at 600 s |
+| 1 s | lost on 137 | lost on 126 | lost on 123 | 737,232 px | 161,132 px | 135: 577 s |
+| **1.5 s (kept)** | lost on 137 | lost on 126 | lost on 122 | 498,980 px | 99,265 px | 135: 558 s |
+| 2 s | lost on 136 | lost on 126 | lost on 124 | 406,054 px | 79,960 px | 134: 495 s |
+
+- **The wave now ends:** no run stalls with immunity on, and the stall guard never fires.
+- **Worldpiercer is the only ward pushing in `endless12`.** It stays strong: before, its defence
+  never lost (it froze on 135 with all 150 lives); now it loses on **137**, the furthest of any build.
+- **Worldpiercer alone is unchanged.** Alone from wave 1 it still reaches 26, and 69 with blind spots
+  removed; from wave 41 it still clears 9 and 29. Up to wave ~70, every lance kills what it hits, so it
+  never pushes anything back (knockback only moves an enemy that survives the hit, and never Heavies).
+  It only pushes in deep endless, where enemies survive a lance.
+- **Strong defences:** `endless12B` 126 and `endless17` 122 are inside 115-130. **`endless12` is 7
+  waves over, at 137**, but not because of knockback: it gets there at any immunity (1, 1.5, 2 or 3 s).
+- 1, 1.5 and 2 s give nearly the same results, so 1.5 s stays.
+
+**A second hold that can still freeze a wave (not knockback).** With an immunity so long that each
+enemy is knocked back only once, `endless12` *still* stalled, on wave 132, with only 6,862 px pushed.
+The stall dump: the 16 enemies left (9 Husks, 6 Menders, a Herald) were all at the same spot, 79%
+along the road, all stunned, rooted and slowed, at 70-82% health. They stood on its **Thornwall**
+(Snare tier 5) with **Chains of Light** (Binding path, tier 2) as the second path:
+- Thornwall bites again every 0.5 s for free, and each bite holds for 0.9 s, so nothing that isn't a
+  Heavy can ever step off it.
+- Meanwhile the Menders out-heal the bites. That is also why waves 131-135 take 220-560 s in every
+  run above.
+- Possible fix: the same rule for holds, so an enemy that was held can't be held again for a moment
+  (or a Thornwall's rebites don't hold). This changes how a Snare plays, so it's your call; I haven't
+  touched it.
+
+### 2. Why Ball Lightning got worse above x24 (investigated, nothing changed)
+
+`node tools/t5power.js coil:1 powers=...` (new tool: alone, blind spots removed, from wave 1; it logs
+kills, overkill, strikes, forks, chain length and the orbs):
+
+| Power | Waves (seed 1 / 2 / 3) | Orbs spawned (whole run, seed 1) | Orb timer retries (no live target) | Overkill | Forks per shot / chain |
+|---|---|--:|--:|--:|---|
+| x1 | 28 | 15 | 6,154 | 72% | 1.9 / 6.8 |
+| x4 | 35 | 2 | 8,313 | 90% | 2.2 / 6.0 |
+| x8 | 39 / 39 / 39 | 0 | 9,424 | 94% | 2.2 / 6.3 |
+| x16 | 39 / 39 / 39 | 0 | 9,328 | 97% | 2.2 / 6.4 |
+| x24 (baked) | **55** / 39 / 39 | 4 | 13,329 | 96% | 2.2 / 6.5 |
+| x32 | 39 / 39 / 34 | 0 | 9,247 | 99% | 2.2 / 6.4 |
+| x48 | 39 / 39 / 34 | 0 | 9,248 | 99% | 2.2 / 6.3 |
+| x96 | 39 | 0 | 9,248 | 100% | 2.2 / 6.3 |
+
+It doesn't really get worse past x24. **x24 on seed 1 was a lucky 55**; at every power from x8 up it
+hits a wall at wave 40. Two mechanics cause it:
+
+1. **The orbs almost never spawn (a bug, at every power).** `spawnOrb` only fires while the coil's
+   `t.target` is alive (`if (!t.target) retry in 0.3 s`). But `track()` clears `t.target` the moment
+   that target dies, and a strike kills its first target almost every time (already at x1 in the
+   early waves). So the timer retries thousands of times, and a whole run gets 0-15 orbs instead of
+   about a thousand. Ball Lightning is really its tier 4 (Maelstrom) times its power. A test-only
+   check (keeping a live target whenever one is in reach) brings the orbs back, and it then rises
+   with power as it should:
+
+   | Power | Orbs working (seeds 1 / 2 / 3) |
+   |---|---|
+   | x8 | 65 / 59 / 59 |
+   | x24 | 73 / 74 / 80 |
+   | x48 | 87 / 84 / 86 |
+
+2. **One-shotting the Hollow King releases his whole host at once.** On wave 40, from x32 up, the coil
+   kills the King in one strike at 13% along the road:
+   - All 8 of his phases and his death burst come out together: 82 Gloomwings among them.
+   - They take off from the flight line and leave the coil's reach (135) at once: 84 lives lost.
+   - At x8 he dies over ~70 s, at 74% along the road, and the coil kills 6,400 enemies in that wave
+     before losing; at x32 it kills 1,700. That drop is the "more power is worse" signal.
+   - At x24 on seed 1 he happened to walk to 63% before dying, so the coil got through.
+
+**Other tier 5s** (`node tools/t5power.js all rel=0.5,1,2`: each at half, one and two times its power):
+- **None gets worse with power except Ball Lightning.** All of them rise or level off.
+- **Worldbreaker looked like it dipped** (64, 67, 64). Over three seeds at x35-x200 it's flat at
+  64-83 with no trend.
+- **Some level off:** Worldbreaker (~70 from x35), Elder Wyrm (69 at x20 and x40), Lantern Armada
+  (69 at x49 and x98), and Heartline (23 at every power).
+  - 96-99% of their damage is already overkill: they're limited by how many enemies they reach, not
+    by damage.
+  - Lantern Armada at half power also stops at wave 40, the same King wall.
+  - The full sweep (waves cleared from wave 1, blind spots removed, seed 1):
+
+<details><summary>All 42 attacking tier 5s at half, one and two times their power</summary>
+
+| Tier 5 | x0.5 | x1 (baked) | x2 | overkill at x2 |
+|---|--:|--:|--:|--:|
+| Worldpiercer | 69 (x46) | 69 (x92) | 79 (x184) | 98% |
+| Thousand Bolts | 85 (x12.5) | 92 (x25) | 102 (x50) | 45% |
+| Wild Hunt | 87 (x23.5) | 94 (x47) | 102 (x94) | 88% |
+| Worldbreaker | 64 (x25) | 67 (x50) | 64 (x100) | 99% |
+| Grand Battery | 65 (x2.9) | 76 (x5.8) | 83 (x11.6) | 42% |
+| Magma Heart | 45 (x3.4) | 64 (x6.8) | 70 (x13.6) | 65% |
+| Permafrost | 49 (x6.5) | 66 (x13) | 74 (x26) | 96% |
+| Avalanche | 72 (x3.95) | 80 (x7.9) | 85 (x15.8) | 84% |
+| Whiteout | 63 (x6) | 69 (x12) | 80 (x24) | 81% |
+| Stormlord | 65 (x7) | 70 (x14) | 84 (x28) | 94% |
+| Ball Lightning | 39 (x12) | 55 (x24) | 39 (x48) | 99% |
+| Eye of the Storm | 76 (x11) | 86 (x22) | 92 (x44) | 86% |
+| Kingslayer | 55 (x1.75) | 59 (x3.5) | 64 (x7) | 95% |
+| Shrapnel Storm | 88 (x39) | 100 (x78) | 103 (x156) | 90% |
+| Phoenix | 55 (x6.5) | 66 (x13) | 75 (x26) | 7% |
+| Elder Wyrm | 49 (x10) | 69 (x20) | 69 (x40) | 76% |
+| Pall of Ash | 49 (x59) | 62 (x118) | 67 (x236) | 72% |
+| Dawnbreaker | 70 (x3.4) | 80 (x6.8) | 89 (x13.6) | 74% |
+| Lightweb | 69 (x3.1) | 73 (x6.2) | 84 (x12.4) | 7% |
+| Second Sun | 60 (x3.5) | 70 (x7) | 81 (x14) | 95% |
+| Thornwall | 49 (x14) | 68 (x28) | 71 (x56) | 97% |
+| Constellation | 59 (x25.5) | 64 (x51) | 70 (x102) | 97% |
+| Seal of Dawn | 48 (x16.5) | 59 (x33) | 69 (x66) | 98% |
+| Moth Queen | 46 (x6) | 61 (x12) | 69 (x24) | 67% |
+| Falling Sky | 66 (x3.7) | 74 (x7.4) | 85 (x14.8) | 88% |
+| Starhost | 70 (x3.7) | 78 (x7.4) | 90 (x14.8) | 55% |
+| Dawnbringer | 52 (x16.5) | 58 (x33) | 62 (x66) | 97% |
+| Zenith | 73 (x32.5) | 79 (x65) | 90 (x130) | 92% |
+| Grand Orrery | 73 (x12.5) | 78 (x25) | 89 (x50) | 85% |
+| Syzygy | 49 (x2.35) | 64 (x4.7) | 69 (x9.4) | 84% |
+| Great Bell | 67 (x5.5) | 74 (x11) | 87 (x22) | 87% |
+| Heavenly Host | 69 (x2.9) | 82 (x5.8) | 89 (x11.6) | 42% |
+| Last Requiem | 57 (x5.5) | 68 (x11) | 80 (x22) | 70% |
+| Heartline | 24 (x5) | 23 (x10) | 23 (x20) | 98% |
+| Lantern Armada | 39 (x24.5) | 69 (x49) | 69 (x98) | 98% |
+| Harbour Star | 49 (x3.35) | 67 (x6.7) | 74 (x13.4) | 83% |
+| Great Maelstrom | 69 (x42) | 75 (x84) | 79 (x168) | 68% |
+| Tidal Throne | 48 (x38) | 62 (x76) | 69 (x152) | 72% |
+| Drowned Deep | 47 (x29) | 62 (x58) | 68 (x116) | 67% |
+| Undying Taper | 62 (x9.5) | 69 (x19) | 79 (x38) | 25% |
+| Thousand Wicks | 58 (x24) | 65 (x48) | 75 (x96) | 18% |
+| Eternal Vigil | 49 (x19.5) | 61 (x39) | 68 (x78) | 19% |
+
+</details>
+
+**Fixes for Ball Lightning (pick one):**
+1. **Fix the orb trigger** (smallest change): an orb spawns whenever anything is in the coil's reach,
+   not only while its last target lives. Then lower its power: x8 already reaches ~61, so about x6-8
+   meets its 66 target, and the price comes down to match.
+2. **Orbs from kills:** each enemy a strike kills releases an orb where it fell, up to a cap. More
+   power means more orbs, so it scales with power by design. Orbs could also roll along the flight
+   line, so a burst of flyers meets them.
+3. **Orbs that seek:** an orb rolls toward the nearest crowd (up or down the road) instead of always
+   back toward the Rift, and can arc into flyers, so the King's Gloomwings meet one. Most work, and
+   it's the one that also beats the King wall by design.
+
+Separately, for every tier 5 (your call): **the Hollow King could call at most one host per hit** (or
+one every second or so), so a one-shot doesn't dump all of them at once in the same spot.
+
 ## What you decided (while you were around)
 
 - Endless keeps its curve to wave 100 (the solo targets are measured on it) and is steeper after it.
@@ -190,8 +352,8 @@ pushback per enemy per wave would end it.
 
 ## Please look at
 
-1. **Pushback**: the Worldpiercer stall above.
-2. **Heartline and Ball Lightning** fall short of the 55 target with blind spots removed; neither
+1. **Pushback**: the Worldpiercer stall above. *Afternoon: fixed with knockback immunity (see the update at the top); a Thornwall hold can still freeze a wave.*
+2. *(Afternoon: Ball Lightning explained at the top: its orbs never spawn; pick a fix.)* **Heartline and Ball Lightning** fall short of the 55 target with blind spots removed; neither
    responds to power (Heartline covers too little road from its pond; Ball Lightning gets worse above
    x24). Each needs a design change rather than numbers.
 3. **Blind tier 5s alone stop at 21-24**, a little short of ~25 (one more wave of easing would fix it).

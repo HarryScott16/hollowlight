@@ -36,6 +36,8 @@ export const RULES = {
   // a Veiled boss, earlyBossLeak). From the next wave they cost the full amount.
   // Lampwright candles: at most this many on the map (all Lampwrights together; the oldest go out).
   candleCap: 160,
+  knockImmune: 1.5,      // s after a knockback (a hit, drag, wave or spout) when the same enemy can't be knocked back
+                         // again; damage still lands. Steady currents (whirlpool pull) aren't knockbacks.
   // A water ward stands at least this far inside a pond's shore.
   waterMargin: 12,
   earlyLeakWave: 20,

@@ -164,6 +164,7 @@ export function runSolo(o) {
   }
   const airOn = () => { if (cond === 'full') t.stats.hitsAir = true; };
   airOn();
+  if (o.setup) o.setup(game, t);   // instrumentation hooks (tools/t5power.js); never change play
   if (start > 1) {   // straight into endless at `start`, fresh lives
     game.wave = game.rewarded = game.waves.length;
     game.over = 'win'; game.continueEndless();
@@ -203,6 +204,7 @@ export function runSolo(o) {
     let w = 0, steps = 0;
     while (!game.over && !game.clear) {
       game.step(STEP);
+      if (o.onStep) o.onStep(game, t);
       if (++steps % 30 === 0) {
         airOn();
         // its ability, as the bot uses abilities: when there's a crowd or a hulk

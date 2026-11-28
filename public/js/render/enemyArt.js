@@ -537,6 +537,22 @@ function lowOverlay(r) {
   return overlay(`lw${Math.round(r)}`, R, (g) => { g.scale(1, 0.5); g.strokeStyle = 'rgba(255,224,58,0.9)'; g.lineWidth = 2.4; g.setLineDash([4, 3]); g.beginPath(); g.arc(0, 0, r + 1, 0, TAU); g.stroke(); });
 }
 
+// Braced (knocked back moments ago, so further knockbacks don't move it: e.knockT): a steel bracket
+// under its feet, planted with two short spikes.
+function braceOverlay(r) {
+  const R = r + 5;
+  return overlay(`br${Math.round(r)}`, R, (g) => {
+    const a0 = 0.1 * Math.PI, cx = Math.cos(a0) * (r + 2), cy = Math.sin(a0) * (r + 2) * 0.45;
+    g.lineCap = 'round';
+    for (const [col, lw] of [['rgba(24,26,40,0.55)', 4.6], ['rgba(226,234,248,0.95)', 2.4]]) {   // dark edge, then steel
+      g.strokeStyle = col; g.lineWidth = lw;
+      g.beginPath(); g.ellipse(0, 0, r + 2, (r + 2) * 0.45, 0, a0, Math.PI - a0);
+      g.moveTo(cx, cy); g.lineTo(cx + 2, cy + 5); g.moveTo(-cx, cy); g.lineTo(-cx - 2, cy + 5); g.stroke();
+    }
+  });
+}
+function drawBrace(ctx, r) { const R = r + 5; ctx.drawImage(braceOverlay(r), -R, r * 0.55 - R, R * 2, R * 2); }
+
 // The renderer's base transform (its scale and screen-shake offset). drawEnemy sets the whole
 // transform for each enemy in one call rather than save/translate/rotate/restore, and does NOT
 // put the base transform back: whoever draws next sets its own (the renderer resets it before a
@@ -589,7 +605,7 @@ export function drawEnemy(ctx, e, lite, quality = lite ? 1 : 2) {
 
   // status overlays, upright (cached where they're common); skipped entirely when there are none
   const q2 = quality === 2;
-  if (!(e.shield > 0 || e.veiled || e.freezeT > 0 || (e.slowT > 0 && q2) || e.stunT > 0 || e.flash > 0 || e.groundT > 0 || (q2 && (e.burnT > 0 || e.searT > 0 || e.markT > 0 || e.chargedT > 0 || e.hasteT > 0)))) {
+  if (!(e.shield > 0 || e.veiled || e.freezeT > 0 || (e.slowT > 0 && q2) || e.stunT > 0 || e.flash > 0 || e.groundT > 0 || e.knockT > 0 || (q2 && (e.burnT > 0 || e.searT > 0 || e.markT > 0 || e.chargedT > 0 || e.hasteT > 0)))) {
     queueBar(e, x, y, r);
     return;
   }
@@ -669,6 +685,7 @@ export function drawEnemy(ctx, e, lite, quality = lite ? 1 : 2) {
   if (e.rootT > 0) { const R = r + 7; ctx.drawImage(heldOverlay(r), -R, -R, R * 2, R * 2); }
   else if (e.stunT > 0) ctx.drawImage(stunOverlay(r, e.wob), -(r * 1.6 + 8), -(r * 1.6 + 8), (r * 1.6 + 8) * 2, (r * 1.6 + 8) * 2);
   if (e.groundT > 0 && !(e.lureT > 0)) { const R = r + 4; ctx.drawImage(lowOverlay(r), -R, 16 - R * 0.5, R * 2, R); }
+  if (e.knockT > 0) drawBrace(ctx, r);
   if (e.flash > 0) {
     const R = r * 1.05 + 1;
     ctx.globalAlpha = Math.min(1, e.flash * 10);
@@ -691,8 +708,10 @@ function drawCrowdEnemy(ctx, e, x, y, r, quality) {
     const lv = Math.min(FLASH_LV, Math.ceil(e.flash * 10 * FLASH_LV)), R = r * 1.05 + 1;
     ctx.drawImage(overlay(`fq${Math.round(r)}|${lv}`, R, (g) => { g.fillStyle = '#fff'; g.globalAlpha = lv / FLASH_LV; g.beginPath(); g.arc(0, 0, r * 1.05, 0, TAU); g.fill(); }), -R, -R, R * 2, R * 2);
   }
-  if (e.shield > 0 || e.freezeT > 0 || e.stunT > 0 || e.groundT > 0) {
+  const brace = e.knockT > 0 && quality > 0;   // (a huge crowd skips it)
+  if (e.shield > 0 || e.freezeT > 0 || e.stunT > 0 || e.groundT > 0 || brace) {
     ctx.setTransform(BS, 0, 0, BS, BX + x * BS, BY + y * BS);
+    if (brace) drawBrace(ctx, r);
     if (e.rootT > 0) { const R = r + 7; ctx.drawImage(heldOverlay(r), -R, -R, R * 2, R * 2); }
     if (e.groundT > 0 && !(e.lureT > 0)) { const R = r + 4; ctx.drawImage(lowOverlay(r), -R, 16 - R * 0.5, R * 2, R); }
     if (e.shield > 0) {

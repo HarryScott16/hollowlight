@@ -564,9 +564,15 @@ export class Game {
   // plus everything inside it. At least 1.
   // Push an enemy back along its road (or its flight line) by up to px; returns how far it moved.
   // Every knockback, drag and current goes through here, so the test tools can count it.
-  pushBack(e, px, src) {
+  // mode: 'knock' (default) is a discrete knockback: it is skipped while the enemy is braced
+  // (e.knockT, RULES.knockImmune s after the last one), which keeps a wave from being held for ever;
+  // 'force' (a player's ability) always lands and braces; 'drift' (a steady current, applied a little
+  // every tick) neither checks nor braces.
+  pushBack(e, px, src, mode = 'knock') {
+    if (mode === 'knock' && e.knockT > 0) return 0;
     const d = Math.min(e.dist, px);
     if (d <= 0) return 0;
+    if (mode !== 'drift') e.knockT = RULES.knockImmune;
     e.dist -= d;
     this.pushback += d;
     if (src) src.pushback = (src.pushback || 0) + d;

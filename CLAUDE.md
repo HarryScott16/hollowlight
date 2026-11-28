@@ -92,9 +92,16 @@ and a modifier switches on every 5 waves from 45 to 90. Above the spawn cap, gro
 evenly and tough enemies carry the lost health. Leaks cost at most 5 lives per enemy in endless (40 per
 boss; the campaign keeps 25 and uncapped bosses: `RULES.endlessMaxLeak`), so a breaking defence bleeds
 lives over several waves. `node tools/endless.js` prints the curve.
-The game has no pushback limit and never times a wave out. The test tools do (`tools/stall.js`, used
+Knockback immunity (2026-11-28): after a knockback (a bolt's knockback, a harpoon's drag, an Undertow
+wave or waterspout) an enemy is braced for `RULES.knockImmune` (1.5 s, `e.knockT`): further knockbacks
+skip the push (their damage still lands), and it shows a steel bracket under its feet. Steady currents
+(a whirlpool's pull, the flood, a wisp holding the road) are `'drift'` and neither check nor brace;
+a player's ability (Reel In) is `'force'`: it always lands and braces (`Game.pushBack(e, px, src, mode)`).
+The game never times a wave out. The test tools do (`tools/stall.js`, used
 by bot.js and solo.js): a wave not cleared after max(600 s, 5x its spawning time) ends the run as
-"stalled", and they report how far the Gloom were pushed back (`game.pushback`, `Game.pushBack`).
+"stalled", and they report how far the Gloom were pushed back (`game.pushback`, `Game.pushBack`), by
+which ward, the slowest wave, and at a stall what's left and what holds it. `--knock=s` tries another
+immunity for one bot run. `tools/t5power.js` sweeps a tier 5's power and logs what changes inside it.
 
 ## Layout
 
